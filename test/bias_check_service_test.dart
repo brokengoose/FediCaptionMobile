@@ -1,0 +1,67 @@
+// Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
+// SPDX-License-Identifier: MIT
+
+import 'package:fedicaption_mobile/models/ai_models.dart';
+import 'package:fedicaption_mobile/models/app_settings.dart';
+import 'package:fedicaption_mobile/models/bias_models.dart';
+import 'package:fedicaption_mobile/services/ai_provider_service.dart';
+import 'package:fedicaption_mobile/services/bias_check_service.dart';
+import 'package:fedicaption_mobile/services/link_preview_fetcher.dart';
+import 'package:fedicaption_mobile/services/mastodon_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+void main() {
+  group('BiasCheckService', () {
+    test('falls back to local heuristics and checks linked webpage title/description when AI is offline', () async {
+      final linkClient = MockClient((request) async {
+        if (request.url.toString() == 'https://example.org/post') {
+          return http.Response(
+            '<html><head><title>Updating the Whitelist</title>'
+            '<meta name="description" content="Legacy blacklist policy notes.">'
+            '</head><body><p>Read more about grandfathered accounts.</p></body></html>',
+            200,
+            headers: {'content-type': 'text/html; charset=utf-8'},
+          );
+        }
+        return http.Response('Not found', 404);
+      });
+
+      final offlineAiClient = MockClient((_) async {
+        throw Exception('Network unreachable');
+      });
+
+      final service = BiasCheckService(
+        aiProviderService: AiProviderService(client: offlineAiClient),
+        linkPreviewFetcher: LinkPreviewFetcher(client: linkClient),
+        mastodonService: MastodonService(client: offlineAiClient),
+      );
+
+      final result = await service.checkDraft(
+        input: const BiasCheckInput(
+          postText: 'Hey guys, check out https://example.org/post',
+        ),
+        settings: const AppSettings(activeProvider: AiProviderType.gemini),
+        credentials: const AiCredentials(geminiApiKey: 'key'),
+      );
+
+      expect(result.hasBias, isTrue);
+      expect(result.usedLocalFallback, isTrue);
+      expect(
+        result.findings.any((f) => f.location == 'Post Text'),
+        isTrue,
+      );
+      expect(
+        result.findings.any(
+          (f) => f.location == 'Link (https://example.org/post)',
+        ),
+        isTrue,
+      );
+      expect(
+        result.suggestedAlternateWording,
+        'Hey everyone, check out https://example.org/post',
+      );
+    });
+  });
+}

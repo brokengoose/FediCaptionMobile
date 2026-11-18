@@ -1,0 +1,253 @@
+// Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
+// SPDX-License-Identifier: MIT
+
+import '../core/constants.dart';
+import 'ai_models.dart';
+
+/// Shared policy mode for both Accessibility Rules (alt-text) and Bias Rules.
+enum PolicyMode {
+  warn('warn', 'Warn (Default)', 'Warn before posting, with an option to continue anyway.'),
+  require('require', 'Require', 'Block posting until resolved.'),
+  off('off', 'Off', 'Do not check or warn before posting.');
+
+  const PolicyMode(this.id, this.label, this.description);
+
+  final String id;
+  final String label;
+  final String description;
+
+  static PolicyMode fromId(String? id) {
+    return PolicyMode.values.firstWhere(
+      (e) => e.id == id,
+      orElse: () => PolicyMode.warn,
+    );
+  }
+}
+
+/// User theme choice. Defaults to [system] which automatically detects OS
+/// Light Mode, Dark Mode, and High Contrast / Increased Contrast settings.
+enum ThemePreference {
+  system('system', 'System Default (Auto-Detect)'),
+  dark('dark', 'Dark Theme'),
+  light('light', 'Light Theme'),
+  highContrast('high_contrast', 'High Contrast (WCAG AAA)');
+
+  const ThemePreference(this.id, this.label);
+
+  final String id;
+  final String label;
+
+  static ThemePreference fromId(String? id) {
+    return ThemePreference.values.firstWhere(
+      (e) => e.id == id,
+      orElse: () => ThemePreference.system,
+    );
+  }
+}
+
+/// Non-secret user settings persisted via SharedPreferences.
+class AppSettings {
+  const AppSettings({
+    this.activeProvider = AiProviderType.gemini,
+    this.geminiModel = 'gemini-2.5-flash',
+    this.openAiModel = 'gpt-4o-mini',
+    this.openAiBaseUrl = AppConstants.openAiDefaultBaseUrl,
+    this.anthropicModel = 'claude-sonnet-4-20250514',
+    this.localModel = 'llama3.2-vision',
+    this.localBaseUrl = AppConstants.localDefaultBaseUrl,
+    this.defaultDetailLevel = CaptionDetailLevel.descriptive,
+    this.videoKeyframeCount = 4,
+    this.autoGenerate = true,
+    this.includePostContext = true,
+    this.language = 'English',
+    this.customInstructions = '',
+    this.altTextPolicy = PolicyMode.warn,
+    this.biasPolicy = PolicyMode.warn,
+    this.themePreference = ThemePreference.system,
+  });
+
+  final AiProviderType activeProvider;
+  final String geminiModel;
+  final String openAiModel;
+  final String openAiBaseUrl;
+  final String anthropicModel;
+  final String localModel;
+  final String localBaseUrl;
+  final CaptionDetailLevel defaultDetailLevel;
+  final int videoKeyframeCount;
+  final bool autoGenerate;
+  final bool includePostContext;
+  final String language;
+  final String customInstructions;
+  final PolicyMode altTextPolicy;
+  final PolicyMode biasPolicy;
+  final ThemePreference themePreference;
+
+  String modelForProvider(AiProviderType provider) {
+    switch (provider) {
+      case AiProviderType.gemini:
+        return geminiModel;
+      case AiProviderType.openai:
+        return openAiModel;
+      case AiProviderType.anthropic:
+        return anthropicModel;
+      case AiProviderType.local:
+        return localModel;
+    }
+  }
+
+  String get activeModel => modelForProvider(activeProvider);
+
+  AppSettings withModelForProvider(AiProviderType provider, String model) {
+    switch (provider) {
+      case AiProviderType.gemini:
+        return copyWith(geminiModel: model);
+      case AiProviderType.openai:
+        return copyWith(openAiModel: model);
+      case AiProviderType.anthropic:
+        return copyWith(anthropicModel: model);
+      case AiProviderType.local:
+        return copyWith(localModel: model);
+    }
+  }
+
+  AppSettings copyWith({
+    AiProviderType? activeProvider,
+    String? geminiModel,
+    String? openAiModel,
+    String? openAiBaseUrl,
+    String? anthropicModel,
+    String? localModel,
+    String? localBaseUrl,
+    CaptionDetailLevel? defaultDetailLevel,
+    int? videoKeyframeCount,
+    bool? autoGenerate,
+    bool? includePostContext,
+    String? language,
+    String? customInstructions,
+    PolicyMode? altTextPolicy,
+    PolicyMode? biasPolicy,
+    ThemePreference? themePreference,
+  }) {
+    return AppSettings(
+      activeProvider: activeProvider ?? this.activeProvider,
+      geminiModel: geminiModel ?? this.geminiModel,
+      openAiModel: openAiModel ?? this.openAiModel,
+      openAiBaseUrl: openAiBaseUrl ?? this.openAiBaseUrl,
+      anthropicModel: anthropicModel ?? this.anthropicModel,
+      localModel: localModel ?? this.localModel,
+      localBaseUrl: localBaseUrl ?? this.localBaseUrl,
+      defaultDetailLevel: defaultDetailLevel ?? this.defaultDetailLevel,
+      videoKeyframeCount: videoKeyframeCount ?? this.videoKeyframeCount,
+      autoGenerate: autoGenerate ?? this.autoGenerate,
+      includePostContext: includePostContext ?? this.includePostContext,
+      language: language ?? this.language,
+      customInstructions: customInstructions ?? this.customInstructions,
+      altTextPolicy: altTextPolicy ?? this.altTextPolicy,
+      biasPolicy: biasPolicy ?? this.biasPolicy,
+      themePreference: themePreference ?? this.themePreference,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'activeProvider': activeProvider.id,
+        'geminiModel': geminiModel,
+        'openAiModel': openAiModel,
+        'openAiBaseUrl': openAiBaseUrl,
+        'anthropicModel': anthropicModel,
+        'localModel': localModel,
+        'localBaseUrl': localBaseUrl,
+        'defaultDetailLevel': defaultDetailLevel.id,
+        'videoKeyframeCount': videoKeyframeCount,
+        'autoGenerate': autoGenerate,
+        'includePostContext': includePostContext,
+        'language': language,
+        'customInstructions': customInstructions,
+        'altTextPolicy': altTextPolicy.id,
+        'biasPolicy': biasPolicy.id,
+        'themePreference': themePreference.id,
+      };
+
+  factory AppSettings.fromJson(Map<String, dynamic> json) {
+    final keyframeCount = json['videoKeyframeCount'] as int? ?? 4;
+    return AppSettings(
+      activeProvider: AiProviderType.fromId(json['activeProvider'] as String?),
+      geminiModel: (json['geminiModel'] as String?) ?? 'gemini-2.5-flash',
+      openAiModel: (json['openAiModel'] as String?) ?? 'gpt-4o-mini',
+      openAiBaseUrl:
+          (json['openAiBaseUrl'] as String?) ?? AppConstants.openAiDefaultBaseUrl,
+      anthropicModel:
+          (json['anthropicModel'] as String?) ?? 'claude-sonnet-4-20250514',
+      localModel: (json['localModel'] as String?) ?? 'llama3.2-vision',
+      localBaseUrl:
+          (json['localBaseUrl'] as String?) ?? AppConstants.localDefaultBaseUrl,
+      defaultDetailLevel:
+          CaptionDetailLevel.fromId(json['defaultDetailLevel'] as String?),
+      videoKeyframeCount:
+          (keyframeCount == 3 || keyframeCount == 4 || keyframeCount == 6)
+              ? keyframeCount
+              : 4,
+      autoGenerate: json['autoGenerate'] as bool? ?? true,
+      includePostContext: json['includePostContext'] as bool? ?? true,
+      language: (json['language'] as String?) ?? 'English',
+      customInstructions: (json['customInstructions'] as String?) ?? '',
+      altTextPolicy: PolicyMode.fromId(json['altTextPolicy'] as String?),
+      biasPolicy: PolicyMode.fromId(json['biasPolicy'] as String?),
+      themePreference:
+          ThemePreference.fromId(json['themePreference'] as String?),
+    );
+  }
+}
+
+/// Sensitive AI API keys stored strictly in platform secure storage (Keychain / Keystore).
+class AiCredentials {
+  const AiCredentials({
+    this.geminiApiKey = '',
+    this.openAiApiKey = '',
+    this.anthropicApiKey = '',
+    this.localApiKey = '',
+  });
+
+  final String geminiApiKey;
+  final String openAiApiKey;
+  final String anthropicApiKey;
+  final String localApiKey;
+
+  String apiKeyFor(AiProviderType provider) {
+    switch (provider) {
+      case AiProviderType.gemini:
+        return geminiApiKey;
+      case AiProviderType.openai:
+        return openAiApiKey;
+      case AiProviderType.anthropic:
+        return anthropicApiKey;
+      case AiProviderType.local:
+        return localApiKey;
+    }
+  }
+
+  AiCredentials copyWith({
+    String? geminiApiKey,
+    String? openAiApiKey,
+    String? anthropicApiKey,
+    String? localApiKey,
+  }) {
+    return AiCredentials(
+      geminiApiKey: geminiApiKey ?? this.geminiApiKey,
+      openAiApiKey: openAiApiKey ?? this.openAiApiKey,
+      anthropicApiKey: anthropicApiKey ?? this.anthropicApiKey,
+      localApiKey: localApiKey ?? this.localApiKey,
+    );
+  }
+}
+
+/// Stored Mastodon account credentials.
+class MastodonSession {
+  const MastodonSession({
+    required this.instanceUrl,
+    required this.accessToken,
+  });
+
+  final String instanceUrl;
+  final String accessToken;
+}
