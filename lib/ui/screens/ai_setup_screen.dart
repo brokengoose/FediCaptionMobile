@@ -11,6 +11,7 @@ import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
 import '../../services/ai_provider_service.dart';
 import '../../state/app_controller.dart';
+import '../widgets/on_device_ai_status_card.dart';
 
 /// First-time onboarding screen shown right after the user signs in to Mastodon,
 /// letting them configure an AI provider (API key, server URL, and alphabetically
@@ -58,6 +59,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
     _localKeyCtrl = TextEditingController(text: c.localApiKey);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.app.refreshOnDeviceAiStatus();
       if (_selectedProvider != AiProviderType.none) {
         widget.app.refreshModelsFor(_selectedProvider);
       }
@@ -243,6 +245,9 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                       ),
 
                       const SizedBox(height: 16),
+
+                      if (_selectedProvider == AiProviderType.onDevice)
+                        OnDeviceAiStatusCard(app: widget.app),
 
                       if (_selectedProvider == AiProviderType.gemini)
                         _buildApiKeyField(

@@ -26,6 +26,7 @@ dependencies:
   image_picker: ^1.1.2
   file_picker: ^13.4.0
   flutter_tts: ^4.2.0
+  edge_gen_ai: ^0.4.0
   get_thumbnail_video: ^0.7.3
   video_player: ^2.9.2
   html: ^0.15.4

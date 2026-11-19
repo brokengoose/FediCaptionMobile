@@ -10,6 +10,7 @@ import '../core/constants.dart';
 import '../models/ai_models.dart';
 import '../models/app_settings.dart';
 import 'caption_formatter.dart';
+import 'on_device_ai_service.dart';
 import 'video_frame_extractor.dart';
 
 class AiProviderException implements Exception {
@@ -21,17 +22,21 @@ class AiProviderException implements Exception {
 }
 
 /// Handles dynamic model discovery, accessible image/video alt-text generation,
-/// and multimodal text+image analysis across Gemini, OpenAI-compatible, Anthropic,
-/// and Local (Ollama / LM Studio LAN) endpoints.
+/// and multimodal text+image analysis across On-Device OS AI (Apple Foundation Models
+/// & Google Gemini Nano via ML Kit GenAI), Gemini, OpenAI-compatible, Anthropic,
+/// and Local LAN (Ollama / LM Studio) endpoints.
 class AiProviderService {
   AiProviderService({
     http.Client? client,
     VideoFrameExtractor? videoFrameExtractor,
+    OnDeviceAiService? onDeviceAiService,
   })  : _client = client ?? http.Client(),
-        _videoFrameExtractor = videoFrameExtractor ?? const VideoFrameExtractor();
+        _videoFrameExtractor = videoFrameExtractor ?? const VideoFrameExtractor(),
+        _onDeviceAi = onDeviceAiService ?? OnDeviceAiService();
 
   final http.Client _client;
   final VideoFrameExtractor _videoFrameExtractor;
+  final OnDeviceAiService _onDeviceAi;
 
   /// Sorts model options alphabetically (case-insensitive by display name, then ID).
   static List<AiModelOption> sortAlphabetically(Iterable<AiModelOption> models) {
@@ -50,6 +55,21 @@ class AiProviderService {
   static List<AiModelOption> defaultModelsFor(AiProviderType provider) {
     final List<AiModelOption> models;
     switch (provider) {
+      case AiProviderType.onDevice:
+        models = const [
+          AiModelOption(
+            id: OnDeviceAiService.modelAuto,
+            displayName: 'On-Device Auto (Vision Prompt + Image Describer)',
+          ),
+          AiModelOption(
+            id: OnDeviceAiService.modelImageDescriber,
+            displayName: 'On-Device Image Describer (Fast Alt-Text)',
+          ),
+          AiModelOption(
+            id: OnDeviceAiService.modelMultimodalPrompt,
+            displayName: 'On-Device Multimodal Prompt (Custom Detail & Bias)',
+          ),
+        ];
       case AiProviderType.gemini:
         models = const [
           AiModelOption(id: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro'),
@@ -117,8 +137,12 @@ class AiProviderService {
     if (provider == AiProviderType.none) {
       return const [];
     }
+    if (provider == AiProviderType.onDevice) {
+      return defaultModelsFor(AiProviderType.onDevice);
+    }
     try {
       final fetched = switch (provider) {
+        AiProviderType.onDevice => defaultModelsFor(AiProviderType.onDevice),
         AiProviderType.gemini => await _fetchGeminiModels(credentials.geminiApiKey),
         AiProviderType.openai => await _fetchOpenAiModels(
             baseUrl: settings.openAiBaseUrl,
@@ -385,6 +409,39 @@ class AiProviderService {
       maxLength: maxAltTextLength,
     );
 
+    if (settings.activeProvider == AiProviderType.onDevice) {
+      final imageFrames =
+          mediaPayloads.where((m) => !m.isVideo).map((m) => m.bytes).toList();
+      if (imageFrames.isEmpty) {
+        throw const AiProviderException(
+          'On-device AI requires extracted image frames to describe this media.',
+        );
+      }
+      try {
+        final String rawOnDevice;
+        if (isVideo && imageFrames.length > 1) {
+          rawOnDevice = await _onDeviceAi.describeVideoKeyframes(
+            keyframes: imageFrames,
+            framePrompt: prompt,
+            synthesisPromptTemplate: prompt,
+            selectedModel: settings.onDeviceModel,
+          );
+        } else {
+          rawOnDevice = await _onDeviceAi.describeImage(
+            imageBytes: imageFrames.first,
+            prompt: prompt,
+            selectedModel: settings.onDeviceModel,
+          );
+        }
+        return CaptionFormatter.format(
+          rawOnDevice,
+          maxLength: maxAltTextLength,
+        );
+      } catch (e) {
+        throw AiProviderException('On-device AI error: $e');
+      }
+    }
+
     final rawResponse = await runMultimodalPrompt(
       settings: settings,
       credentials: credentials,
@@ -521,6 +578,17 @@ class AiProviderService {
     bool expectJson = false,
   }) async {
     switch (settings.activeProvider) {
+      case AiProviderType.onDevice:
+        final firstImage = media.where((m) => !m.isVideo).firstOrNull?.bytes;
+        try {
+          return await _onDeviceAi.runPrompt(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            imageBytes: firstImage,
+          );
+        } catch (e) {
+          throw AiProviderException('On-device AI error: $e');
+        }
       case AiProviderType.gemini:
         return _callGemini(
           apiKey: credentials.geminiApiKey,

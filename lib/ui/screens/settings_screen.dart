@@ -12,6 +12,7 @@ import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
 import '../../services/ai_provider_service.dart';
 import '../../state/app_controller.dart';
+import '../widgets/on_device_ai_status_card.dart';
 
 /// Settings screen implementing:
 /// - AI provider selection, API keys / server URLs, and **dynamic model drop-down picker**
@@ -58,8 +59,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _languageCtrl = TextEditingController(text: s.language);
     _customInstructionsCtrl = TextEditingController(text: s.customInstructions);
 
-    // Dynamically query provider models whenever Settings is opened (Section 3.2).
+    // Dynamically query provider models & on-device status whenever Settings is opened.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.app.refreshOnDeviceAiStatus();
       widget.app.refreshModelsFor(widget.app.settings.activeProvider);
     });
   }
@@ -172,7 +174,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 12),
 
-              // Provider-specific URL & API Key fields
+              // Provider-specific URL, API Key, or On-Device status card
+              if (activeProvider == AiProviderType.onDevice)
+                OnDeviceAiStatusCard(app: widget.app),
+
               if (activeProvider == AiProviderType.gemini)
                 _buildApiKeyField(
                   controller: _geminiKeyCtrl,
@@ -435,7 +440,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'Accessibility Rules',
                 icon: Icons.accessibility_new,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
+              Text(
+                'Built-in On-Device Read Aloud Speed (${(s.ttsSpeechRate * 2).toStringAsFixed(2)}x)',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              Text(
+                'Uses your phone\'s built-in on-device TTS engine (AVSpeechSynthesizer on iPhone, Google/Samsung TTS on Android).',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: fedi.subtleText),
+              ),
+              Slider(
+                value: s.ttsSpeechRate,
+                min: 0.25,
+                max: 1.0,
+                divisions: 15,
+                label: '${(s.ttsSpeechRate * 2).toStringAsFixed(2)}x',
+                onChanged: (next) =>
+                    widget.app.updateSettings(s.copyWith(ttsSpeechRate: next)),
+              ),
+              const SizedBox(height: 8),
               Text(
                 'Pre-Post Alt-Text Policy',
                 style: Theme.of(context)

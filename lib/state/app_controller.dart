@@ -15,6 +15,7 @@ import '../services/ai_provider_service.dart';
 import '../services/bias_check_service.dart';
 import '../services/link_preview_fetcher.dart';
 import '../services/mastodon_service.dart';
+import '../services/on_device_ai_service.dart';
 import '../services/storage_service.dart';
 import '../services/tts_service.dart';
 import '../services/update_check_service.dart';
@@ -26,16 +27,19 @@ class AppController extends ChangeNotifier {
     StorageService? storageService,
     MastodonService? mastodonService,
     AiProviderService? aiProviderService,
+    OnDeviceAiService? onDeviceAiService,
     LinkPreviewFetcher? linkPreviewFetcher,
     UpdateCheckService? updateCheckService,
     TtsService? ttsService,
     ThemeController? themeController,
   })  : storage = storageService ?? StorageService(),
         mastodon = mastodonService ?? MastodonService(),
-        aiProvider = aiProviderService ?? AiProviderService(),
+        onDeviceAi = onDeviceAiService ?? OnDeviceAiService(),
         updateChecker = updateCheckService ?? UpdateCheckService(),
         tts = ttsService ?? TtsService(),
         themeController = themeController ?? ThemeController() {
+    aiProvider = aiProviderService ??
+        AiProviderService(onDeviceAiService: onDeviceAi);
     biasChecker = BiasCheckService(
       aiProviderService: aiProvider,
       linkPreviewFetcher: linkPreviewFetcher ?? LinkPreviewFetcher(),
@@ -48,11 +52,18 @@ class AppController extends ChangeNotifier {
 
   final StorageService storage;
   final MastodonService mastodon;
-  final AiProviderService aiProvider;
+  final OnDeviceAiService onDeviceAi;
+  late final AiProviderService aiProvider;
   late final BiasCheckService biasChecker;
   final UpdateCheckService updateChecker;
   final TtsService tts;
   final ThemeController themeController;
+
+  OnDeviceAiStatus _onDeviceAiStatus =
+      OnDeviceAiStatus.unavailableForCurrentPlatform();
+  bool _isCheckingOnDeviceAi = false;
+  bool _isDownloadingOnDeviceModel = false;
+  String? _onDeviceAiError;
 
   bool _isInitializing = true;
   bool _isAuthenticating = false;
@@ -92,6 +103,11 @@ class AppController extends ChangeNotifier {
 
   AppSettings get settings => _settings;
   AiCredentials get credentials => _credentials;
+
+  OnDeviceAiStatus get onDeviceAiStatus => _onDeviceAiStatus;
+  bool get isCheckingOnDeviceAi => _isCheckingOnDeviceAi;
+  bool get isDownloadingOnDeviceModel => _isDownloadingOnDeviceModel;
+  String? get onDeviceAiError => _onDeviceAiError;
 
   UpdateInfo? get visibleUpdate =>
       _updateBannerDismissed ? null : _availableUpdate;
@@ -145,9 +161,48 @@ class AppController extends ChangeNotifier {
       notifyListeners();
     }
 
-    // Fire-and-forget startup tasks: GitHub update check & active provider models refresh.
+    // Fire-and-forget startup tasks: on-device AI check, GitHub update check & models refresh.
+    refreshOnDeviceAiStatus();
     _runUpdateCheck();
     refreshModelsFor(_settings.activeProvider);
+  }
+
+  /// Checks whether the phone's built-in OS AI (Apple Foundation Models on iOS /
+  /// Google Gemini Nano via ML Kit GenAI & AICore on Android) is available.
+  Future<OnDeviceAiStatus> refreshOnDeviceAiStatus() async {
+    _isCheckingOnDeviceAi = true;
+    _onDeviceAiError = null;
+    notifyListeners();
+    try {
+      _onDeviceAiStatus = await onDeviceAi.checkStatus();
+    } catch (e) {
+      _onDeviceAiStatus = OnDeviceAiStatus.unavailableForCurrentPlatform();
+      _onDeviceAiError = e.toString();
+    } finally {
+      _isCheckingOnDeviceAi = false;
+      notifyListeners();
+    }
+    return _onDeviceAiStatus;
+  }
+
+  /// Triggers OS-managed on-device model provisioning (e.g. Android AICore Gemini Nano).
+  Future<void> downloadOnDeviceModel() async {
+    if (_isDownloadingOnDeviceModel) return;
+    _isDownloadingOnDeviceModel = true;
+    _onDeviceAiError = null;
+    notifyListeners();
+
+    AccessibilityAnnouncer.announce('Downloading on-device AI model.');
+    try {
+      _onDeviceAiStatus = await onDeviceAi.downloadModelsIfNeeded();
+      AccessibilityAnnouncer.announce(_onDeviceAiStatus.summaryMessage);
+    } catch (e) {
+      _onDeviceAiError = e.toString();
+      AccessibilityAnnouncer.announce('Failed to download on-device AI model.');
+    } finally {
+      _isDownloadingOnDeviceModel = false;
+      notifyListeners();
+    }
   }
 
   Future<void> _runUpdateCheck() async {

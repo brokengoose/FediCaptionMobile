@@ -29,6 +29,7 @@ class ComposerAttachmentTile extends StatefulWidget {
     required this.onRescan,
     required this.onRemove,
     this.aiEnabled = true,
+    this.ttsSpeechRate = 0.5,
   });
 
   final int index;
@@ -41,6 +42,7 @@ class ComposerAttachmentTile extends StatefulWidget {
   final VoidCallback onRescan;
   final VoidCallback onRemove;
   final bool aiEnabled;
+  final double ttsSpeechRate;
 
   @override
   State<ComposerAttachmentTile> createState() => _ComposerAttachmentTileState();
@@ -270,6 +272,7 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                                 key: ttsKey,
                                 text: att.altText,
                                 languageName: widget.language,
+                                speechRate: widget.ttsSpeechRate,
                               ),
                       icon: Icon(
                         isSpeaking ? Icons.stop : Icons.volume_up,

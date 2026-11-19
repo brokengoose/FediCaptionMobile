@@ -48,7 +48,8 @@ enum ThemePreference {
 /// Non-secret user settings persisted via SharedPreferences.
 class AppSettings {
   const AppSettings({
-    this.activeProvider = AiProviderType.gemini,
+    this.activeProvider = AiProviderType.onDevice,
+    this.onDeviceModel = 'on-device-auto',
     this.geminiModel = 'gemini-2.5-flash',
     this.openAiModel = 'gpt-4o-mini',
     this.openAiBaseUrl = AppConstants.openAiDefaultBaseUrl,
@@ -65,9 +66,11 @@ class AppSettings {
     this.biasPolicy = PolicyMode.warn,
     this.themePreference = ThemePreference.system,
     this.aiSetupCompleted = false,
+    this.ttsSpeechRate = 0.5,
   });
 
   final AiProviderType activeProvider;
+  final String onDeviceModel;
   final String geminiModel;
   final String openAiModel;
   final String openAiBaseUrl;
@@ -84,11 +87,14 @@ class AppSettings {
   final PolicyMode biasPolicy;
   final ThemePreference themePreference;
   final bool aiSetupCompleted;
+  final double ttsSpeechRate;
 
   bool get isAiEnabled => activeProvider != AiProviderType.none;
 
   String modelForProvider(AiProviderType provider) {
     switch (provider) {
+      case AiProviderType.onDevice:
+        return onDeviceModel;
       case AiProviderType.gemini:
         return geminiModel;
       case AiProviderType.openai:
@@ -106,6 +112,8 @@ class AppSettings {
 
   AppSettings withModelForProvider(AiProviderType provider, String model) {
     switch (provider) {
+      case AiProviderType.onDevice:
+        return copyWith(onDeviceModel: model);
       case AiProviderType.gemini:
         return copyWith(geminiModel: model);
       case AiProviderType.openai:
@@ -121,6 +129,7 @@ class AppSettings {
 
   AppSettings copyWith({
     AiProviderType? activeProvider,
+    String? onDeviceModel,
     String? geminiModel,
     String? openAiModel,
     String? openAiBaseUrl,
@@ -137,9 +146,11 @@ class AppSettings {
     PolicyMode? biasPolicy,
     ThemePreference? themePreference,
     bool? aiSetupCompleted,
+    double? ttsSpeechRate,
   }) {
     return AppSettings(
       activeProvider: activeProvider ?? this.activeProvider,
+      onDeviceModel: onDeviceModel ?? this.onDeviceModel,
       geminiModel: geminiModel ?? this.geminiModel,
       openAiModel: openAiModel ?? this.openAiModel,
       openAiBaseUrl: openAiBaseUrl ?? this.openAiBaseUrl,
@@ -156,11 +167,13 @@ class AppSettings {
       biasPolicy: biasPolicy ?? this.biasPolicy,
       themePreference: themePreference ?? this.themePreference,
       aiSetupCompleted: aiSetupCompleted ?? this.aiSetupCompleted,
+      ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'activeProvider': activeProvider.id,
+        'onDeviceModel': onDeviceModel,
         'geminiModel': geminiModel,
         'openAiModel': openAiModel,
         'openAiBaseUrl': openAiBaseUrl,
@@ -177,12 +190,15 @@ class AppSettings {
         'biasPolicy': biasPolicy.id,
         'themePreference': themePreference.id,
         'aiSetupCompleted': aiSetupCompleted,
+        'ttsSpeechRate': ttsSpeechRate,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final keyframeCount = json['videoKeyframeCount'] as int? ?? 4;
+    final rawRate = (json['ttsSpeechRate'] as num?)?.toDouble() ?? 0.5;
     return AppSettings(
       activeProvider: AiProviderType.fromId(json['activeProvider'] as String?),
+      onDeviceModel: (json['onDeviceModel'] as String?) ?? 'on-device-auto',
       geminiModel: (json['geminiModel'] as String?) ?? 'gemini-2.5-flash',
       openAiModel: (json['openAiModel'] as String?) ?? 'gpt-4o-mini',
       openAiBaseUrl:
@@ -207,6 +223,7 @@ class AppSettings {
       themePreference:
           ThemePreference.fromId(json['themePreference'] as String?),
       aiSetupCompleted: json['aiSetupCompleted'] as bool? ?? false,
+      ttsSpeechRate: rawRate.clamp(0.25, 1.0),
     );
   }
 }
@@ -227,6 +244,8 @@ class AiCredentials {
 
   String apiKeyFor(AiProviderType provider) {
     switch (provider) {
+      case AiProviderType.onDevice:
+        return '';
       case AiProviderType.gemini:
         return geminiApiKey;
       case AiProviderType.openai:

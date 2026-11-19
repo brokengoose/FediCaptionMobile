@@ -271,6 +271,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               key: ttsKey,
                               text: effectiveAlt,
                               languageName: widget.app.settings.language,
+                              speechRate: widget.app.settings.ttsSpeechRate,
                             ),
                             icon: Icon(
                               isSpeaking ? Icons.stop : Icons.volume_up,

@@ -420,6 +420,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
                     language: widget.app.settings.language,
                     tts: widget.app.tts,
                     aiEnabled: widget.app.settings.isAiEnabled,
+                    ttsSpeechRate: widget.app.settings.ttsSpeechRate,
                     onAltTextChanged: (text) =>
                         _controller.updateAttachmentAltText(
                       _controller.attachments[i].localId,

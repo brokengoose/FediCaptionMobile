@@ -1,15 +1,28 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:edge_gen_ai/edge_gen_ai.dart';
 import 'package:fedicaption_mobile/core/theme/app_theme.dart';
 import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/bias_models.dart';
+import 'package:fedicaption_mobile/services/on_device_ai_service.dart';
 import 'package:fedicaption_mobile/state/app_controller.dart';
 import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/missing_alt_text_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+
+class _FakeOnDeviceAiService extends OnDeviceAiService {
+  @override
+  Future<OnDeviceAiStatus> checkStatus() async {
+    return const OnDeviceAiStatus(
+      promptAvailability: EdgeGenAIAvailability.available,
+      imageDescriptionAvailability: EdgeGenAIAvailability.available,
+      engineName: 'Apple Foundation Models',
+    );
+  }
+}
 
 void main() {
   const sampleResult = BiasCheckResult(
@@ -132,8 +145,10 @@ void main() {
   });
 
   group('AiSetupScreen onboarding', () {
-    testWidgets('shows AI configuration fields and offers No AI option', (tester) async {
-      final controller = AppController();
+    testWidgets('defaults to On-Device AI status card and offers No AI option', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(),
+      );
       addTearDown(controller.dispose);
 
       await tester.pumpWidget(
@@ -142,10 +157,11 @@ void main() {
           home: AiSetupScreen(app: controller),
         ),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('Set Up AI'), findsOneWidget);
-      expect(find.text('Google Gemini API Key'), findsOneWidget);
+      expect(find.text('Apple Foundation Models — Ready on Device'), findsOneWidget);
+      expect(find.text('Re-Check Device'), findsOneWidget);
       expect(find.text('Use No AI (Set Up Later)'), findsOneWidget);
       expect(find.text('Save AI Settings & Continue'), findsOneWidget);
     });

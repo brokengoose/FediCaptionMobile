@@ -51,11 +51,13 @@ class TtsService extends ChangeNotifier {
     });
   }
 
-  /// Speaks [text] (or stops if [key] is already being spoken).
+  /// Speaks [text] (or stops if [key] is already being spoken) using the phone's
+  /// built-in on-device TTS engine (`AVSpeechSynthesizer` on iOS / `TextToSpeech` on Android).
   Future<void> toggleSpeak({
     required String key,
     required String text,
     String? languageName,
+    double speechRate = 0.5,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
@@ -68,8 +70,9 @@ class TtsService extends ChangeNotifier {
     await _tts.stop();
     try {
       await _tts.setVolume(1.0);
+      await _tts.setSpeechRate(speechRate.clamp(0.25, 1.0));
     } catch (_) {
-      // Ignore if platform rejects volume call.
+      // Ignore if platform rejects volume/rate call.
     }
     final langCode = _languageCodeFromName(languageName);
     if (langCode != null) {
