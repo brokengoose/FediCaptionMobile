@@ -4,8 +4,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:get_thumbnail_video/index.dart';
+import 'package:get_thumbnail_video/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
 
 import '../models/ai_models.dart';
 
@@ -57,14 +58,14 @@ class VideoFrameExtractor {
 
     for (final timeMs in timestamps) {
       try {
-        final Uint8List? bytes = await VideoThumbnail.thumbnailData(
+        final Uint8List bytes = await VideoThumbnail.thumbnailData(
           video: videoPath,
           imageFormat: ImageFormat.JPEG,
           timeMs: timeMs,
           maxWidth: maxWidth,
           quality: quality,
         );
-        if (bytes != null && bytes.isNotEmpty) {
+        if (bytes.isNotEmpty) {
           frames.add(
             MediaBinaryPayload(
               bytes: bytes,
@@ -87,7 +88,7 @@ class VideoFrameExtractor {
         maxWidth: maxWidth,
         quality: quality,
       );
-      if (fallbackBytes != null && fallbackBytes.isNotEmpty) {
+      if (fallbackBytes.isNotEmpty) {
         frames.add(
           MediaBinaryPayload(
             bytes: fallbackBytes,

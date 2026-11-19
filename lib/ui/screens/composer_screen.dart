@@ -72,7 +72,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
   }
 
   Future<void> _pickFromFiles() async {
-    final result = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: const [
         'jpg',
@@ -85,7 +85,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
         'webm',
       ],
     );
-    final path = result?.files.single.path;
+    final path = picked?.path;
     if (path == null || path.isEmpty) return;
     final lower = path.toLowerCase();
     final isVideo = lower.endsWith('.mp4') ||
