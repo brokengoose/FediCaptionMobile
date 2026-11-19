@@ -20,6 +20,20 @@ class TtsService extends ChangeNotifier {
   bool isSpeakingKey(String key) => _isSpeaking && _activeKey == key;
 
   void _configure() {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      _tts.setSharedInstance(true);
+      _tts.setIosAudioCategory(
+        IosTextToSpeechAudioCategory.playback,
+        [
+          IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+          IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+          IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+        ],
+        IosTextToSpeechAudioMode.spokenAudio,
+      );
+    }
+
     _tts.setCompletionHandler(() {
       _isSpeaking = false;
       _activeKey = null;
@@ -52,6 +66,11 @@ class TtsService extends ChangeNotifier {
     }
 
     await _tts.stop();
+    try {
+      await _tts.setVolume(1.0);
+    } catch (_) {
+      // Ignore if platform rejects volume call.
+    }
     final langCode = _languageCodeFromName(languageName);
     if (langCode != null) {
       try {
