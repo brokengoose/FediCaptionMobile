@@ -28,6 +28,7 @@ class ComposerAttachmentTile extends StatefulWidget {
     required this.onDetailLevelChanged,
     required this.onRescan,
     required this.onRemove,
+    this.aiEnabled = true,
   });
 
   final int index;
@@ -39,6 +40,7 @@ class ComposerAttachmentTile extends StatefulWidget {
   final ValueChanged<CaptionDetailLevel> onDetailLevelChanged;
   final VoidCallback onRescan;
   final VoidCallback onRemove;
+  final bool aiEnabled;
 
   @override
   State<ComposerAttachmentTile> createState() => _ComposerAttachmentTileState();
@@ -213,34 +215,35 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
               ),
             ),
 
-            const SizedBox(height: 10),
-
-            DropdownButtonFormField<CaptionDetailLevel>(
-              key: ValueKey(att.detailLevel),
-              initialValue: att.detailLevel,
-              decoration: const InputDecoration(
-                labelText: 'Detail Level',
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+            if (widget.aiEnabled) ...[
+              const SizedBox(height: 10),
+              DropdownButtonFormField<CaptionDetailLevel>(
+                key: ValueKey(att.detailLevel),
+                initialValue: att.detailLevel,
+                decoration: const InputDecoration(
+                  labelText: 'Detail Level',
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                 ),
+                items: CaptionDetailLevel.values
+                    .map(
+                      (level) => DropdownMenuItem(
+                        value: level,
+                        child: Text(level.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isScanning
+                    ? null
+                    : (next) {
+                        if (next != null) {
+                          widget.onDetailLevelChanged(next);
+                        }
+                      },
               ),
-              items: CaptionDetailLevel.values
-                  .map(
-                    (level) => DropdownMenuItem(
-                      value: level,
-                      child: Text(level.label),
-                    ),
-                  )
-                  .toList(),
-              onChanged: isScanning
-                  ? null
-                  : (next) {
-                      if (next != null) {
-                        widget.onDetailLevelChanged(next);
-                      }
-                    },
-            ),
+            ],
 
             const SizedBox(height: 10),
 
@@ -252,13 +255,14 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    FilledButton.tonalIcon(
-                      onPressed: isScanning ? null : widget.onRescan,
-                      icon: const Icon(Icons.auto_awesome, size: 18),
-                      label: Text(
-                        isScanning ? 'AI Scanning…' : 'Re-Scan with AI',
+                    if (widget.aiEnabled)
+                      FilledButton.tonalIcon(
+                        onPressed: isScanning ? null : widget.onRescan,
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: Text(
+                          isScanning ? 'AI Scanning…' : 'Re-Scan with AI',
+                        ),
                       ),
-                    ),
                     OutlinedButton.icon(
                       onPressed: att.altText.trim().isEmpty
                           ? null

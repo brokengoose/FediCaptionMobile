@@ -64,6 +64,7 @@ class AppSettings {
     this.altTextPolicy = PolicyMode.warn,
     this.biasPolicy = PolicyMode.warn,
     this.themePreference = ThemePreference.system,
+    this.aiSetupCompleted = false,
   });
 
   final AiProviderType activeProvider;
@@ -82,6 +83,9 @@ class AppSettings {
   final PolicyMode altTextPolicy;
   final PolicyMode biasPolicy;
   final ThemePreference themePreference;
+  final bool aiSetupCompleted;
+
+  bool get isAiEnabled => activeProvider != AiProviderType.none;
 
   String modelForProvider(AiProviderType provider) {
     switch (provider) {
@@ -93,6 +97,8 @@ class AppSettings {
         return anthropicModel;
       case AiProviderType.local:
         return localModel;
+      case AiProviderType.none:
+        return '';
     }
   }
 
@@ -108,6 +114,8 @@ class AppSettings {
         return copyWith(anthropicModel: model);
       case AiProviderType.local:
         return copyWith(localModel: model);
+      case AiProviderType.none:
+        return this;
     }
   }
 
@@ -128,6 +136,7 @@ class AppSettings {
     PolicyMode? altTextPolicy,
     PolicyMode? biasPolicy,
     ThemePreference? themePreference,
+    bool? aiSetupCompleted,
   }) {
     return AppSettings(
       activeProvider: activeProvider ?? this.activeProvider,
@@ -146,6 +155,7 @@ class AppSettings {
       altTextPolicy: altTextPolicy ?? this.altTextPolicy,
       biasPolicy: biasPolicy ?? this.biasPolicy,
       themePreference: themePreference ?? this.themePreference,
+      aiSetupCompleted: aiSetupCompleted ?? this.aiSetupCompleted,
     );
   }
 
@@ -166,6 +176,7 @@ class AppSettings {
         'altTextPolicy': altTextPolicy.id,
         'biasPolicy': biasPolicy.id,
         'themePreference': themePreference.id,
+        'aiSetupCompleted': aiSetupCompleted,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -195,6 +206,7 @@ class AppSettings {
       biasPolicy: PolicyMode.fromId(json['biasPolicy'] as String?),
       themePreference:
           ThemePreference.fromId(json['themePreference'] as String?),
+      aiSetupCompleted: json['aiSetupCompleted'] as bool? ?? false,
     );
   }
 }
@@ -223,6 +235,8 @@ class AiCredentials {
         return anthropicApiKey;
       case AiProviderType.local:
         return localApiKey;
+      case AiProviderType.none:
+        return '';
     }
   }
 

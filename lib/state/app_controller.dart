@@ -84,6 +84,7 @@ class AppController extends ChangeNotifier {
   bool get isAuthenticating => _isAuthenticating;
   String? get authError => _authError;
   bool get isAuthenticated => _session != null && _currentAccount != null;
+  bool get needsAiSetup => isAuthenticated && !_settings.aiSetupCompleted;
 
   MastodonSession? get session => _session;
   MastodonAccount? get currentAccount => _currentAccount;
@@ -332,9 +333,39 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> completeAiSetup({
+    required AppSettings settings,
+    required AiCredentials credentials,
+  }) async {
+    final finalized = settings.copyWith(aiSetupCompleted: true);
+    _settings = finalized;
+    _credentials = credentials;
+    themeController.setPreference(finalized.themePreference);
+    notifyListeners();
+
+    await storage.saveAiCredentials(credentials);
+    await storage.saveSettings(finalized);
+
+    if (finalized.isAiEnabled) {
+      refreshModelsFor(finalized.activeProvider);
+      AccessibilityAnnouncer.announce(
+        'AI setup complete using ${finalized.activeProvider.displayName}.',
+      );
+    } else {
+      AccessibilityAnnouncer.announce(
+        'Setup complete with No AI selected. Manual alt-text and offline bias heuristics are active.',
+      );
+    }
+  }
+
   /// Dynamically fetches models for [provider] and guarantees the currently
   /// selected model remains selectable in the drop-down picker.
   Future<void> refreshModelsFor(AiProviderType provider) async {
+    if (provider == AiProviderType.none) {
+      _modelsByProvider[provider] = const [];
+      notifyListeners();
+      return;
+    }
     _loadingModels.add(provider);
     notifyListeners();
 

@@ -10,6 +10,7 @@ import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
+import '../../services/ai_provider_service.dart';
 import '../../state/app_controller.dart';
 
 /// Settings screen implementing:
@@ -112,18 +113,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context, _) {
         final s = widget.app.settings;
         final activeProvider = s.activeProvider;
-        final isLoadingModels = widget.app.isLoadingModels(activeProvider);
-        final rawModels = widget.app.modelsFor(activeProvider);
+        final isNone = activeProvider == AiProviderType.none;
+        final isLoadingModels =
+            !isNone && widget.app.isLoadingModels(activeProvider);
+        final rawModels = isNone
+            ? const <AiModelOption>[]
+            : widget.app.modelsFor(activeProvider);
         final selectedModel = s.modelForProvider(activeProvider);
 
-        // Guarantee DropdownButtonFormField always contains the currently selected value.
+        // Guarantee DropdownButtonFormField always contains the currently selected value
+        // and stays strictly sorted alphabetically.
         final dropdownModels = List<AiModelOption>.from(rawModels);
-        if (!dropdownModels.any((m) => m.id == selectedModel)) {
-          dropdownModels.insert(
-            0,
+        if (!isNone &&
+            selectedModel.isNotEmpty &&
+            !dropdownModels.any((m) => m.id == selectedModel)) {
+          dropdownModels.add(
             AiModelOption(id: selectedModel, displayName: selectedModel),
           );
         }
+        final sortedModels = AiProviderService.sortAlphabetically(dropdownModels);
 
         final fedi = context.fediColors;
         final limits = widget.app.instanceLimits;
@@ -231,60 +239,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: 12),
 
-              // Dynamic Model Drop-Down Picker (Section 3.2 — NEVER a plain text input)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      key: ValueKey('model_${activeProvider.id}_$selectedModel'),
-                      initialValue: selectedModel,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: 'AI Model',
-                        helperText: isLoadingModels
-                            ? 'Fetching available models from provider…'
-                            : 'Select a vision-capable model from the provider.',
-                      ),
-                      items: dropdownModels
-                          .map(
-                            (m) => DropdownMenuItem(
-                              value: m.id,
-                              child: Text(
-                                m.displayName,
-                                overflow: TextOverflow.ellipsis,
+              if (isNone)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withAlpha(115),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: fedi.cardBorder),
+                  ),
+                  child: const Text(
+                    'AI is disabled ("No AI"). Alt-text can be entered manually, Read Aloud remains available, and pre-post bias checks use offline local heuristics.',
+                  ),
+                )
+              else
+                // Dynamic Model Drop-Down Picker (Section 3.2 — NEVER a plain text input)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey('model_${activeProvider.id}_$selectedModel'),
+                        initialValue: sortedModels.any((m) => m.id == selectedModel)
+                            ? selectedModel
+                            : (sortedModels.isNotEmpty
+                                ? sortedModels.first.id
+                                : null),
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'AI Model (A–Z)',
+                          helperText: isLoadingModels
+                              ? 'Fetching available models from provider…'
+                              : 'Sorted alphabetically. Select a vision-capable model.',
+                        ),
+                        items: sortedModels
+                            .map(
+                              (m) => DropdownMenuItem(
+                                value: m.id,
+                                child: Text(
+                                  m.displayName,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (modelId) {
-                        if (modelId != null) {
-                          widget.app.updateSettings(
-                            s.withModelForProvider(activeProvider, modelId),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: IconButton.filledTonal(
-                      tooltip: 'Refresh Models',
-                      onPressed: isLoadingModels
-                          ? null
-                          : () => widget.app.refreshModelsFor(activeProvider),
-                      icon: isLoadingModels
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.refresh),
+                            .toList(),
+                        onChanged: (modelId) {
+                          if (modelId != null) {
+                            widget.app.updateSettings(
+                              s.withModelForProvider(activeProvider, modelId),
+                            );
+                          }
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: IconButton.filledTonal(
+                        tooltip: 'Refresh Models',
+                        onPressed: isLoadingModels
+                            ? null
+                            : () => widget.app.refreshModelsFor(activeProvider),
+                        icon: isLoadingModels
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.refresh),
+                      ),
+                    ),
+                  ],
+                ),
 
               const SizedBox(height: 24),
               const Divider(),

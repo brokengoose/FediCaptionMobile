@@ -96,9 +96,10 @@ class BiasCheckService {
       links: externalLinks,
     );
 
-    // If user selected on-device fallback model, return deterministic check directly.
-    if (settings.activeProvider == AiProviderType.local &&
-        settings.localModel == 'on-device-fallback') {
+    // If user selected "No AI" or on-device fallback, return deterministic check directly.
+    if (settings.activeProvider == AiProviderType.none ||
+        (settings.activeProvider == AiProviderType.local &&
+            settings.localModel == 'on-device-fallback')) {
       return localResult;
     }
 

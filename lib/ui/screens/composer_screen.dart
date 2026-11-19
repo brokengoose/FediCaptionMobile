@@ -110,6 +110,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
         builder: (_) => MissingAltTextDialog(
           missingCount: missingAlt.length,
           policy: altPolicy,
+          aiEnabled: widget.app.settings.isAiEnabled,
         ),
       );
 
@@ -418,6 +419,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
                     maxAltTextLength: limits.altTextLimit,
                     language: widget.app.settings.language,
                     tts: widget.app.tts,
+                    aiEnabled: widget.app.settings.isAiEnabled,
                     onAltTextChanged: (text) =>
                         _controller.updateAttachmentAltText(
                       _controller.attachments[i].localId,

@@ -3,17 +3,20 @@
 
 import 'dart:typed_data';
 
-/// Supported AI vision and language providers.
+/// Supported AI vision and language providers (including opting out with No AI).
 enum AiProviderType {
   gemini('gemini', 'Google Gemini API'),
   openai('openai', 'OpenAI / Compatible API'),
   anthropic('anthropic', 'Anthropic Claude API'),
-  local('local', 'Local (Ollama / LM Studio / On-Device Fallback)');
+  local('local', 'Local (Ollama / LM Studio / On-Device Fallback)'),
+  none('none', 'No AI (Manual Alt-Text & Offline Heuristics)');
 
   const AiProviderType(this.id, this.displayName);
 
   final String id;
   final String displayName;
+
+  bool get isNone => this == AiProviderType.none;
 
   static AiProviderType fromId(String? id) {
     return AiProviderType.values.firstWhere(

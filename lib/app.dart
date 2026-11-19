@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'core/constants.dart';
 import 'state/app_controller.dart';
+import 'ui/screens/ai_setup_screen.dart';
 import 'ui/screens/home_shell.dart';
 import 'ui/screens/login_screen.dart';
 
@@ -52,9 +53,11 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
           theme: _app.themeController.themeData,
           home: _app.isInitializing
               ? const _SplashScreen()
-              : (_app.isAuthenticated
-                  ? HomeShell(app: _app)
-                  : LoginScreen(app: _app)),
+              : (!_app.isAuthenticated
+                  ? LoginScreen(app: _app)
+                  : (_app.needsAiSetup
+                      ? AiSetupScreen(app: _app)
+                      : HomeShell(app: _app))),
         );
       },
     );

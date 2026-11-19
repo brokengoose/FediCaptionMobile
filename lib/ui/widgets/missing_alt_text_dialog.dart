@@ -18,10 +18,12 @@ class MissingAltTextDialog extends StatelessWidget {
     super.key,
     required this.missingCount,
     required this.policy,
+    this.aiEnabled = true,
   });
 
   final int missingCount;
   final PolicyMode policy;
+  final bool aiEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +39,17 @@ class MissingAltTextDialog extends StatelessWidget {
       ),
       content: Text(
         '$missingCount media $plural missing an alt-text description for blind and low-vision readers. '
-        '${allowPostAnyway ? 'Would you like to auto-generate descriptions with AI before posting?' : 'Your Accessibility Rules policy requires alt-text on all attached media before posting.'}',
+        '${allowPostAnyway ? (aiEnabled ? 'Would you like to auto-generate descriptions with AI before posting?' : 'Would you like to add alt-text in the composer before posting?') : 'Your Accessibility Rules policy requires alt-text on all attached media before posting.'}',
       ),
       actionsAlignment: MainAxisAlignment.end,
       actions: [
-        FilledButton.icon(
-          onPressed: () =>
-              Navigator.of(context).pop(MissingAltTextAction.autoGenerateWithAi),
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Auto-Generate Missing Alt-Text with AI'),
-        ),
+        if (aiEnabled)
+          FilledButton.icon(
+            onPressed: () =>
+                Navigator.of(context).pop(MissingAltTextAction.autoGenerateWithAi),
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Auto-Generate Missing Alt-Text with AI'),
+          ),
         OutlinedButton(
           onPressed: () =>
               Navigator.of(context).pop(MissingAltTextAction.returnToComposer),

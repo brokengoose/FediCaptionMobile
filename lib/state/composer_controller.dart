@@ -193,6 +193,7 @@ class ComposerController extends ChangeNotifier {
     final fileName = p.basename(filePath);
     final mimeType = _guessMimeType(filePath, isVideo: isVideo);
 
+    final shouldAutoScan = app.settings.isAiEnabled && app.settings.autoGenerate;
     final initial = ComposerAttachment(
       localId: localId,
       isVideo: isVideo,
@@ -200,7 +201,7 @@ class ComposerController extends ChangeNotifier {
       filePath: filePath,
       fileName: fileName,
       detailLevel: app.settings.defaultDetailLevel,
-      status: app.settings.autoGenerate
+      status: shouldAutoScan
           ? AttachmentStatus.scanning
           : AttachmentStatus.missingAltText,
     );
@@ -208,7 +209,7 @@ class ComposerController extends ChangeNotifier {
     _attachments = [..._attachments, initial];
     notifyListeners();
 
-    if (app.settings.autoGenerate) {
+    if (shouldAutoScan) {
       await scanAttachmentWithAi(localId);
     }
   }

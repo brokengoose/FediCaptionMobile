@@ -4,10 +4,12 @@
 import 'package:fedicaption_mobile/core/theme/app_theme.dart';
 import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/bias_models.dart';
+import 'package:fedicaption_mobile/state/app_controller.dart';
+import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/missing_alt_text_dialog.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   const sampleResult = BiasCheckResult(
@@ -107,6 +109,45 @@ void main() {
 
       expect(find.text('Auto-Generate Missing Alt-Text with AI'), findsOneWidget);
       expect(find.text('Post Anyway'), findsNothing);
+    });
+
+    testWidgets('hides AI auto-generate button when aiEnabled is false (No AI)', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(
+            body: MissingAltTextDialog(
+              missingCount: 1,
+              policy: PolicyMode.warn,
+              aiEnabled: false,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Auto-Generate Missing Alt-Text with AI'), findsNothing);
+      expect(find.text('Edit in Composer'), findsOneWidget);
+      expect(find.text('Post Anyway'), findsOneWidget);
+    });
+  });
+
+  group('AiSetupScreen onboarding', () {
+    testWidgets('shows AI configuration fields and offers No AI option', (tester) async {
+      final controller = AppController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: AiSetupScreen(app: controller),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Set Up AI'), findsOneWidget);
+      expect(find.text('Google Gemini API Key'), findsOneWidget);
+      expect(find.text('Use No AI (Set Up Later)'), findsOneWidget);
+      expect(find.text('Save AI Settings & Continue'), findsOneWidget);
     });
   });
 }

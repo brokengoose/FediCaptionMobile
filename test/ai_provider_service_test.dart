@@ -100,12 +100,13 @@ void main() {
       expect(models.first.id, 'claude-sonnet-4-20250514');
     });
 
-    test('queries Ollama /api/tags for local LAN provider and prioritizes vision models', () async {
+    test('queries Ollama /api/tags for local LAN provider and sorts models alphabetically', () async {
       final mockClient = MockClient((request) async {
         if (request.url.path.endsWith('/api/tags')) {
           return http.Response(
             jsonEncode({
               'models': [
+                {'name': 'qwen2.5vl:latest'},
                 {'name': 'mistral:latest'},
                 {'name': 'llama3.2-vision:latest'},
               ],
@@ -123,8 +124,56 @@ void main() {
         credentials: const AiCredentials(),
       );
 
-      expect(models.first.id, 'llama3.2-vision:latest');
-      expect(models.any((m) => m.id == 'on-device-fallback'), isTrue);
+      expect(
+        models.map((m) => m.id).toList(),
+        [
+          'llama3.2-vision:latest',
+          'mistral:latest',
+          'on-device-fallback',
+          'qwen2.5vl:latest',
+        ],
+      );
+    });
+
+    test('defaultModelsFor returns alphabetically sorted lists and empty for No AI', () {
+      for (final provider in AiProviderType.values) {
+        final models = AiProviderService.defaultModelsFor(provider);
+        if (provider == AiProviderType.none) {
+          expect(models, isEmpty);
+          continue;
+        }
+        final names = models.map((m) => m.displayName.toLowerCase()).toList();
+        final sortedNames = List<String>.from(names)..sort();
+        expect(names, sortedNames);
+      }
+    });
+
+    test('sorts OpenAI models alphabetically', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'data': [
+              {'id': 'o3-mini'},
+              {'id': 'gpt-4o-mini'},
+              {'id': 'gpt-4.1'},
+              {'id': 'gpt-4o'},
+            ],
+          }),
+          200,
+        );
+      });
+
+      final service = AiProviderService(client: mockClient);
+      final models = await service.fetchAvailableModels(
+        provider: AiProviderType.openai,
+        settings: const AppSettings(),
+        credentials: const AiCredentials(openAiApiKey: 'sk-test'),
+      );
+
+      expect(
+        models.map((m) => m.id).toList(),
+        ['gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'o3-mini'],
+      );
     });
 
     test('generateAltText cleans output and prepends mandatory prefix', () async {

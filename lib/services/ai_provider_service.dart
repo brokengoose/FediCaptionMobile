@@ -33,49 +33,59 @@ class AiProviderService {
   final http.Client _client;
   final VideoFrameExtractor _videoFrameExtractor;
 
-  /// Sensible fallback vision models when offline or before API credentials are provided.
+  /// Sorts model options alphabetically (case-insensitive by display name, then ID).
+  static List<AiModelOption> sortAlphabetically(Iterable<AiModelOption> models) {
+    final sorted = List<AiModelOption>.from(models);
+    sorted.sort((a, b) {
+      final byName =
+          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+      if (byName != 0) return byName;
+      return a.id.toLowerCase().compareTo(b.id.toLowerCase());
+    });
+    return sorted;
+  }
+
+  /// Sensible fallback vision models (sorted alphabetically) when offline or
+  /// before API credentials are provided.
   static List<AiModelOption> defaultModelsFor(AiProviderType provider) {
+    final List<AiModelOption> models;
     switch (provider) {
       case AiProviderType.gemini:
-        return const [
+        models = const [
+          AiModelOption(id: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro'),
+          AiModelOption(id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash'),
           AiModelOption(id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash'),
           AiModelOption(id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro'),
-          AiModelOption(id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash'),
-          AiModelOption(id: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro'),
         ];
       case AiProviderType.openai:
-        return const [
-          AiModelOption(id: 'gpt-4o-mini', displayName: 'GPT-4o mini'),
-          AiModelOption(id: 'gpt-4o', displayName: 'GPT-4o'),
-          AiModelOption(id: 'gpt-4.1-mini', displayName: 'GPT-4.1 mini'),
+        models = const [
           AiModelOption(id: 'gpt-4.1', displayName: 'GPT-4.1'),
+          AiModelOption(id: 'gpt-4.1-mini', displayName: 'GPT-4.1 mini'),
+          AiModelOption(id: 'gpt-4o', displayName: 'GPT-4o'),
+          AiModelOption(id: 'gpt-4o-mini', displayName: 'GPT-4o mini'),
         ];
       case AiProviderType.anthropic:
-        return const [
+        models = const [
           AiModelOption(
-            id: 'claude-sonnet-4-20250514',
-            displayName: 'Claude Sonnet 4',
+            id: 'claude-3-5-haiku-latest',
+            displayName: 'Claude 3.5 Haiku',
           ),
           AiModelOption(
             id: 'claude-3-7-sonnet-latest',
             displayName: 'Claude 3.7 Sonnet',
           ),
           AiModelOption(
-            id: 'claude-3-5-haiku-latest',
-            displayName: 'Claude 3.5 Haiku',
+            id: 'claude-sonnet-4-20250514',
+            displayName: 'Claude Sonnet 4',
           ),
         ];
       case AiProviderType.local:
-        return const [
+        models = const [
+          AiModelOption(id: 'gemma3', displayName: 'Gemma 3 (Ollama/LAN)'),
           AiModelOption(
             id: 'llama3.2-vision',
             displayName: 'Llama 3.2 Vision (Ollama/LAN)',
           ),
-          AiModelOption(
-            id: 'qwen2.5vl',
-            displayName: 'Qwen 2.5 VL (Ollama/LAN)',
-          ),
-          AiModelOption(id: 'gemma3', displayName: 'Gemma 3 (Ollama/LAN)'),
           AiModelOption(id: 'llava', displayName: 'LLaVA (Ollama/LAN)'),
           AiModelOption(
             id: 'minicpm-v',
@@ -86,17 +96,27 @@ class AiProviderService {
             displayName: 'On-Device Fallback (Heuristics Only)',
             supportsVision: false,
           ),
+          AiModelOption(
+            id: 'qwen2.5vl',
+            displayName: 'Qwen 2.5 VL (Ollama/LAN)',
+          ),
         ];
+      case AiProviderType.none:
+        return const [];
     }
+    return sortAlphabetically(models);
   }
 
-  /// Dynamically queries the selected provider's models endpoint.
-  /// Always falls back to [defaultModelsFor] if offline or unauthenticated.
+  /// Dynamically queries the selected provider's models endpoint and returns
+  /// them sorted alphabetically. Falls back to [defaultModelsFor] if offline.
   Future<List<AiModelOption>> fetchAvailableModels({
     required AiProviderType provider,
     required AppSettings settings,
     required AiCredentials credentials,
   }) async {
+    if (provider == AiProviderType.none) {
+      return const [];
+    }
     try {
       final fetched = switch (provider) {
         AiProviderType.gemini => await _fetchGeminiModels(credentials.geminiApiKey),
@@ -110,9 +130,10 @@ class AiProviderService {
             baseUrl: settings.localBaseUrl,
             apiKey: credentials.localApiKey,
           ),
+        AiProviderType.none => const <AiModelOption>[],
       };
       if (fetched.isNotEmpty) {
-        return fetched;
+        return sortAlphabetically(fetched);
       }
     } catch (_) {
       // Fall back to curated defaults if unreachable or unconfigured.
@@ -161,19 +182,7 @@ class AiProviderService {
       );
     }
 
-    results.sort((a, b) => _scoreGeminiModel(b.id).compareTo(_scoreGeminiModel(a.id)));
-    return results;
-  }
-
-  int _scoreGeminiModel(String id) {
-    final lower = id.toLowerCase();
-    var score = 0;
-    if (lower.contains('2.5')) score += 40;
-    if (lower.contains('2.0')) score += 30;
-    if (lower.contains('flash')) score += 20;
-    if (lower.contains('pro')) score += 15;
-    if (lower.contains('exp') || lower.contains('preview')) score -= 5;
-    return score;
+    return sortAlphabetically(results);
   }
 
   Future<List<AiModelOption>> _fetchOpenAiModels({
@@ -213,8 +222,7 @@ class AiProviderService {
       results.add(AiModelOption(id: id, displayName: id));
     }
 
-    results.sort((a, b) => _scoreOpenAiModel(b.id).compareTo(_scoreOpenAiModel(a.id)));
-    return results;
+    return sortAlphabetically(results);
   }
 
   bool _isNonChatOpenAiUtilityModel(String id) {
@@ -236,20 +244,6 @@ class AiProviderService {
       'gpt-image',
     ];
     return excluded.any(lower.contains);
-  }
-
-  int _scoreOpenAiModel(String id) {
-    final lower = id.toLowerCase();
-    var score = 0;
-    if (lower.contains('4o') || lower.contains('4.1') || lower.contains('gpt-5')) {
-      score += 50;
-    }
-    if (lower.contains('vision') || lower.contains('vl') || lower.contains('llava')) {
-      score += 45;
-    }
-    if (lower.contains('mini')) score += 10;
-    if (lower.contains('o3') || lower.contains('o4')) score += 30;
-    return score;
   }
 
   Future<List<AiModelOption>> _fetchAnthropicModels(String apiKey) async {
@@ -330,9 +324,6 @@ class AiProviderService {
     }
 
     if (results.isNotEmpty) {
-      results.sort(
-        (a, b) => _scoreLocalVisionModel(b.id).compareTo(_scoreLocalVisionModel(a.id)),
-      );
       results.add(
         const AiModelOption(
           id: 'on-device-fallback',
@@ -340,27 +331,10 @@ class AiProviderService {
           supportsVision: false,
         ),
       );
+      return sortAlphabetically(results);
     }
 
     return results;
-  }
-
-  int _scoreLocalVisionModel(String id) {
-    final lower = id.toLowerCase();
-    var score = 0;
-    const visionKeywords = [
-      'vision',
-      'vl',
-      'llava',
-      'bakllava',
-      'moondream',
-      'minicpm-v',
-      'gemma3',
-      'pixtral',
-      'internvl',
-    ];
-    if (visionKeywords.any(lower.contains)) score += 50;
-    return score;
   }
 
   /// Generates an accessible alt-text description for an image or video,
@@ -376,6 +350,11 @@ class AiProviderService {
     String? mimeType,
     String? draftPostContext,
   }) async {
+    if (settings.activeProvider == AiProviderType.none) {
+      throw const AiProviderException(
+        'AI is currently set to "No AI". Select an AI provider in Settings to generate alt-text automatically.',
+      );
+    }
     if (settings.activeProvider == AiProviderType.local &&
         settings.localModel == 'on-device-fallback') {
       throw const AiProviderException(
@@ -578,6 +557,10 @@ class AiProviderService {
           userPrompt: userPrompt,
           media: media,
           expectJson: expectJson,
+        );
+      case AiProviderType.none:
+        throw const AiProviderException(
+          'AI is disabled ("No AI"). Enable an AI provider in Settings to use AI features.',
         );
     }
   }

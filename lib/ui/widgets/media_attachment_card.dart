@@ -218,66 +218,72 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                 ),
 
               // Action buttons: Describe with AI / Re-Describe with AI & Read Aloud
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Semantics(
-                      button: true,
-                      enabled: !isDescribing,
-                      label: isDescribing
-                          ? 'Generating AI description'
-                          : (aiAlt != null || att.hasAltText
-                              ? 'Re-describe media with AI'
-                              : 'Describe media with AI'),
-                      child: OutlinedButton.icon(
-                        onPressed: isDescribing
-                            ? null
-                            : () => widget.app.describeTimelineMedia(
-                                  att,
-                                  postContext: widget.postContext,
-                                ),
-                        icon: isDescribing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.auto_awesome, size: 18),
-                        label: Text(
-                          isDescribing
-                              ? 'Describing…'
+              if (widget.app.settings.isAiEnabled || hasAnyAlt)
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (widget.app.settings.isAiEnabled)
+                        Semantics(
+                          button: true,
+                          enabled: !isDescribing,
+                          label: isDescribing
+                              ? 'Generating AI description'
                               : (aiAlt != null || att.hasAltText
-                                  ? 'Re-Describe with AI'
-                                  : 'Describe with AI'),
-                        ),
-                      ),
-                    ),
-                    if (hasAnyAlt)
-                      Semantics(
-                        button: true,
-                        toggled: isSpeaking,
-                        label: isSpeaking
-                            ? 'Stop reading alt text aloud'
-                            : 'Read alt text aloud',
-                        child: OutlinedButton.icon(
-                          onPressed: () => widget.app.tts.toggleSpeak(
-                            key: ttsKey,
-                            text: effectiveAlt,
-                            languageName: widget.app.settings.language,
+                                  ? 'Re-describe media with AI'
+                                  : 'Describe media with AI'),
+                          child: OutlinedButton.icon(
+                            onPressed: isDescribing
+                                ? null
+                                : () => widget.app.describeTimelineMedia(
+                                      att,
+                                      postContext: widget.postContext,
+                                    ),
+                            icon: isDescribing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.auto_awesome, size: 18),
+                            label: Text(
+                              isDescribing
+                                  ? 'Describing…'
+                                  : (aiAlt != null || att.hasAltText
+                                      ? 'Re-Describe with AI'
+                                      : 'Describe with AI'),
+                            ),
                           ),
-                          icon: Icon(
-                            isSpeaking ? Icons.stop : Icons.volume_up,
-                            size: 18,
-                          ),
-                          label: Text(isSpeaking ? 'Stop Reading' : 'Read Aloud'),
                         ),
-                      ),
-                  ],
+                      if (hasAnyAlt)
+                        Semantics(
+                          button: true,
+                          toggled: isSpeaking,
+                          label: isSpeaking
+                              ? 'Stop reading alt text aloud'
+                              : 'Read alt text aloud',
+                          child: OutlinedButton.icon(
+                            onPressed: () => widget.app.tts.toggleSpeak(
+                              key: ttsKey,
+                              text: effectiveAlt,
+                              languageName: widget.app.settings.language,
+                            ),
+                            icon: Icon(
+                              isSpeaking ? Icons.stop : Icons.volume_up,
+                              size: 18,
+                            ),
+                            label: Text(
+                              isSpeaking ? 'Stop Reading' : 'Read Aloud',
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         );
