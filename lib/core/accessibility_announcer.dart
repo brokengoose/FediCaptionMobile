@@ -14,6 +14,8 @@ class AccessibilityAnnouncer {
   }) {
     final trimmed = message.trim();
     if (trimmed.isEmpty) return;
-    SemanticsService.announce(trimmed, textDirection);
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    if (views.isEmpty) return;
+    SemanticsService.sendAnnouncement(views.first, trimmed, textDirection);
   }
 }

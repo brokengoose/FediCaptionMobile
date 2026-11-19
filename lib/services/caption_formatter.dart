@@ -67,7 +67,7 @@ class CaptionFormatter {
     final lastSpace = slice.lastIndexOf(' ');
 
     // Keep word boundary unless no reasonable space exists after the prefix.
-    final minSplit = AppConstants.aiCaptionPrefix.length;
+    const minSplit = AppConstants.aiCaptionPrefix.length;
     String base;
     if (lastSpace > minSplit) {
       base = slice.substring(0, lastSpace);

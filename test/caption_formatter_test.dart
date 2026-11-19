@@ -44,7 +44,7 @@ void main() {
     });
 
     test('truncates cleanly on word boundary with ellipsis when exceeding maxLength', () {
-      final longInput =
+      const longInput =
           'A bustling community farmers market with dozens of colorful produce stalls, fresh flowers, and hand-painted wooden price signs.';
       final formatted = CaptionFormatter.format(longInput, maxLength: 80);
 

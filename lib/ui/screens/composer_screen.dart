@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -340,7 +340,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
                 // Visibility selector (when creating new post / reply)
                 if (!_controller.isEditing) ...[
                   DropdownButtonFormField<PostVisibility>(
-                    value: _controller.visibility,
+                    key: ValueKey(_controller.visibility),
+                    initialValue: _controller.visibility,
                     decoration: const InputDecoration(
                       labelText: 'Post Visibility',
                     ),

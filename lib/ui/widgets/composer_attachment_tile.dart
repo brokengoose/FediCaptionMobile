@@ -3,7 +3,7 @@
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../models/ai_models.dart';
@@ -216,7 +216,8 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
             const SizedBox(height: 10),
 
             DropdownButtonFormField<CaptionDetailLevel>(
-              value: att.detailLevel,
+              key: ValueKey(att.detailLevel),
+              initialValue: att.detailLevel,
               decoration: const InputDecoration(
                 labelText: 'Detail Level',
                 contentPadding: EdgeInsets.symmetric(

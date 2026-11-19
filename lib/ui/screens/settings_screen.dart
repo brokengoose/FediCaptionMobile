@@ -3,7 +3,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
@@ -134,14 +134,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               // === 1. Settings & API Keys ===
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'AI Provider & API Keys',
                 icon: Icons.auto_awesome,
               ),
               const SizedBox(height: 8),
 
               DropdownButtonFormField<AiProviderType>(
-                value: activeProvider,
+                key: ValueKey('provider_${activeProvider.id}'),
+                initialValue: activeProvider,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Active AI Provider',
@@ -236,7 +237,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: selectedModel,
+                      key: ValueKey('model_${activeProvider.id}_$selectedModel'),
+                      initialValue: selectedModel,
                       isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'AI Model',
@@ -288,14 +290,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 2. AI Captioning Preferences ===
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'AI Alt-Text Captioning',
                 icon: Icons.closed_caption,
               ),
               const SizedBox(height: 8),
 
               DropdownButtonFormField<CaptionDetailLevel>(
-                value: s.defaultDetailLevel,
+                key: ValueKey('detail_${s.defaultDetailLevel.id}'),
+                initialValue: s.defaultDetailLevel,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Default Detail Level',
@@ -320,7 +323,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 12),
 
               DropdownButtonFormField<int>(
-                value: s.videoKeyframeCount,
+                key: ValueKey('keyframes_${s.videoKeyframeCount}'),
+                initialValue: s.videoKeyframeCount,
                 decoration: const InputDecoration(
                   labelText: 'Video Keyframes to Extract',
                   helperText:
@@ -399,7 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 3. Accessibility Rules (Section 5.1) ===
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Accessibility Rules',
                 icon: Icons.accessibility_new,
               ),
@@ -412,18 +416,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ?.copyWith(color: fedi.subtleText),
               ),
               const SizedBox(height: 8),
-              ...PolicyMode.values.map(
-                (mode) => RadioListTile<PolicyMode>(
-                  contentPadding: EdgeInsets.zero,
-                  value: mode,
-                  groupValue: s.altTextPolicy,
-                  title: Text(mode.label),
-                  subtitle: Text(_altPolicySubtitle(mode)),
-                  onChanged: (next) {
-                    if (next != null) {
-                      widget.app.updateSettings(s.copyWith(altTextPolicy: next));
-                    }
-                  },
+              RadioGroup<PolicyMode>(
+                groupValue: s.altTextPolicy,
+                onChanged: (next) {
+                  if (next != null) {
+                    widget.app.updateSettings(s.copyWith(altTextPolicy: next));
+                  }
+                },
+                child: Column(
+                  children: PolicyMode.values
+                      .map(
+                        (mode) => RadioListTile<PolicyMode>(
+                          contentPadding: EdgeInsets.zero,
+                          value: mode,
+                          title: Text(mode.label),
+                          subtitle: Text(_altPolicySubtitle(mode)),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
 
@@ -431,7 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 4. Bias Rules (Section 5.2) ===
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Bias Rules',
                 icon: Icons.balance,
               ),
@@ -444,18 +454,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ?.copyWith(color: fedi.subtleText),
               ),
               const SizedBox(height: 8),
-              ...PolicyMode.values.map(
-                (mode) => RadioListTile<PolicyMode>(
-                  contentPadding: EdgeInsets.zero,
-                  value: mode,
-                  groupValue: s.biasPolicy,
-                  title: Text(mode.label),
-                  subtitle: Text(_biasPolicySubtitle(mode)),
-                  onChanged: (next) {
-                    if (next != null) {
-                      widget.app.updateSettings(s.copyWith(biasPolicy: next));
-                    }
-                  },
+              RadioGroup<PolicyMode>(
+                groupValue: s.biasPolicy,
+                onChanged: (next) {
+                  if (next != null) {
+                    widget.app.updateSettings(s.copyWith(biasPolicy: next));
+                  }
+                },
+                child: Column(
+                  children: PolicyMode.values
+                      .map(
+                        (mode) => RadioListTile<PolicyMode>(
+                          contentPadding: EdgeInsets.zero,
+                          value: mode,
+                          title: Text(mode.label),
+                          subtitle: Text(_biasPolicySubtitle(mode)),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
 
@@ -463,7 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 5. Theme & Appearance (Section 7.1) ===
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Appearance & Theme',
                 icon: Icons.contrast,
               ),
@@ -476,19 +492,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ?.copyWith(color: fedi.subtleText),
               ),
               const SizedBox(height: 8),
-              ...ThemePreference.values.map(
-                (pref) => RadioListTile<ThemePreference>(
-                  contentPadding: EdgeInsets.zero,
-                  value: pref,
-                  groupValue: s.themePreference,
-                  title: Text(pref.label),
-                  onChanged: (next) {
-                    if (next != null) {
-                      widget.app.updateSettings(
-                        s.copyWith(themePreference: next),
-                      );
-                    }
-                  },
+              RadioGroup<ThemePreference>(
+                groupValue: s.themePreference,
+                onChanged: (next) {
+                  if (next != null) {
+                    widget.app.updateSettings(
+                      s.copyWith(themePreference: next),
+                    );
+                  }
+                },
+                child: Column(
+                  children: ThemePreference.values
+                      .map(
+                        (pref) => RadioListTile<ThemePreference>(
+                          contentPadding: EdgeInsets.zero,
+                          value: pref,
+                          title: Text(pref.label),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
 
@@ -496,7 +518,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 6. Connected Server & About ===
-              _SectionHeader(
+              const _SectionHeader(
                 title: 'Account & Server Info',
                 icon: Icons.info_outline,
               ),

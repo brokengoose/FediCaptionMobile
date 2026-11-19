@@ -6,7 +6,7 @@ import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/bias_models.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/missing_alt_text_dialog.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -42,6 +42,12 @@ void main() {
       expect(find.text('Pre-Post Racial & Gender Bias Review'), findsOneWidget);
       expect(find.text('Post Text'), findsOneWidget);
       expect(find.text('Implicit Gender Bias'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Publish Anyway'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Use Suggested Wording in Composer'), findsOneWidget);
       expect(find.text('Use Suggested Wording & Publish Now'), findsOneWidget);
       expect(find.text('Publish Anyway'), findsOneWidget);
@@ -60,6 +66,11 @@ void main() {
         ),
       );
 
+      await tester.scrollUntilVisible(
+        find.text('Return to Composer to Edit'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Publish Anyway'), findsNothing);
       expect(find.text('Use Suggested Wording & Publish Now'), findsOneWidget);
     });
