@@ -11,11 +11,23 @@ class OnDeviceAiStatus {
     required this.promptAvailability,
     required this.imageDescriptionAvailability,
     required this.engineName,
+    this.promptDiagnostic,
+    this.imageDescriptionDiagnostic,
   });
 
   final EdgeGenAIAvailability promptAvailability;
   final EdgeGenAIAvailability imageDescriptionAvailability;
   final String engineName;
+  final String? promptDiagnostic;
+  final String? imageDescriptionDiagnostic;
+
+  String get diagnosticDetail {
+    final parts = <String>[
+      'Prompt API: ${promptAvailability.name}${promptDiagnostic != null ? ' ($promptDiagnostic)' : ''}',
+      'Image Description API: ${imageDescriptionAvailability.name}${imageDescriptionDiagnostic != null ? ' ($imageDescriptionDiagnostic)' : ''}',
+    ];
+    return parts.join('\n');
+  }
 
   bool get isPromptReady => promptAvailability == EdgeGenAIAvailability.available;
   bool get isImageDescriberReady =>
@@ -105,23 +117,29 @@ class OnDeviceAiService {
 
     EdgeGenAIAvailability promptAvail = EdgeGenAIAvailability.unavailable;
     EdgeGenAIAvailability imgAvail = EdgeGenAIAvailability.unavailable;
+    String? promptDiag;
+    String? imgDiag;
 
     try {
       promptAvail = await _prompt.checkAvailability();
-    } catch (_) {
+    } catch (e) {
       promptAvail = EdgeGenAIAvailability.unavailable;
+      promptDiag = e.toString();
     }
 
     try {
       imgAvail = await _imageDescriber.checkAvailability();
-    } catch (_) {
+    } catch (e) {
       imgAvail = EdgeGenAIAvailability.unavailable;
+      imgDiag = e.toString();
     }
 
     return OnDeviceAiStatus(
       promptAvailability: promptAvail,
       imageDescriptionAvailability: imgAvail,
       engineName: engineName,
+      promptDiagnostic: promptDiag,
+      imageDescriptionDiagnostic: imgDiag,
     );
   }
 

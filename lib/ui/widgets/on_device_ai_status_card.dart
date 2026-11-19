@@ -87,6 +87,13 @@ class OnDeviceAiStatusCard extends StatelessWidget {
             status.summaryMessage,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: fg),
           ),
+          const SizedBox(height: 6),
+          Text(
+            status.diagnosticDetail,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: fg.withAlpha(220),
+                ),
+          ),
           if (error != null && error.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
