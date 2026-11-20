@@ -12,6 +12,8 @@ import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/linkified_text.dart';
 import 'package:fedicaption_mobile/ui/widgets/missing_alt_text_dialog.dart';
+import 'package:fedicaption_mobile/ui/widgets/quoted_status_card.dart';
+import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -276,6 +278,72 @@ void main() {
       expect(mentionSpan, isNotNull);
       (mentionSpan!.recognizer as dynamic).onTap();
       expect(tappedMention?.id, '42');
+    });
+  });
+
+  group('StatusCard embedded RE: quoted post', () {
+    testWidgets('embeds original post window and strips leading RE: URL prefix', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(),
+      );
+      addTearDown(controller.dispose);
+
+      final original = MastodonStatus(
+        id: '100',
+        createdAt: DateTime.utc(2026, 11, 19, 10, 0),
+        account: const MastodonAccount(
+          id: '1',
+          username: 'orig',
+          acct: 'orig@example.social',
+          displayName: 'Original Author',
+          avatar: '',
+        ),
+        contentHtml: '<p>Original insightful Mastodon post.</p>',
+        url: 'https://example.social/@orig/100',
+      );
+
+      final quotingPost = MastodonStatus(
+        id: '200',
+        createdAt: DateTime.utc(2026, 11, 19, 11, 0),
+        account: const MastodonAccount(
+          id: '2',
+          username: 'commentator',
+          acct: 'commentator@example.social',
+          displayName: 'Commentator',
+          avatar: '',
+        ),
+        contentHtml:
+            '<p>RE: <a href="https://example.social/@orig/100">https://example.social/@orig/100</a></p>'
+            '<p>Strongly agree with this!</p>',
+        quotedStatus: original,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: StatusCard(
+                status: quotingPost,
+                app: controller,
+                onOpenProfile: (_) {},
+                onOpenThread: (_) {},
+                onReply: (_) {},
+                onToggleBoost: (_) async {},
+                onToggleFavorite: (_) async {},
+                onToggleBookmark: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(QuotedStatusCard), findsOneWidget);
+      expect(find.text('Quoted Post'), findsOneWidget);
+      expect(find.text('Original Author'), findsOneWidget);
+      expect(find.textContaining('Original insightful Mastodon post.'), findsOneWidget);
+      expect(find.textContaining('Strongly agree with this!'), findsOneWidget);
+      expect(find.textContaining('RE: https://example.social/@orig/100'), findsNothing);
     });
   });
 }

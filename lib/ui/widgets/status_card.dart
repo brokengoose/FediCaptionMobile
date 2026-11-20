@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
+import '../../core/html_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
@@ -12,6 +13,7 @@ import '../../state/app_controller.dart';
 import 'accessible_avatar.dart';
 import 'linkified_text.dart';
 import 'media_attachment_card.dart';
+import 'quoted_status_card.dart';
 
 /// Accessible Mastodon status card supporting:
 /// - Clickable user avatar, display name, and handle (including boost banner)
@@ -50,6 +52,39 @@ class StatusCard extends StatefulWidget {
 
 class _StatusCardState extends State<StatusCard> {
   bool _cwRevealed = false;
+  LeadingQuoteMatch? _leadingQuote;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncQuoteResolution();
+  }
+
+  @override
+  void didUpdateWidget(covariant StatusCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
+        oldWidget.status.displayStatus.contentHtml !=
+            widget.status.displayStatus.contentHtml) {
+      _syncQuoteResolution();
+    }
+  }
+
+  void _syncQuoteResolution() {
+    final target = widget.status.displayStatus;
+    _leadingQuote = HtmlUtils.extractLeadingQuote(target.contentHtml);
+    final quoteUrl = _leadingQuote?.quoteUrl;
+    if (target.quotedStatus == null &&
+        quoteUrl != null &&
+        !widget.app.hasResolvedQuote(quoteUrl) &&
+        !widget.app.isResolvingQuote(quoteUrl)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.app.resolveQuotedStatus(quoteUrl);
+        }
+      });
+    }
+  }
 
   Future<void> _openPermalink(String url) async {
     final uri = Uri.tryParse(url);
@@ -252,31 +287,69 @@ class _StatusCardState extends State<StatusCard> {
               const SizedBox(height: 8),
             ],
 
-            // Main post body + Media attachments
+            // Main post body + Embedded Quoted Post + Media attachments
             if (!hasCw || _cwRevealed) ...[
-              if (target.plainText.isNotEmpty)
-                InkWell(
-                  onTap: () => widget.onOpenThread(target),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: LinkifiedText.html(
-                      target.contentHtml,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                      mentions: target.mentions,
-                      onTapMention: (mention) => widget.onOpenProfile(
-                        MastodonAccount(
-                          id: mention.id,
-                          username: mention.username,
-                          acct: mention.acct,
-                          displayName: mention.username,
-                          avatar: '',
-                          url: mention.url,
+              ListenableBuilder(
+                listenable: widget.app,
+                builder: (context, _) {
+                  final quoteMatch = _leadingQuote;
+                  final quoteUrl = quoteMatch?.quoteUrl;
+                  final embeddedQuote = target.quotedStatus ??
+                      (quoteUrl != null
+                          ? widget.app.cachedQuotedStatus(quoteUrl)
+                          : null);
+                  final isLoadingQuote = target.quotedStatus == null &&
+                      quoteUrl != null &&
+                      (widget.app.isResolvingQuote(quoteUrl) ||
+                          !widget.app.hasResolvedQuote(quoteUrl));
+                  final hasQuoteWindow =
+                      target.quotedStatus != null || quoteUrl != null;
+
+                  // Strip redundant leading `RE: <url>` from outer post text when displaying quote window.
+                  final bodyHtml = quoteMatch != null
+                      ? quoteMatch.remainingHtml
+                      : target.contentHtml;
+                  final bodyPlainText = HtmlUtils.htmlToPlainText(bodyHtml);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (bodyPlainText.isNotEmpty)
+                        InkWell(
+                          onTap: () => widget.onOpenThread(target),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: LinkifiedText.html(
+                              bodyHtml,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                              mentions: target.mentions,
+                              onTapMention: (mention) => widget.onOpenProfile(
+                                MastodonAccount(
+                                  id: mention.id,
+                                  username: mention.username,
+                                  acct: mention.acct,
+                                  displayName: mention.username,
+                                  avatar: '',
+                                  url: mention.url,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
+                      if (hasQuoteWindow)
+                        QuotedStatusCard(
+                          app: widget.app,
+                          quotedStatus: embeddedQuote,
+                          quoteUrl: quoteUrl,
+                          isLoading: isLoadingQuote,
+                          onOpenProfile: widget.onOpenProfile,
+                          onOpenThread: widget.onOpenThread,
+                        ),
+                    ],
+                  );
+                },
+              ),
               if (target.editedAt != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),

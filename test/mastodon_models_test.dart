@@ -58,5 +58,74 @@ void main() {
       expect(HtmlUtils.looksLikeMastodonStatusUrl(urls[0]), isFalse);
       expect(HtmlUtils.looksLikeMastodonStatusUrl(urls[1]), isTrue);
     });
+
+    test('extractLeadingQuote detects RE: followed by anchor or bare URL', () {
+      final pQuote = HtmlUtils.extractLeadingQuote(
+        '<p>RE: <a href="https://mastodon.social/@alice/12345">https://mastodon.social/@alice/12345</a></p><p>Great point!</p>',
+      );
+      expect(pQuote, isNotNull);
+      expect(pQuote!.quoteUrl, 'https://mastodon.social/@alice/12345');
+      expect(HtmlUtils.htmlToPlainText(pQuote.remainingHtml), 'Great point!');
+
+      final inlineSpanQuote = HtmlUtils.extractLeadingQuote(
+        '<p><span class="quote-inline">RE: <a href="https://hachyderm.io/@bob/999">link</a></span><br>My commentary</p>',
+      );
+      expect(inlineSpanQuote, isNotNull);
+      expect(inlineSpanQuote!.quoteUrl, 'https://hachyderm.io/@bob/999');
+      expect(HtmlUtils.htmlToPlainText(inlineSpanQuote.remainingHtml), 'My commentary');
+
+      final bareUrlQuote = HtmlUtils.extractLeadingQuote(
+        '<p>re: https://fosstodon.org/@carol/777 Look at this</p>',
+      );
+      expect(bareUrlQuote, isNotNull);
+      expect(bareUrlQuote!.quoteUrl, 'https://fosstodon.org/@carol/777');
+      expect(HtmlUtils.htmlToPlainText(bareUrlQuote.remainingHtml), 'Look at this');
+
+      final nonQuote = HtmlUtils.extractLeadingQuote(
+        '<p>RE: meeting notes from today without a link</p>',
+      );
+      expect(nonQuote, isNull);
+
+      final regularUrl = HtmlUtils.extractLeadingQuote(
+        '<p>Check out <a href="https://mastodon.social/@alice/12345">this post</a></p>',
+      );
+      expect(regularUrl, isNull);
+    });
+  });
+
+  group('MastodonStatus native quote parsing', () {
+    test('parses nested quote.quoted_status object', () {
+      final status = MastodonStatus.fromJson({
+        'id': '200',
+        'created_at': '2026-11-19T12:00:00Z',
+        'content': '<p>RE: <a href="https://example.social/@orig/100">link</a></p><p>Adding context</p>',
+        'account': {
+          'id': '2',
+          'username': 'quoter',
+          'acct': 'quoter',
+          'display_name': 'Quoter',
+          'avatar': '',
+        },
+        'quote': {
+          'state': 'accepted',
+          'quoted_status': {
+            'id': '100',
+            'created_at': '2026-11-19T11:00:00Z',
+            'content': '<p>Original post text</p>',
+            'account': {
+              'id': '1',
+              'username': 'orig',
+              'acct': 'orig@example.social',
+              'display_name': 'Original Author',
+              'avatar': '',
+            },
+          },
+        },
+      });
+
+      expect(status.quotedStatus, isNotNull);
+      expect(status.quotedStatus!.id, '100');
+      expect(status.quotedStatus!.plainText, 'Original post text');
+    });
   });
 }

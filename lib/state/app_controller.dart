@@ -88,6 +88,10 @@ class AppController extends ChangeNotifier {
   final Set<String> _describingMediaIds = {};
   final Map<String, String> _mediaDescribeErrors = {};
 
+  // Cached resolved quoted statuses keyed by quote URL
+  final Map<String, MastodonStatus?> _resolvedQuotes = {};
+  final Set<String> _resolvingQuoteUrls = {};
+
   // Incrementing counter used to signal timelines to refresh after posting/editing/deleting.
   int _timelineRefreshNonce = 0;
 
@@ -127,6 +131,45 @@ class AppController extends ChangeNotifier {
       _describingMediaIds.contains(mediaId);
 
   String? mediaDescribeError(String mediaId) => _mediaDescribeErrors[mediaId];
+
+  MastodonStatus? cachedQuotedStatus(String url) => _resolvedQuotes[url];
+  bool hasResolvedQuote(String url) => _resolvedQuotes.containsKey(url);
+  bool isResolvingQuote(String url) => _resolvingQuoteUrls.contains(url);
+
+  /// Resolves a quoted Mastodon post URL via `/api/v2/search?resolve=true` and
+  /// caches the result so timeline scrolling doesn't re-fetch it.
+  Future<MastodonStatus?> resolveQuotedStatus(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return null;
+    if (_resolvedQuotes.containsKey(trimmed)) {
+      return _resolvedQuotes[trimmed];
+    }
+    if (_resolvingQuoteUrls.contains(trimmed)) {
+      return null;
+    }
+
+    final currentSession = _session;
+    if (currentSession == null) return null;
+
+    _resolvingQuoteUrls.add(trimmed);
+    notifyListeners();
+
+    try {
+      final resolved = await mastodon.resolveStatusByUrl(
+        instanceUrl: currentSession.instanceUrl,
+        accessToken: currentSession.accessToken,
+        statusUrl: trimmed,
+      );
+      _resolvedQuotes[trimmed] = resolved?.displayStatus;
+      return _resolvedQuotes[trimmed];
+    } catch (_) {
+      _resolvedQuotes[trimmed] = null;
+      return null;
+    } finally {
+      _resolvingQuoteUrls.remove(trimmed);
+      notifyListeners();
+    }
+  }
 
   /// Loads persisted settings, secure credentials, Mastodon session, instance limits,
   /// and runs the startup GitHub version check.
@@ -355,6 +398,8 @@ class AppController extends ChangeNotifier {
     _instanceLimits = const InstanceLimits();
     _timelineAiDescriptions.clear();
     _mediaDescribeErrors.clear();
+    _resolvedQuotes.clear();
+    _resolvingQuoteUrls.clear();
     notifyListeners();
     AccessibilityAnnouncer.announce('Signed out of Mastodon.');
   }

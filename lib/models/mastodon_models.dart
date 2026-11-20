@@ -227,6 +227,7 @@ class MastodonStatus {
     this.mediaAttachments = const [],
     this.mentions = const [],
     this.reblog,
+    this.quotedStatus,
     this.editedAt,
   });
 
@@ -251,6 +252,7 @@ class MastodonStatus {
   final List<MastodonMediaAttachment> mediaAttachments;
   final List<MastodonMention> mentions;
   final MastodonStatus? reblog;
+  final MastodonStatus? quotedStatus;
   final DateTime? editedAt;
 
   /// The actual displayed status (unwraps boost wrapper if present).
@@ -304,6 +306,7 @@ class MastodonStatus {
       mediaAttachments: mediaAttachments ?? this.mediaAttachments,
       mentions: mentions,
       reblog: reblog ?? this.reblog,
+      quotedStatus: quotedStatus,
       editedAt: editedAt ?? this.editedAt,
     );
   }
@@ -312,6 +315,15 @@ class MastodonStatus {
     final rawMedia = (json['media_attachments'] as List<dynamic>?) ?? const [];
     final rawMentions = (json['mentions'] as List<dynamic>?) ?? const [];
     final rawReblog = json['reblog'] as Map<String, dynamic>?;
+    final rawQuote = json['quote'] as Map<String, dynamic>?;
+    Map<String, dynamic>? quotedStatusJson;
+    if (rawQuote != null) {
+      if (rawQuote['quoted_status'] is Map<String, dynamic>) {
+        quotedStatusJson = rawQuote['quoted_status'] as Map<String, dynamic>;
+      } else if (rawQuote['id'] != null && rawQuote['account'] is Map<String, dynamic>) {
+        quotedStatusJson = rawQuote;
+      }
+    }
     final rawEditedAt = json['edited_at'] as String?;
 
     return MastodonStatus(
@@ -345,6 +357,9 @@ class MastodonStatus {
           .map(MastodonMention.fromJson)
           .toList(),
       reblog: rawReblog != null ? MastodonStatus.fromJson(rawReblog) : null,
+      quotedStatus: quotedStatusJson != null
+          ? MastodonStatus.fromJson(quotedStatusJson)
+          : null,
       editedAt: rawEditedAt != null ? DateTime.tryParse(rawEditedAt) : null,
     );
   }
