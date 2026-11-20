@@ -129,19 +129,20 @@ void main() {
         [
           'llama3.2-vision:latest',
           'mistral:latest',
-          'on-device-fallback',
           'qwen2.5vl:latest',
         ],
       );
+      expect(models.any((m) => m.id == 'on-device-fallback'), isFalse);
     });
 
-    test('defaultModelsFor returns alphabetically sorted lists and empty for No AI', () {
+    test('defaultModelsFor returns alphabetically sorted lists, empty for No AI, and omits on-device-fallback', () {
       for (final provider in AiProviderType.values) {
         final models = AiProviderService.defaultModelsFor(provider);
         if (provider == AiProviderType.none) {
           expect(models, isEmpty);
           continue;
         }
+        expect(models.any((m) => m.id == 'on-device-fallback'), isFalse);
         final names = models.map((m) => m.displayName.toLowerCase()).toList();
         final sortedNames = List<String>.from(names)..sort();
         expect(names, sortedNames);

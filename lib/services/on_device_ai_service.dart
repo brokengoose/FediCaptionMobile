@@ -169,19 +169,38 @@ class OnDeviceAiService {
     required String prompt,
     required String selectedModel,
   }) async {
+    await _ensureOnDeviceModelReady();
+    return _describeImageAssumingReady(
+      imageBytes: imageBytes,
+      prompt: prompt,
+      selectedModel: selectedModel,
+    );
+  }
+
+  /// Ensures OS-managed on-device AI is supported and provisioned before inference.
+  Future<void> _ensureOnDeviceModelReady() async {
     final status = await checkStatus();
     if (!status.isUsable) {
       throw StateError(status.summaryMessage);
     }
-
     if (status.isDownloadable) {
       await downloadModelsIfNeeded();
     }
+  }
 
+  Future<String> _describeImageAssumingReady({
+    required Uint8List imageBytes,
+    required String prompt,
+    required String selectedModel,
+  }) async {
     // 1. Dedicated fast on-device Image Describer (ML Kit Image Description / Apple Vision+FM).
     if (selectedModel == modelImageDescriber) {
       final result = await _imageDescriber.describeImage(imageBytes);
       if (result.trim().isNotEmpty) return result.trim();
+      // Fall back to multimodal prompt if the dedicated describer returned empty.
+      final promptFallback = await _runPrompt(prompt, image: imageBytes);
+      if (promptFallback.trim().isNotEmpty) return promptFallback.trim();
+      throw StateError('On-device model returned an empty image description.');
     }
 
     // 2. Multimodal prompt (respects concise/descriptive/detailed + post context + custom instructions).
@@ -213,8 +232,10 @@ class OnDeviceAiService {
     if (keyframes.isEmpty) {
       throw StateError('No video keyframes available for on-device analysis.');
     }
+    await _ensureOnDeviceModelReady();
+
     if (keyframes.length == 1) {
-      return describeImage(
+      return _describeImageAssumingReady(
         imageBytes: keyframes.first,
         prompt: framePrompt,
         selectedModel: selectedModel,
@@ -223,9 +244,10 @@ class OnDeviceAiService {
 
     final frameDescriptions = <String>[];
     for (var i = 0; i < keyframes.length; i++) {
-      final desc = await describeImage(
+      final desc = await _describeImageAssumingReady(
         imageBytes: keyframes[i],
-        prompt: 'Briefly describe keyframe ${i + 1} of ${keyframes.length} from a video, including any visible text.',
+        prompt:
+            'Briefly describe keyframe ${i + 1} of ${keyframes.length} from a video, including any visible text.',
         selectedModel: selectedModel,
       );
       frameDescriptions.add('Frame ${i + 1}: $desc');

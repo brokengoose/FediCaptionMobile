@@ -4,17 +4,28 @@
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../core/constants.dart';
 import '../models/bias_models.dart';
 
 /// Fetches external web pages linked in a draft post and extracts title,
 /// meta description, and a clean text excerpt for pre-post bias analysis.
 class LinkPreviewFetcher {
-  LinkPreviewFetcher({http.Client? client}) : _client = client ?? http.Client();
+  LinkPreviewFetcher({http.Client? client})
+      : _client = client ?? http.Client(),
+        _ownsClient = client == null;
 
   final http.Client _client;
+  final bool _ownsClient;
 
   static const int _maxHtmlChars = 120000;
   static const int _maxExcerptChars = 1500;
+
+  /// Closes the internally owned HTTP client (no-op if an external client was injected).
+  void dispose() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
 
   Future<LinkedPageExcerpt?> fetch(String url) async {
     final uri = Uri.tryParse(url);
@@ -27,7 +38,8 @@ class LinkPreviewFetcher {
           .get(
             uri,
             headers: const {
-              'User-Agent': 'FediCaptionMobile/1.0 (+https://github.com/brokengoose/FediCaptionMobile)',
+              'User-Agent':
+                  'FediCaptionMobile/${AppConstants.appVersion} (+${AppConstants.repositoryUrl})',
               'Accept': 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.1',
             },
           )

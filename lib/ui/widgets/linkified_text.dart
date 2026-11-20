@@ -7,6 +7,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/html_utils.dart';
 import '../../models/mastodon_models.dart';
 
 /// Renders Mastodon HTML or plain text with clickable, screen-reader-accessible
@@ -50,11 +51,6 @@ class LinkifiedText extends StatefulWidget {
 }
 
 class _LinkifiedTextState extends State<LinkifiedText> {
-  static final RegExp _urlRegex = RegExp(
-    r'https?://[^\s<>()"\[\]]+',
-    caseSensitive: false,
-  );
-
   final List<TapGestureRecognizer> _recognizers = [];
 
   @override
@@ -256,7 +252,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
     final spans = <InlineSpan>[];
     var cursor = 0;
 
-    for (final match in _urlRegex.allMatches(text)) {
+    for (final match in HtmlUtils.urlRegex.allMatches(text)) {
       if (match.start > cursor) {
         spans.add(
           TextSpan(
@@ -266,21 +262,16 @@ class _LinkifiedTextState extends State<LinkifiedText> {
         );
       }
 
-      var rawUrl = match.group(0) ?? '';
-      var trailing = '';
-      while (rawUrl.isNotEmpty && '.,;:!?)\'"'.contains(rawUrl[rawUrl.length - 1])) {
-        trailing = rawUrl[rawUrl.length - 1] + trailing;
-        rawUrl = rawUrl.substring(0, rawUrl.length - 1);
-      }
+      final (:url, :trailing) =
+          HtmlUtils.splitTrailingUrlPunctuation(match.group(0) ?? '');
 
-      if (rawUrl.isNotEmpty) {
-        final targetUrl = rawUrl;
+      if (url.isNotEmpty) {
         spans.add(
           TextSpan(
-            text: targetUrl,
+            text: url,
             style: linkStyle,
-            semanticsLabel: 'Link $targetUrl',
-            recognizer: _createTapRecognizer(() => _openUrl(targetUrl)),
+            semanticsLabel: 'Link $url',
+            recognizer: _createTapRecognizer(() => _openUrl(url)),
           ),
         );
       }

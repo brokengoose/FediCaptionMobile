@@ -19,10 +19,29 @@ class LeadingQuoteMatch {
 class HtmlUtils {
   HtmlUtils._();
 
-  static final RegExp _urlRegex = RegExp(
+  /// Matches `http://` and `https://` URLs inside plain text.
+  static final RegExp urlRegex = RegExp(
     r'https?://[^\s<>()"\[\]]+',
     caseSensitive: false,
   );
+
+  static const String _trailingUrlPunctuation = '.,;:!?)\'"';
+
+  /// Splits trailing sentence punctuation (such as `.`, `,`, `)`, `!`) off a
+  /// matched URL so the clickable link excludes punctuation while the caller
+  /// can still render the trailing characters as plain text.
+  static ({String url, String trailing}) splitTrailingUrlPunctuation(
+    String rawUrl,
+  ) {
+    var url = rawUrl;
+    var trailing = '';
+    while (url.isNotEmpty &&
+        _trailingUrlPunctuation.contains(url[url.length - 1])) {
+      trailing = url[url.length - 1] + trailing;
+      url = url.substring(0, url.length - 1);
+    }
+    return (url: url, trailing: trailing);
+  }
 
   /// Converts Mastodon status HTML into readable plain text with paragraph breaks.
   static String htmlToPlainText(String htmlContent) {
@@ -46,12 +65,9 @@ class HtmlUtils {
   static List<String> extractUrls(String text) {
     final seen = <String>{};
     final result = <String>[];
-    for (final match in _urlRegex.allMatches(text)) {
-      var url = match.group(0) ?? '';
-      // Trim trailing punctuation that commonly terminates sentences.
-      while (url.isNotEmpty && '.,;:!?)\'"'.contains(url[url.length - 1])) {
-        url = url.substring(0, url.length - 1);
-      }
+    for (final match in urlRegex.allMatches(text)) {
+      final (:url, trailing: _) =
+          splitTrailingUrlPunctuation(match.group(0) ?? '');
       if (url.isNotEmpty && seen.add(url)) {
         result.add(url);
       }
@@ -156,10 +172,8 @@ class HtmlUtils {
               .firstMatch(afterRe.trimLeft());
       if (bareUrlMatch == null) return null;
 
-      var url = bareUrlMatch.group(1) ?? '';
-      while (url.isNotEmpty && '.,;:!?)\'"'.contains(url[url.length - 1])) {
-        url = url.substring(0, url.length - 1);
-      }
+      final (:url, trailing: _) =
+          splitTrailingUrlPunctuation(bareUrlMatch.group(1) ?? '');
       if (url.isEmpty) return null;
 
       final trimmedLeft = afterRe.trimLeft();

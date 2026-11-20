@@ -8,6 +8,7 @@ import 'package:fedicaption_mobile/models/bias_models.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
 import 'package:fedicaption_mobile/services/on_device_ai_service.dart';
 import 'package:fedicaption_mobile/state/app_controller.dart';
+import 'package:fedicaption_mobile/ui/helpers/status_action_handler.dart';
 import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/linkified_text.dart';
@@ -349,6 +350,85 @@ void main() {
       final quoteRect = tester.getRect(find.byType(QuotedStatusCard));
       final replyRect = tester.getRect(find.textContaining('Strongly agree with this!'));
       expect(quoteRect.bottom, lessThanOrEqualTo(replyRect.top));
+    });
+
+    testWidgets('QuotedStatusCard fallback exposes Retry button when onRetry is provided', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(),
+      );
+      addTearDown(controller.dispose);
+      var retried = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: QuotedStatusCard(
+              app: controller,
+              quoteUrl: 'https://example.social/@orig/404',
+              onOpenProfile: (_) {},
+              onOpenThread: (_) {},
+              onRetry: () => retried = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Quoted post could not be loaded in-app'), findsOneWidget);
+      await tester.tap(find.text('Retry'));
+      expect(retried, isTrue);
+    });
+  });
+
+  group('StatusActionHandler delete confirmation', () {
+    testWidgets('prompts before deleting and returns false when user cancels', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(),
+      );
+      addTearDown(controller.dispose);
+      final handler = StatusActionHandler(app: controller);
+      bool? deleteOutcome;
+
+      final sampleStatus = MastodonStatus(
+        id: '555',
+        createdAt: DateTime.utc(2026, 11, 20),
+        account: const MastodonAccount(
+          id: '1',
+          username: 'tester',
+          acct: 'tester',
+          displayName: 'Tester',
+          avatar: '',
+        ),
+        contentHtml: '<p>Test post</p>',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  deleteOutcome = await handler.confirmAndDelete(
+                    context,
+                    sampleStatus,
+                  );
+                },
+                child: const Text('Trigger Delete'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Trigger Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Post?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(deleteOutcome, isFalse);
     });
   });
 }

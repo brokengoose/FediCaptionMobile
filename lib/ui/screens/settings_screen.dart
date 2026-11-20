@@ -10,14 +10,13 @@ import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
-import '../../services/ai_provider_service.dart';
 import '../../state/app_controller.dart';
-import '../widgets/on_device_ai_status_card.dart';
+import '../widgets/ai_provider_config_section.dart';
 
-/// Settings screen implementing:
-/// - AI provider selection, API keys / server URLs, and **dynamic model drop-down picker**
+/// Settings screen providing:
+/// - AI provider selection, API keys / server URLs, and dynamic model drop-down picker
 /// - AI Captioning preferences (detail level, video keyframes, auto-generate, post context, language, custom instructions)
-/// - Parallel **Accessibility Rules** and **Bias Rules** sections
+/// - Parallel Accessibility Rules (TTS speed + alt-text policy) and Bias Rules sections
 /// - Theme selection (System Auto-Detect, Dark, Light, WCAG AAA High Contrast)
 /// - Account info, dynamic instance limits, and GitHub attribution
 class SettingsScreen extends StatefulWidget {
@@ -33,78 +32,41 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late final TextEditingController _geminiKeyCtrl;
-  late final TextEditingController _openAiKeyCtrl;
-  late final TextEditingController _openAiUrlCtrl;
-  late final TextEditingController _anthropicKeyCtrl;
-  late final TextEditingController _localUrlCtrl;
-  late final TextEditingController _localKeyCtrl;
   late final TextEditingController _languageCtrl;
   late final TextEditingController _customInstructionsCtrl;
 
-  bool _obscureApiKey = true;
-  Timer? _debounceTimer;
+  Timer? _textPrefsDebounce;
+  double? _draggingSpeechRate;
 
   @override
   void initState() {
     super.initState();
     final s = widget.app.settings;
-    final c = widget.app.credentials;
-    _geminiKeyCtrl = TextEditingController(text: c.geminiApiKey);
-    _openAiKeyCtrl = TextEditingController(text: c.openAiApiKey);
-    _openAiUrlCtrl = TextEditingController(text: s.openAiBaseUrl);
-    _anthropicKeyCtrl = TextEditingController(text: c.anthropicApiKey);
-    _localUrlCtrl = TextEditingController(text: s.localBaseUrl);
-    _localKeyCtrl = TextEditingController(text: c.localApiKey);
     _languageCtrl = TextEditingController(text: s.language);
     _customInstructionsCtrl = TextEditingController(text: s.customInstructions);
-
-    // Dynamically query provider models & on-device status whenever Settings is opened.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      widget.app.refreshOnDeviceAiStatus();
-      widget.app.refreshModelsFor(widget.app.settings.activeProvider);
-    });
   }
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
-    _geminiKeyCtrl.dispose();
-    _openAiKeyCtrl.dispose();
-    _openAiUrlCtrl.dispose();
-    _anthropicKeyCtrl.dispose();
-    _localUrlCtrl.dispose();
-    _localKeyCtrl.dispose();
+    _textPrefsDebounce?.cancel();
     _languageCtrl.dispose();
     _customInstructionsCtrl.dispose();
     super.dispose();
   }
 
-  void _scheduleCredentialSave(AiProviderType provider) {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 650), () async {
-      await widget.app.updateCredentials(
-        AiCredentials(
-          geminiApiKey: _geminiKeyCtrl.text.trim(),
-          openAiApiKey: _openAiKeyCtrl.text.trim(),
-          anthropicApiKey: _anthropicKeyCtrl.text.trim(),
-          localApiKey: _localKeyCtrl.text.trim(),
-        ),
-        refreshProvider: provider,
-      );
-    });
-  }
-
-  void _scheduleBaseUrlSave(AiProviderType provider) {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 650), () async {
-      await widget.app.updateSettings(
+  /// Debounces persisting caption language and custom instructions so typing
+  /// does not write SharedPreferences or rebuild the app on every keystroke.
+  void _scheduleTextPrefsSave() {
+    _textPrefsDebounce?.cancel();
+    _textPrefsDebounce = Timer(const Duration(milliseconds: 500), () {
+      final lang = _languageCtrl.text.trim();
+      widget.app.updateSettings(
         widget.app.settings.copyWith(
-          openAiBaseUrl: _openAiUrlCtrl.text.trim(),
-          localBaseUrl: _localUrlCtrl.text.trim(),
+          language: lang.isEmpty ? 'English' : lang,
+          customInstructions: _customInstructionsCtrl.text,
         ),
+        autoRefreshModels: false,
       );
-      await widget.app.refreshModelsFor(provider);
     });
   }
 
@@ -114,210 +76,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       listenable: Listenable.merge([widget.app, widget.app.themeController]),
       builder: (context, _) {
         final s = widget.app.settings;
-        final activeProvider = s.activeProvider;
-        final isNone = activeProvider == AiProviderType.none;
-        final isLoadingModels =
-            !isNone && widget.app.isLoadingModels(activeProvider);
-        final rawModels = isNone
-            ? const <AiModelOption>[]
-            : widget.app.modelsFor(activeProvider);
-        final selectedModel = s.modelForProvider(activeProvider);
-
-        // Guarantee DropdownButtonFormField always contains the currently selected value
-        // and stays strictly sorted alphabetically.
-        final dropdownModels = List<AiModelOption>.from(rawModels);
-        if (!isNone &&
-            selectedModel.isNotEmpty &&
-            !dropdownModels.any((m) => m.id == selectedModel)) {
-          dropdownModels.add(
-            AiModelOption(id: selectedModel, displayName: selectedModel),
-          );
-        }
-        final sortedModels = AiProviderService.sortAlphabetically(dropdownModels);
-
         final fedi = context.fediColors;
         final limits = widget.app.instanceLimits;
+        final displayedSpeechRate = _draggingSpeechRate ?? s.ttsSpeechRate;
 
         return Scaffold(
           appBar: AppBar(title: const Text('Settings')),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // === 1. Settings & API Keys ===
+              // === 1. AI Provider, API Keys & Dynamic Model Picker ===
               const _SectionHeader(
                 title: 'AI Provider & API Keys',
                 icon: Icons.auto_awesome,
               ),
               const SizedBox(height: 8),
 
-              DropdownButtonFormField<AiProviderType>(
-                key: ValueKey('provider_${activeProvider.id}'),
-                initialValue: activeProvider,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Active AI Provider',
-                ),
-                items: AiProviderType.values
-                    .map(
-                      (p) => DropdownMenuItem(
-                        value: p,
-                        child: Text(p.displayName),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (next) {
-                  if (next != null) {
-                    widget.app.updateSettings(s.copyWith(activeProvider: next));
-                  }
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              // Provider-specific URL, API Key, or On-Device status card
-              if (activeProvider == AiProviderType.onDevice)
-                OnDeviceAiStatusCard(app: widget.app),
-
-              if (activeProvider == AiProviderType.gemini)
-                _buildApiKeyField(
-                  controller: _geminiKeyCtrl,
-                  label: 'Google Gemini API Key',
-                  hint: 'AIza…',
-                  onChanged: (_) =>
-                      _scheduleCredentialSave(AiProviderType.gemini),
-                ),
-
-              if (activeProvider == AiProviderType.openai) ...[
-                TextField(
-                  controller: _openAiUrlCtrl,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  onChanged: (_) => _scheduleBaseUrlSave(AiProviderType.openai),
-                  decoration: const InputDecoration(
-                    labelText: 'OpenAI-Compatible Base URL',
-                    hintText: AppConstants.openAiDefaultBaseUrl,
-                    helperText:
-                        'Supports OpenAI, OpenRouter, LM Studio, vLLM, or llama.cpp.',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildApiKeyField(
-                  controller: _openAiKeyCtrl,
-                  label: 'API Key (Optional for local servers)',
-                  hint: 'sk-…',
-                  onChanged: (_) =>
-                      _scheduleCredentialSave(AiProviderType.openai),
-                ),
-              ],
-
-              if (activeProvider == AiProviderType.anthropic)
-                _buildApiKeyField(
-                  controller: _anthropicKeyCtrl,
-                  label: 'Anthropic API Key',
-                  hint: 'sk-ant-…',
-                  onChanged: (_) =>
-                      _scheduleCredentialSave(AiProviderType.anthropic),
-                ),
-
-              if (activeProvider == AiProviderType.local) ...[
-                TextField(
-                  controller: _localUrlCtrl,
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  onChanged: (_) => _scheduleBaseUrlSave(AiProviderType.local),
-                  decoration: const InputDecoration(
-                    labelText: 'Local AI Server URL (Ollama / LM Studio LAN)',
-                    hintText: 'http://192.168.1.50:11434',
-                    helperText:
-                        'Use your computer\'s LAN IP for Ollama (port 11434) or LM Studio (port 1234/v1).',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildApiKeyField(
-                  controller: _localKeyCtrl,
-                  label: 'Optional LAN Server Token / Key',
-                  hint: 'Leave blank if not required',
-                  onChanged: (_) =>
-                      _scheduleCredentialSave(AiProviderType.local),
-                ),
-              ],
-
-              const SizedBox(height: 12),
-
-              if (isNone)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withAlpha(115),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: fedi.cardBorder),
-                  ),
-                  child: const Text(
-                    'AI is disabled ("No AI"). Alt-text can be entered manually, Read Aloud remains available, and pre-post bias checks use offline local heuristics.',
-                  ),
-                )
-              else
-                // Dynamic Model Drop-Down Picker (Section 3.2 — NEVER a plain text input)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key: ValueKey('model_${activeProvider.id}_$selectedModel'),
-                        initialValue: sortedModels.any((m) => m.id == selectedModel)
-                            ? selectedModel
-                            : (sortedModels.isNotEmpty
-                                ? sortedModels.first.id
-                                : null),
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: 'AI Model (A–Z)',
-                          helperText: isLoadingModels
-                              ? 'Fetching available models from provider…'
-                              : 'Sorted alphabetically. Select a vision-capable model.',
-                        ),
-                        items: sortedModels
-                            .map(
-                              (m) => DropdownMenuItem(
-                                value: m.id,
-                                child: Text(
-                                  m.displayName,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (modelId) {
-                          if (modelId != null) {
-                            widget.app.updateSettings(
-                              s.withModelForProvider(activeProvider, modelId),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: IconButton.filledTonal(
-                        tooltip: 'Refresh Models',
-                        onPressed: isLoadingModels
-                            ? null
-                            : () => widget.app.refreshModelsFor(activeProvider),
-                        icon: isLoadingModels
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.refresh),
-                      ),
-                    ),
-                  ],
-                ),
+              AiProviderConfigSection(app: widget.app),
 
               const SizedBox(height: 24),
               const Divider(),
@@ -348,6 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (next != null) {
                     widget.app.updateSettings(
                       s.copyWith(defaultDetailLevel: next),
+                      autoRefreshModels: false,
                     );
                   }
                 },
@@ -375,6 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (count != null) {
                     widget.app.updateSettings(
                       s.copyWith(videoKeyframeCount: count),
+                      autoRefreshModels: false,
                     );
                   }
                 },
@@ -389,8 +166,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Automatically scan images and videos as soon as they are attached.',
                 ),
                 value: s.autoGenerate,
-                onChanged: (v) =>
-                    widget.app.updateSettings(s.copyWith(autoGenerate: v)),
+                onChanged: (v) => widget.app.updateSettings(
+                  s.copyWith(autoGenerate: v),
+                  autoRefreshModels: false,
+                ),
               ),
 
               SwitchListTile(
@@ -400,8 +179,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Helps the AI identify names, events, or subjects mentioned in your draft.',
                 ),
                 value: s.includePostContext,
-                onChanged: (v) => widget.app
-                    .updateSettings(s.copyWith(includePostContext: v)),
+                onChanged: (v) => widget.app.updateSettings(
+                  s.copyWith(includePostContext: v),
+                  autoRefreshModels: false,
+                ),
               ),
 
               const SizedBox(height: 8),
@@ -412,9 +193,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   labelText: 'Caption Output Language',
                   hintText: 'English',
                 ),
-                onChanged: (val) => widget.app.updateSettings(
-                  s.copyWith(language: val.trim().isEmpty ? 'English' : val.trim()),
-                ),
+                onChanged: (_) => _scheduleTextPrefsSave(),
               ),
 
               const SizedBox(height: 12),
@@ -428,21 +207,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   hintText:
                       'e.g. Our orange tabby cat is named Marmalade; prefer plain objective tone.',
                 ),
-                onChanged: (val) => widget.app
-                    .updateSettings(s.copyWith(customInstructions: val)),
+                onChanged: (_) => _scheduleTextPrefsSave(),
               ),
 
               const SizedBox(height: 24),
               const Divider(),
 
-              // === 3. Accessibility Rules (Section 5.1) ===
+              // === 3. Accessibility Rules ===
               const _SectionHeader(
                 title: 'Accessibility Rules',
                 icon: Icons.accessibility_new,
               ),
               const SizedBox(height: 8),
               Text(
-                'Built-in On-Device Read Aloud Speed (${(s.ttsSpeechRate * 2).toStringAsFixed(2)}x)',
+                'Built-in On-Device Read Aloud Speed (${(displayedSpeechRate * 2).toStringAsFixed(2)}x)',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               Text(
@@ -453,13 +231,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ?.copyWith(color: fedi.subtleText),
               ),
               Slider(
-                value: s.ttsSpeechRate,
+                value: displayedSpeechRate,
                 min: 0.25,
                 max: 1.0,
                 divisions: 15,
-                label: '${(s.ttsSpeechRate * 2).toStringAsFixed(2)}x',
+                label: '${(displayedSpeechRate * 2).toStringAsFixed(2)}x',
                 onChanged: (next) =>
-                    widget.app.updateSettings(s.copyWith(ttsSpeechRate: next)),
+                    setState(() => _draggingSpeechRate = next),
+                onChangeEnd: (next) {
+                  setState(() => _draggingSpeechRate = null);
+                  widget.app.updateSettings(
+                    s.copyWith(ttsSpeechRate: next),
+                    autoRefreshModels: false,
+                  );
+                },
               ),
               const SizedBox(height: 8),
               Text(
@@ -474,7 +259,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 groupValue: s.altTextPolicy,
                 onChanged: (next) {
                   if (next != null) {
-                    widget.app.updateSettings(s.copyWith(altTextPolicy: next));
+                    widget.app.updateSettings(
+                      s.copyWith(altTextPolicy: next),
+                      autoRefreshModels: false,
+                    );
                   }
                 },
                 child: Column(
@@ -494,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               const Divider(),
 
-              // === 4. Bias Rules (Section 5.2) ===
+              // === 4. Bias Rules ===
               const _SectionHeader(
                 title: 'Bias Rules',
                 icon: Icons.balance,
@@ -512,7 +300,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 groupValue: s.biasPolicy,
                 onChanged: (next) {
                   if (next != null) {
-                    widget.app.updateSettings(s.copyWith(biasPolicy: next));
+                    widget.app.updateSettings(
+                      s.copyWith(biasPolicy: next),
+                      autoRefreshModels: false,
+                    );
                   }
                 },
                 child: Column(
@@ -532,7 +323,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               const Divider(),
 
-              // === 5. Theme & Appearance (Section 7.1) ===
+              // === 5. Theme & Appearance ===
               const _SectionHeader(
                 title: 'Appearance & Theme',
                 icon: Icons.contrast,
@@ -552,6 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (next != null) {
                     widget.app.updateSettings(
                       s.copyWith(themePreference: next),
+                      autoRefreshModels: false,
                     );
                   }
                 },
@@ -622,31 +414,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildApiKeyField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required ValueChanged<String> onChanged,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: _obscureApiKey,
-      autocorrect: false,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        suffixIcon: IconButton(
-          tooltip: _obscureApiKey ? 'Show API key' : 'Hide API key',
-          icon: Icon(
-            _obscureApiKey ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
-        ),
-      ),
     );
   }
 

@@ -22,7 +22,7 @@ class CaptionFormatter {
     RegExp(r'^(an?\s+)?(image|photo|photograph|picture|video|clip)\s+of\s+', caseSensitive: false),
   ];
 
-  /// Formats [rawText] according to Section 2.1 requirements:
+  /// Formats [rawText] into a clean screen-reader alt-text caption:
   /// 1. Strips surrounding quotation marks and redundant preambles/duplicate prefixes.
   /// 2. Prepends exact `AI generated description: `.
   /// 3. Truncates cleanly on a word boundary with `…` if exceeding [maxLength].

@@ -10,8 +10,11 @@ import 'package:http/http.dart' as http;
 import '../core/constants.dart';
 import '../models/mastodon_models.dart';
 
+/// Exception thrown when a Mastodon REST API request returns a non-2xx status
+/// or an invalid payload.
 class MastodonApiException implements Exception {
   const MastodonApiException(this.message, {this.statusCode});
+
   final String message;
   final int? statusCode;
 
@@ -19,6 +22,7 @@ class MastodonApiException implements Exception {
   String toString() => message;
 }
 
+/// Client credentials issued when registering FediCaption via `POST /api/v1/apps`.
 class OAuthAppCredentials {
   const OAuthAppCredentials({
     required this.clientId,
@@ -32,9 +36,19 @@ class OAuthAppCredentials {
 /// Complete Mastodon REST API client supporting OAuth 2.0, dynamic instance limits,
 /// timelines, profiles, relationships, media uploads, and editing own posts with alt-text.
 class MastodonService {
-  MastodonService({http.Client? client}) : _client = client ?? http.Client();
+  MastodonService({http.Client? client})
+      : _client = client ?? http.Client(),
+        _ownsClient = client == null;
 
   final http.Client _client;
+  final bool _ownsClient;
+
+  /// Closes the internally owned HTTP client (no-op if an external client was injected).
+  void dispose() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
 
   /// Normalizes user input such as `mastodon.social` into `https://mastodon.social`.
   static String normalizeInstanceUrl(String raw) {
@@ -49,25 +63,21 @@ class MastodonService {
     return trimmed;
   }
 
-  /// Registers the OAuth 2.0 application with the Mastodon instance (`POST /api/v1/apps`).
-  /// Per Section 1, `website` explicitly points to the GitHub repository URL.
+  /// Registers the OAuth 2.0 application with the Mastodon instance (`POST /api/v1/apps`),
+  /// setting `website` to FediCaption Mobile's GitHub repository URL.
   Future<OAuthAppCredentials> registerOAuthApp(String instanceUrl) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/apps'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'client_name': AppConstants.oauthClientName,
-            'redirect_uris': AppConstants.oauthRedirectUri,
-            'scopes': AppConstants.oauthScopes,
-            'website': AppConstants.oauthWebsite,
-          }),
-        )
-        .timeout(const Duration(seconds: 20));
-
-    _ensureSuccess(res, 'Failed to register OAuth app');
-    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/apps',
+      body: {
+        'client_name': AppConstants.oauthClientName,
+        'redirect_uris': AppConstants.oauthRedirectUri,
+        'scopes': AppConstants.oauthScopes,
+        'website': AppConstants.oauthWebsite,
+      },
+      errorContext: 'Failed to register OAuth app',
+      timeout: const Duration(seconds: 20),
+    );
     return OAuthAppCredentials(
       clientId: (decoded['client_id'] as String?) ?? '',
       clientSecret: (decoded['client_secret'] as String?) ?? '',
@@ -79,8 +89,9 @@ class MastodonService {
     required String instanceUrl,
     required String clientId,
   }) {
-    final base = normalizeInstanceUrl(instanceUrl);
-    return Uri.parse('$base/oauth/authorize').replace(
+    return _buildUri(
+      instanceUrl,
+      '/oauth/authorize',
       queryParameters: {
         'client_id': clientId,
         'scope': AppConstants.oauthScopes,
@@ -97,27 +108,25 @@ class MastodonService {
     required String clientSecret,
     required String code,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .post(
-          Uri.parse('$base/oauth/token'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'client_id': clientId,
-            'client_secret': clientSecret,
-            'redirect_uri': AppConstants.oauthRedirectUri,
-            'grant_type': 'authorization_code',
-            'code': code,
-            'scope': AppConstants.oauthScopes,
-          }),
-        )
-        .timeout(const Duration(seconds: 20));
-
-    _ensureSuccess(res, 'Failed to exchange OAuth token');
-    final decoded = jsonDecode(res.body) as Map<String, dynamic>;
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/oauth/token',
+      body: {
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'redirect_uri': AppConstants.oauthRedirectUri,
+        'grant_type': 'authorization_code',
+        'code': code,
+        'scope': AppConstants.oauthScopes,
+      },
+      errorContext: 'Failed to exchange OAuth token',
+      timeout: const Duration(seconds: 20),
+    );
     final token = (decoded['access_token'] as String?) ?? '';
     if (token.isEmpty) {
-      throw const MastodonApiException('Server did not return an access token.');
+      throw const MastodonApiException(
+        'Server did not return an access token.',
+      );
     }
     return token;
   }
@@ -127,15 +136,13 @@ class MastodonService {
     required String instanceUrl,
     required String accessToken,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .get(
-          Uri.parse('$base/api/v1/accounts/verify_credentials'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to verify Mastodon credentials');
-    return MastodonAccount.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    final decoded = await _getJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/accounts/verify_credentials',
+      accessToken: accessToken,
+      errorContext: 'Failed to verify Mastodon credentials',
+    );
+    return MastodonAccount.fromJson(decoded);
   }
 
   /// Queries dynamic server limits from `GET /api/v2/instance` with fallback to `GET /api/v1/instance`.
@@ -143,7 +150,6 @@ class MastodonService {
     required String instanceUrl,
     String? accessToken,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
     final headers = accessToken != null && accessToken.isNotEmpty
         ? _authHeaders(accessToken)
         : const {'Accept': 'application/json'};
@@ -151,7 +157,7 @@ class MastodonService {
     for (final endpoint in ['/api/v2/instance', '/api/v1/instance']) {
       try {
         final res = await _client
-            .get(Uri.parse('$base$endpoint'), headers: headers)
+            .get(_buildUri(instanceUrl, endpoint), headers: headers)
             .timeout(const Duration(seconds: 12));
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final decoded = jsonDecode(res.body) as Map<String, dynamic>;
@@ -164,7 +170,7 @@ class MastodonService {
     return const InstanceLimits();
   }
 
-  /// Fetches statuses for any supported [TimelineType].
+  /// Fetches statuses for any supported [TimelineType] with optional `maxId` pagination.
   Future<List<MastodonStatus>> fetchTimeline({
     required String instanceUrl,
     required String accessToken,
@@ -173,7 +179,6 @@ class MastodonService {
     String? maxId,
     int limit = 25,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
     final query = <String, String>{
       'limit': '$limit',
       if (maxId != null && maxId.isNotEmpty) 'max_id': maxId,
@@ -198,58 +203,57 @@ class MastodonService {
         return const [];
     }
 
-    final uri = Uri.parse('$base$path').replace(queryParameters: query);
-    final res = await _client
-        .get(uri, headers: _authHeaders(accessToken))
-        .timeout(const Duration(seconds: 20));
-    _ensureSuccess(res, 'Failed to load ${type.fullTitle}');
-    final list = jsonDecode(res.body) as List<dynamic>;
-    return list
-        .whereType<Map<String, dynamic>>()
-        .map(MastodonStatus.fromJson)
-        .toList();
+    final list = await _getJsonList(
+      instanceUrl: instanceUrl,
+      path: path,
+      accessToken: accessToken,
+      queryParameters: query,
+      errorContext: 'Failed to load ${type.fullTitle}',
+      timeout: const Duration(seconds: 20),
+    );
+    return _parseStatusList(list);
   }
 
+  /// Fetches account notifications (`GET /api/v1/notifications`) with optional `maxId` pagination.
   Future<List<MastodonNotification>> fetchNotifications({
     required String instanceUrl,
     required String accessToken,
     String? maxId,
     int limit = 30,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final uri = Uri.parse('$base/api/v1/notifications').replace(
+    final list = await _getJsonList(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/notifications',
+      accessToken: accessToken,
       queryParameters: {
         'limit': '$limit',
         if (maxId != null && maxId.isNotEmpty) 'max_id': maxId,
       },
+      errorContext: 'Failed to load notifications',
+      timeout: const Duration(seconds: 20),
     );
-    final res = await _client
-        .get(uri, headers: _authHeaders(accessToken))
-        .timeout(const Duration(seconds: 20));
-    _ensureSuccess(res, 'Failed to load notifications');
-    final list = jsonDecode(res.body) as List<dynamic>;
     return list
         .whereType<Map<String, dynamic>>()
         .map(MastodonNotification.fromJson)
         .toList();
   }
 
+  /// Fetches full profile metadata for a Mastodon account (`GET /api/v1/accounts/{id}`).
   Future<MastodonAccount> fetchAccount({
     required String instanceUrl,
     required String accessToken,
     required String accountId,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .get(
-          Uri.parse('$base/api/v1/accounts/$accountId'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to load user profile');
-    return MastodonAccount.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    final decoded = await _getJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/accounts/$accountId',
+      accessToken: accessToken,
+      errorContext: 'Failed to load user profile',
+    );
+    return MastodonAccount.fromJson(decoded);
   }
 
+  /// Fetches statuses published by [accountId] with optional `maxId` pagination.
   Future<List<MastodonStatus>> fetchAccountStatuses({
     required String instanceUrl,
     required String accessToken,
@@ -257,24 +261,21 @@ class MastodonService {
     String? maxId,
     int limit = 25,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final uri = Uri.parse('$base/api/v1/accounts/$accountId/statuses').replace(
+    final list = await _getJsonList(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/accounts/$accountId/statuses',
+      accessToken: accessToken,
       queryParameters: {
         'limit': '$limit',
         if (maxId != null && maxId.isNotEmpty) 'max_id': maxId,
       },
+      errorContext: 'Failed to load user posts',
+      timeout: const Duration(seconds: 20),
     );
-    final res = await _client
-        .get(uri, headers: _authHeaders(accessToken))
-        .timeout(const Duration(seconds: 20));
-    _ensureSuccess(res, 'Failed to load user posts');
-    final list = jsonDecode(res.body) as List<dynamic>;
-    return list
-        .whereType<Map<String, dynamic>>()
-        .map(MastodonStatus.fromJson)
-        .toList();
+    return _parseStatusList(list);
   }
 
+  /// Fetches the current user's follow/notification relationship with [accountId].
   Future<MastodonRelationship?> fetchRelationship({
     required String instanceUrl,
     required String accessToken,
@@ -300,57 +301,44 @@ class MastodonService {
     required String accountId,
     bool? notify,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/accounts/$accountId/follow'),
-          headers: {
-            ..._authHeaders(accessToken),
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            if (notify != null) 'notify': notify,
-          }),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to follow user');
-    return MastodonRelationship.fromJson(
-      jsonDecode(res.body) as Map<String, dynamic>,
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/accounts/$accountId/follow',
+      accessToken: accessToken,
+      body: {if (notify != null) 'notify': notify},
+      errorContext: 'Failed to follow user',
     );
+    return MastodonRelationship.fromJson(decoded);
   }
 
+  /// Unsubscribes (`unfollow`) from [accountId].
   Future<MastodonRelationship> unfollowAccount({
     required String instanceUrl,
     required String accessToken,
     required String accountId,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/accounts/$accountId/unfollow'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to unfollow user');
-    return MastodonRelationship.fromJson(
-      jsonDecode(res.body) as Map<String, dynamic>,
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/accounts/$accountId/unfollow',
+      accessToken: accessToken,
+      errorContext: 'Failed to unfollow user',
     );
+    return MastodonRelationship.fromJson(decoded);
   }
 
+  /// Fetches ancestor and descendant posts for a conversation thread (`GET /api/v1/statuses/{id}/context`).
   Future<MastodonContext> fetchStatusContext({
     required String instanceUrl,
     required String accessToken,
     required String statusId,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .get(
-          Uri.parse('$base/api/v1/statuses/$statusId/context'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to load conversation thread');
-    return MastodonContext.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    final decoded = await _getJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/statuses/$statusId/context',
+      accessToken: accessToken,
+      errorContext: 'Failed to load conversation thread',
+    );
+    return MastodonContext.fromJson(decoded);
   }
 
   /// Fetches raw source text and content warning for editing an existing status.
@@ -359,17 +347,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final res = await _client
-        .get(
-          Uri.parse('$base/api/v1/statuses/$statusId/source'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to fetch status source for editing');
-    return MastodonStatusSource.fromJson(
-      jsonDecode(res.body) as Map<String, dynamic>,
+    final decoded = await _getJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/statuses/$statusId/source',
+      accessToken: accessToken,
+      errorContext: 'Failed to fetch status source for editing',
     );
+    return MastodonStatusSource.fromJson(decoded);
   }
 
   /// Resolves a referenced Mastodon status URL via `/api/v2/search?resolve=true`.
@@ -378,8 +362,9 @@ class MastodonService {
     required String accessToken,
     required String statusUrl,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final uri = Uri.parse('$base/api/v2/search').replace(
+    final uri = _buildUri(
+      instanceUrl,
+      '/api/v2/search',
       queryParameters: {
         'q': statusUrl,
         'type': 'statuses',
@@ -480,31 +465,25 @@ class MastodonService {
     String? language,
     List<String> mediaIds = const [],
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final payload = <String, dynamic>{
-      'status': statusText,
-      'visibility': visibility.apiValue,
-      if (spoilerText != null && spoilerText.trim().isNotEmpty)
-        'spoiler_text': spoilerText.trim(),
-      if (inReplyToId != null && inReplyToId.isNotEmpty)
-        'in_reply_to_id': inReplyToId,
-      if (language != null && language.trim().isNotEmpty)
-        'language': language.trim(),
-      if (mediaIds.isNotEmpty) 'media_ids': mediaIds,
-    };
-
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/statuses'),
-          headers: {
-            ..._authHeaders(accessToken),
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(payload),
-        )
-        .timeout(const Duration(seconds: 25));
-    _ensureSuccess(res, 'Failed to publish post');
-    return MastodonStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/statuses',
+      accessToken: accessToken,
+      body: {
+        'status': statusText,
+        'visibility': visibility.apiValue,
+        if (spoilerText != null && spoilerText.trim().isNotEmpty)
+          'spoiler_text': spoilerText.trim(),
+        if (inReplyToId != null && inReplyToId.isNotEmpty)
+          'in_reply_to_id': inReplyToId,
+        if (language != null && language.trim().isNotEmpty)
+          'language': language.trim(),
+        if (mediaIds.isNotEmpty) 'media_ids': mediaIds,
+      },
+      errorContext: 'Failed to publish post',
+      timeout: const Duration(seconds: 25),
+    );
+    return MastodonStatus.fromJson(decoded);
   }
 
   /// Updates an existing status (`PUT /api/v1/statuses/{id}`) including updated
@@ -519,7 +498,6 @@ class MastodonService {
     List<String> mediaIds = const [],
     List<Map<String, String>> mediaAttributes = const [],
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
     final payload = <String, dynamic>{
       'status': statusText,
       'spoiler_text': (spoilerText ?? '').trim(),
@@ -531,7 +509,7 @@ class MastodonService {
 
     final res = await _client
         .put(
-          Uri.parse('$base/api/v1/statuses/$statusId'),
+          _buildUri(instanceUrl, '/api/v1/statuses/$statusId'),
           headers: {
             ..._authHeaders(accessToken),
             'Content-Type': 'application/json',
@@ -540,77 +518,70 @@ class MastodonService {
         )
         .timeout(const Duration(seconds: 25));
     _ensureSuccess(res, 'Failed to save edited post');
-    return MastodonStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    return MastodonStatus.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
   }
 
+  /// Permanently deletes a status owned by the logged-in user (`DELETE /api/v1/statuses/{id}`).
   Future<void> deleteStatus({
     required String instanceUrl,
     required String accessToken,
     required String statusId,
   }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
     final res = await _client
         .delete(
-          Uri.parse('$base/api/v1/statuses/$statusId'),
+          _buildUri(instanceUrl, '/api/v1/statuses/$statusId'),
           headers: _authHeaders(accessToken),
         )
         .timeout(const Duration(seconds: 15));
     _ensureSuccess(res, 'Failed to delete post');
   }
 
+  /// Favorites or unfavorites [statusId] depending on [currentlyFavourited].
   Future<MastodonStatus> toggleFavourite({
     required String instanceUrl,
     required String accessToken,
     required String statusId,
     required bool currentlyFavourited,
-  }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final action = currentlyFavourited ? 'unfavourite' : 'favourite';
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/statuses/$statusId/$action'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to update favorite');
-    return MastodonStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
-  }
+  }) =>
+      _postStatusAction(
+        instanceUrl: instanceUrl,
+        accessToken: accessToken,
+        statusId: statusId,
+        action: currentlyFavourited ? 'unfavourite' : 'favourite',
+        errorContext: 'Failed to update favorite',
+      );
 
+  /// Boosts (`reblog`) or unboosts [statusId] depending on [currentlyReblogged].
   Future<MastodonStatus> toggleReblog({
     required String instanceUrl,
     required String accessToken,
     required String statusId,
     required bool currentlyReblogged,
-  }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final action = currentlyReblogged ? 'unreblog' : 'reblog';
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/statuses/$statusId/$action'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to update boost');
-    return MastodonStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
-  }
+  }) =>
+      _postStatusAction(
+        instanceUrl: instanceUrl,
+        accessToken: accessToken,
+        statusId: statusId,
+        action: currentlyReblogged ? 'unreblog' : 'reblog',
+        errorContext: 'Failed to update boost',
+      );
 
+  /// Bookmarks or unbookmarks [statusId] depending on [currentlyBookmarked].
   Future<MastodonStatus> toggleBookmark({
     required String instanceUrl,
     required String accessToken,
     required String statusId,
     required bool currentlyBookmarked,
-  }) async {
-    final base = normalizeInstanceUrl(instanceUrl);
-    final action = currentlyBookmarked ? 'unbookmark' : 'bookmark';
-    final res = await _client
-        .post(
-          Uri.parse('$base/api/v1/statuses/$statusId/$action'),
-          headers: _authHeaders(accessToken),
-        )
-        .timeout(const Duration(seconds: 15));
-    _ensureSuccess(res, 'Failed to update bookmark');
-    return MastodonStatus.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
-  }
+  }) =>
+      _postStatusAction(
+        instanceUrl: instanceUrl,
+        accessToken: accessToken,
+        statusId: statusId,
+        action: currentlyBookmarked ? 'unbookmark' : 'bookmark',
+        errorContext: 'Failed to update bookmark',
+      );
 
   /// Downloads remote image/preview bytes for on-demand timeline AI descriptions
   /// or re-scanning existing media while editing a post.
@@ -630,6 +601,97 @@ class MastodonService {
         (res.headers['content-type'] ?? 'image/jpeg').split(';').first.trim();
     return (bytes: res.bodyBytes, mimeType: contentType);
   }
+
+  Uri _buildUri(
+    String instanceUrl,
+    String path, {
+    Map<String, String>? queryParameters,
+  }) {
+    final base = normalizeInstanceUrl(instanceUrl);
+    final uri = Uri.parse('$base$path');
+    return queryParameters == null
+        ? uri
+        : uri.replace(queryParameters: queryParameters);
+  }
+
+  Future<Map<String, dynamic>> _getJsonObject({
+    required String instanceUrl,
+    required String path,
+    required String accessToken,
+    required String errorContext,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final res = await _client
+        .get(
+          _buildUri(instanceUrl, path),
+          headers: _authHeaders(accessToken),
+        )
+        .timeout(timeout);
+    _ensureSuccess(res, errorContext);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> _getJsonList({
+    required String instanceUrl,
+    required String path,
+    required String accessToken,
+    required String errorContext,
+    Map<String, String>? queryParameters,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final res = await _client
+        .get(
+          _buildUri(instanceUrl, path, queryParameters: queryParameters),
+          headers: _authHeaders(accessToken),
+        )
+        .timeout(timeout);
+    _ensureSuccess(res, errorContext);
+    return jsonDecode(res.body) as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _postJsonObject({
+    required String instanceUrl,
+    required String path,
+    required String errorContext,
+    String? accessToken,
+    Map<String, dynamic>? body,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final headers = <String, String>{
+      if (accessToken != null) ..._authHeaders(accessToken),
+      if (body != null) 'Content-Type': 'application/json',
+    };
+    final res = await _client
+        .post(
+          _buildUri(instanceUrl, path),
+          headers: headers,
+          body: body != null ? jsonEncode(body) : null,
+        )
+        .timeout(timeout);
+    _ensureSuccess(res, errorContext);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<MastodonStatus> _postStatusAction({
+    required String instanceUrl,
+    required String accessToken,
+    required String statusId,
+    required String action,
+    required String errorContext,
+  }) async {
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/statuses/$statusId/$action',
+      accessToken: accessToken,
+      errorContext: errorContext,
+    );
+    return MastodonStatus.fromJson(decoded);
+  }
+
+  List<MastodonStatus> _parseStatusList(List<dynamic> list) => list
+      .whereType<Map<String, dynamic>>()
+      .map(MastodonStatus.fromJson)
+      .toList();
 
   Map<String, String> _authHeaders(String accessToken) => {
         'Authorization': 'Bearer $accessToken',

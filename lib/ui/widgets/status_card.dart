@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../core/html_utils.dart';
@@ -10,14 +9,15 @@ import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
-import 'accessible_avatar.dart';
 import 'linkified_text.dart';
 import 'media_attachment_card.dart';
 import 'quoted_status_card.dart';
+import 'status_header_parts.dart';
 
 /// Accessible Mastodon status card supporting:
 /// - Clickable user avatar, display name, and handle (including boost banner)
 /// - Clickable relative timestamp permalink in the upper-right corner
+/// - Embedded `RE: <url>` / native quoted post window displayed above the reply
 /// - On-demand AI alt-text description & Read Aloud on media
 /// - Reply, Boost, Favorite, Bookmark, Thread, Edit (own posts), and Delete (own posts)
 class StatusCard extends StatefulWidget {
@@ -86,13 +86,6 @@ class _StatusCardState extends State<StatusCard> {
     }
   }
 
-  Future<void> _openPermalink(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final outer = widget.status;
@@ -100,10 +93,7 @@ class _StatusCardState extends State<StatusCard> {
     final isOwnPost = widget.app.currentAccount?.id == target.account.id;
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
-
     final hasCw = target.spoilerText.trim().isNotEmpty;
-    final compactTime = TimeUtils.formatRelativeCompact(target.createdAt);
-    final verboseTime = TimeUtils.formatRelativeAccessible(target.createdAt);
 
     return Card(
       child: Padding(
@@ -148,149 +138,26 @@ class _StatusCardState extends State<StatusCard> {
                 ),
               ),
 
-            // Header: Clickable author avatar + display name + handle + Upper-right permalink timestamp
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AccessibleAvatar(
-                  imageUrl: target.account.avatar,
-                  displayName: target.account.effectiveDisplayName,
-                  onTap: () => widget.onOpenProfile(target.account),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Semantics(
-                    button: true,
-                    label:
-                        '${target.account.effectiveDisplayName}, ${target.account.handle}. Tap to view posts.',
-                    child: InkWell(
-                      onTap: () => widget.onOpenProfile(target.account),
-                      borderRadius: BorderRadius.circular(8),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minHeight: AppConstants.minTouchTargetSize,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              target.account.effectiveDisplayName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              target.account.handle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: fedi.subtleText),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Upper-right clickable timestamp linking to original post on Mastodon server
-                Semantics(
-                  link: true,
-                  label:
-                      'Posted $verboseTime. Open original post in external browser.',
-                  child: InkWell(
-                    onTap: target.permalinkUrl.isNotEmpty
-                        ? () => _openPermalink(target.permalinkUrl)
-                        : null,
-                    borderRadius: BorderRadius.circular(8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: AppConstants.minTouchTargetSize,
-                        minHeight: AppConstants.minTouchTargetSize,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              compactTime,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(
-                                    color: scheme.primary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              Icons.open_in_new,
-                              size: 14,
-                              color: scheme.primary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            StatusAuthorHeader(
+              status: target,
+              onOpenProfile: widget.onOpenProfile,
             ),
 
             const SizedBox(height: 8),
 
-            // Content Warning (Spoiler)
             if (hasCw) ...[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: fedi.biasWarningBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: fedi.cardBorder,
-                    width: fedi.isHighContrast ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'CW: ${target.spoilerText}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: fedi.biasWarningFg,
-                            ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Semantics(
-                      button: true,
-                      toggled: _cwRevealed,
-                      label: _cwRevealed
-                          ? 'Hide content behind content warning'
-                          : 'Show content behind content warning',
-                      child: OutlinedButton(
-                        onPressed: () =>
-                            setState(() => _cwRevealed = !_cwRevealed),
-                        child: Text(_cwRevealed ? 'Hide' : 'Show More'),
-                      ),
-                    ),
-                  ],
-                ),
+              ContentWarningBanner(
+                spoilerText: target.spoilerText,
+                revealed: _cwRevealed,
+                onToggle: () => setState(() => _cwRevealed = !_cwRevealed),
               ),
               const SizedBox(height: 8),
             ],
 
-            // Main post body + Embedded Quoted Post + Media attachments
+            // Embedded Quoted Post (above reply) + Main post body + Media attachments
             if (!hasCw || _cwRevealed) ...[
               ListenableBuilder(
-                listenable: widget.app,
+                listenable: widget.app.quoteCache,
                 builder: (context, _) {
                   final quoteMatch = _leadingQuote;
                   final quoteUrl = quoteMatch?.quoteUrl;
@@ -322,6 +189,12 @@ class _StatusCardState extends State<StatusCard> {
                           isLoading: isLoadingQuote,
                           onOpenProfile: widget.onOpenProfile,
                           onOpenThread: widget.onOpenThread,
+                          onRetry: quoteUrl != null
+                              ? () => widget.app.resolveQuotedStatus(
+                                    quoteUrl,
+                                    forceRetry: true,
+                                  )
+                              : null,
                         ),
                       if (hasQuoteWindow && bodyPlainText.isNotEmpty)
                         const SizedBox(height: 6),
@@ -335,16 +208,8 @@ class _StatusCardState extends State<StatusCard> {
                               bodyHtml,
                               style: Theme.of(context).textTheme.bodyLarge,
                               mentions: target.mentions,
-                              onTapMention: (mention) => widget.onOpenProfile(
-                                MastodonAccount(
-                                  id: mention.id,
-                                  username: mention.username,
-                                  acct: mention.acct,
-                                  displayName: mention.username,
-                                  avatar: '',
-                                  url: mention.url,
-                                ),
-                              ),
+                              onTapMention: (mention) =>
+                                  widget.onOpenProfile(mention.toStubAccount()),
                             ),
                           ),
                         ),

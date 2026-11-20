@@ -6,9 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/accessibility_announcer.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/status_action_handler.dart';
 import '../widgets/status_card.dart';
-import 'composer_screen.dart';
-import 'profile_screen.dart';
 
 /// Displays a conversation thread (`GET /api/v1/statuses/{id}/context`).
 class ThreadScreen extends StatefulWidget {
@@ -26,6 +25,7 @@ class ThreadScreen extends StatefulWidget {
 }
 
 class _ThreadScreenState extends State<ThreadScreen> {
+  late final StatusActionHandler _actions;
   late MastodonStatus _focalStatus;
   List<MastodonStatus> _ancestors = [];
   List<MastodonStatus> _descendants = [];
@@ -35,6 +35,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
   @override
   void initState() {
     super.initState();
+    _actions = StatusActionHandler(app: widget.app);
     _focalStatus = widget.rootStatus.displayStatus;
     _loadContext();
   }
@@ -73,32 +74,26 @@ class _ThreadScreenState extends State<ThreadScreen> {
   }
 
   void _replaceStatus(MastodonStatus updated) {
+    if (!mounted) return;
     setState(() {
       if (_focalStatus.id == updated.id) _focalStatus = updated;
-      _ancestors =
-          _ancestors.map((s) => s.id == updated.id ? updated : s).toList();
-      _descendants =
-          _descendants.map((s) => s.id == updated.id ? updated : s).toList();
+      _ancestors = StatusActionHandler.replaceInList(_ancestors, updated);
+      _descendants = StatusActionHandler.replaceInList(_descendants, updated);
     });
   }
 
   Future<void> _deleteStatus(MastodonStatus target) async {
-    final session = widget.app.session;
-    if (session == null) return;
-    await widget.app.mastodon.deleteStatus(
-      instanceUrl: session.instanceUrl,
-      accessToken: session.accessToken,
-      statusId: target.id,
-    );
-    if (!mounted) return;
+    final deleted = await _actions.confirmAndDelete(context, target);
+    if (!deleted || !mounted) return;
+
     if (target.id == _focalStatus.id) {
       widget.app.notifyTimelinesShouldRefresh();
       Navigator.of(context).pop();
       return;
     }
     setState(() {
-      _ancestors = _ancestors.where((s) => s.id != target.id).toList();
-      _descendants = _descendants.where((s) => s.id != target.id).toList();
+      _ancestors = StatusActionHandler.removeFromList(_ancestors, target.id);
+      _descendants = StatusActionHandler.removeFromList(_descendants, target.id);
     });
   }
 
@@ -106,75 +101,33 @@ class _ThreadScreenState extends State<ThreadScreen> {
     final card = StatusCard(
       status: status,
       app: widget.app,
-      onOpenProfile: (acc) => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ProfileScreen(
-            app: widget.app,
-            accountId: acc.id,
-            initialAccount: acc,
-          ),
-        ),
+      onOpenProfile: (acc) => _actions.openProfile(context, acc),
+      onOpenThread: (st) => _actions.openThread(
+        context,
+        st,
+        skipIfStatusId: _focalStatus.id,
       ),
-      onOpenThread: (st) {
-        if (st.id == _focalStatus.id) return;
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ThreadScreen(app: widget.app, rootStatus: st),
-          ),
-        );
-      },
       onReply: (st) async {
-        final posted = await Navigator.of(context).push<MastodonStatus>(
-          MaterialPageRoute<MastodonStatus>(
-            builder: (_) => ComposerScreen(app: widget.app, replyToStatus: st),
-          ),
-        );
-        if (posted != null) {
+        final posted = await _actions.openReply(context, st);
+        if (posted != null && mounted) {
           _loadContext();
         }
       },
       onToggleBoost: (st) async {
-        final s = widget.app.session;
-        if (s == null) return;
-        final updated = await widget.app.mastodon.toggleReblog(
-          instanceUrl: s.instanceUrl,
-          accessToken: s.accessToken,
-          statusId: st.id,
-          currentlyReblogged: st.reblogged,
-        );
-        _replaceStatus(updated.displayStatus);
+        final updated = await _actions.toggleBoost(context, st);
+        if (updated != null) _replaceStatus(updated);
       },
       onToggleFavorite: (st) async {
-        final s = widget.app.session;
-        if (s == null) return;
-        final updated = await widget.app.mastodon.toggleFavourite(
-          instanceUrl: s.instanceUrl,
-          accessToken: s.accessToken,
-          statusId: st.id,
-          currentlyFavourited: st.favourited,
-        );
-        _replaceStatus(updated.displayStatus);
+        final updated = await _actions.toggleFavorite(context, st);
+        if (updated != null) _replaceStatus(updated);
       },
       onToggleBookmark: (st) async {
-        final s = widget.app.session;
-        if (s == null) return;
-        final updated = await widget.app.mastodon.toggleBookmark(
-          instanceUrl: s.instanceUrl,
-          accessToken: s.accessToken,
-          statusId: st.id,
-          currentlyBookmarked: st.bookmarked,
-        );
-        _replaceStatus(updated.displayStatus);
+        final updated = await _actions.toggleBookmark(context, st);
+        if (updated != null) _replaceStatus(updated);
       },
       onEdit: (st) async {
-        final edited = await Navigator.of(context).push<MastodonStatus>(
-          MaterialPageRoute<MastodonStatus>(
-            builder: (_) => ComposerScreen(app: widget.app, editingStatus: st),
-          ),
-        );
-        if (edited != null) {
-          _replaceStatus(edited.displayStatus);
-        }
+        final edited = await _actions.openEdit(context, st);
+        if (edited != null) _replaceStatus(edited.displayStatus);
       },
       onDelete: _deleteStatus,
     );

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import 'ai_models.dart';
+import 'mastodon_models.dart';
 
 /// A single racial or gender bias finding with its exact source location.
 class BiasFinding {
@@ -108,6 +109,25 @@ class ReferencedStatusContext {
   final String spoilerText;
   final List<String> mediaAltTexts;
   final String? sourceUrl;
+
+  /// Builds a [ReferencedStatusContext] from a Mastodon status (unwrapping
+  /// boosts via [MastodonStatus.displayStatus]).
+  factory ReferencedStatusContext.fromStatus(
+    MastodonStatus status, {
+    String? sourceUrl,
+  }) {
+    final target = status.displayStatus;
+    return ReferencedStatusContext(
+      authorHandle: target.account.acct,
+      contentText: target.plainText,
+      spoilerText: target.spoilerText,
+      mediaAltTexts: target.mediaAttachments
+          .map((m) => (m.description ?? '').trim())
+          .where((d) => d.isNotEmpty)
+          .toList(),
+      sourceUrl: sourceUrl ?? target.permalinkUrl,
+    );
+  }
 
   String get locationLabel => 'Referenced Message (@$authorHandle)';
 }

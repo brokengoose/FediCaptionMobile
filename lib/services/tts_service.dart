@@ -13,11 +13,18 @@ class TtsService extends ChangeNotifier {
   final FlutterTts _tts;
   String? _activeKey;
   bool _isSpeaking = false;
+  bool _disposed = false;
 
   bool get isSpeaking => _isSpeaking;
   String? get activeKey => _activeKey;
 
   bool isSpeakingKey(String key) => _isSpeaking && _activeKey == key;
+
+  void _safeNotify() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   void _configure() {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
@@ -34,21 +41,15 @@ class TtsService extends ChangeNotifier {
       );
     }
 
-    _tts.setCompletionHandler(() {
+    void resetState() {
       _isSpeaking = false;
       _activeKey = null;
-      notifyListeners();
-    });
-    _tts.setCancelHandler(() {
-      _isSpeaking = false;
-      _activeKey = null;
-      notifyListeners();
-    });
-    _tts.setErrorHandler((_) {
-      _isSpeaking = false;
-      _activeKey = null;
-      notifyListeners();
-    });
+      _safeNotify();
+    }
+
+    _tts.setCompletionHandler(resetState);
+    _tts.setCancelHandler(resetState);
+    _tts.setErrorHandler((_) => resetState());
   }
 
   /// Speaks [text] (or stops if [key] is already being spoken) using the phone's
@@ -59,6 +60,7 @@ class TtsService extends ChangeNotifier {
     String? languageName,
     double speechRate = 0.5,
   }) async {
+    if (_disposed) return;
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
@@ -83,9 +85,10 @@ class TtsService extends ChangeNotifier {
       }
     }
 
+    if (_disposed) return;
     _activeKey = key;
     _isSpeaking = true;
-    notifyListeners();
+    _safeNotify();
 
     await _tts.speak(trimmed);
   }
@@ -94,7 +97,7 @@ class TtsService extends ChangeNotifier {
     await _tts.stop();
     _isSpeaking = false;
     _activeKey = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   String? _languageCodeFromName(String? name) {
@@ -132,6 +135,7 @@ class TtsService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _tts.stop().catchError((_) {});
     super.dispose();
   }

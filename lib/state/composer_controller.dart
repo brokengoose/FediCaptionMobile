@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../core/accessibility_announcer.dart';
 import '../core/constants.dart';
+import '../core/media_utils.dart';
 import '../models/ai_models.dart';
 import '../models/bias_models.dart';
 import '../models/composer_attachment.dart';
@@ -60,8 +61,8 @@ class ComposerController extends ChangeNotifier {
           .toList();
     }
 
-    textController.addListener(notifyListeners);
-    spoilerController.addListener(notifyListeners);
+    textController.addListener(_safeNotify);
+    spoilerController.addListener(_safeNotify);
   }
 
   final AppController app;
@@ -72,6 +73,7 @@ class ComposerController extends ChangeNotifier {
   final TextEditingController textController = TextEditingController();
   final TextEditingController spoilerController = TextEditingController();
 
+  bool _disposed = false;
   bool _showContentWarning = false;
   PostVisibility _visibility = PostVisibility.public;
   String _language = '';
@@ -83,6 +85,12 @@ class ComposerController extends ChangeNotifier {
   String? _errorMessage;
 
   int _localIdCounter = 0;
+
+  void _safeNotify() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   bool get isEditing => editingStatus != null;
   bool get isReply => replyToStatus != null;
@@ -97,7 +105,7 @@ class ComposerController extends ChangeNotifier {
 
   InstanceLimits get limits => app.instanceLimits;
 
-  /// Per Section 6.2: includes BOTH post body and Content Warning in remaining-character counter.
+  /// Includes BOTH post body and Content Warning in the remaining-character counter.
   int get usedCharacters {
     final bodyLen = textController.text.length;
     final cwLen = _showContentWarning ? spoilerController.text.length : 0;
@@ -131,7 +139,7 @@ class ComposerController extends ChangeNotifier {
     if (target == null || session == null) return;
 
     _isLoadingSource = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final source = await app.mastodon.fetchStatusSource(
@@ -139,6 +147,7 @@ class ComposerController extends ChangeNotifier {
         accessToken: session.accessToken,
         statusId: target.id,
       );
+      if (_disposed) return;
       textController.text = source.text;
       if (source.spoilerText.trim().isNotEmpty) {
         spoilerController.text = source.spoilerText;
@@ -148,7 +157,7 @@ class ComposerController extends ChangeNotifier {
       _errorMessage = 'Loaded fallback post text (could not fetch raw source: $e)';
     } finally {
       _isLoadingSource = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -157,23 +166,18 @@ class ComposerController extends ChangeNotifier {
     if (!enabled) {
       spoilerController.clear();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   void setVisibility(PostVisibility value) {
     _visibility = value;
-    notifyListeners();
-  }
-
-  void setLanguage(String value) {
-    _language = value;
-    notifyListeners();
+    _safeNotify();
   }
 
   void replacePostText(String newText) {
     textController.text = newText;
     textController.selection = TextSelection.collapsed(offset: newText.length);
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Attaches a local image or video file and auto-scans it with AI if enabled.
@@ -184,14 +188,14 @@ class ComposerController extends ChangeNotifier {
     if (!canAddMoreMedia) {
       _errorMessage =
           'Maximum of ${limits.maxMediaAttachments} media attachments reached.';
-      notifyListeners();
+      _safeNotify();
       return;
     }
 
     _errorMessage = null;
     final localId = 'local_${++_localIdCounter}';
     final fileName = p.basename(filePath);
-    final mimeType = _guessMimeType(filePath, isVideo: isVideo);
+    final mimeType = MediaUtils.guessMimeType(filePath, isVideo: isVideo);
 
     final shouldAutoScan = app.settings.isAiEnabled && app.settings.autoGenerate;
     final initial = ComposerAttachment(
@@ -207,7 +211,7 @@ class ComposerController extends ChangeNotifier {
     );
 
     _attachments = [..._attachments, initial];
-    notifyListeners();
+    _safeNotify();
 
     if (shouldAutoScan) {
       await scanAttachmentWithAi(localId);
@@ -216,7 +220,7 @@ class ComposerController extends ChangeNotifier {
 
   void removeAttachment(String localId) {
     _attachments = _attachments.where((a) => a.localId != localId).toList();
-    notifyListeners();
+    _safeNotify();
   }
 
   void updateAttachmentAltText(String localId, String altText) {
@@ -231,7 +235,7 @@ class ComposerController extends ChangeNotifier {
         clearError: true,
       );
     }).toList();
-    notifyListeners();
+    _safeNotify();
   }
 
   void updateAttachmentDetailLevel(
@@ -242,7 +246,7 @@ class ComposerController extends ChangeNotifier {
       if (a.localId != localId) return a;
       return a.copyWith(detailLevel: detailLevel);
     }).toList();
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Runs AI alt-text generation for a single attachment (local or remote edited media).
@@ -354,7 +358,7 @@ class ComposerController extends ChangeNotifier {
   Future<BiasCheckResult> runBiasCheck() async {
     _isCheckingBias = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     AccessibilityAnnouncer.announce(
       'Checking post, media, links, and context for racial or gender bias.',
@@ -375,22 +379,10 @@ class ComposerController extends ChangeNotifier {
         );
       }
 
-      final referencedStatuses = <ReferencedStatusContext>[];
-      if (replyToStatus != null) {
-        final target = replyToStatus!.displayStatus;
-        referencedStatuses.add(
-          ReferencedStatusContext(
-            authorHandle: target.account.acct,
-            contentText: target.plainText,
-            spoilerText: target.spoilerText,
-            mediaAltTexts: target.mediaAttachments
-                .map((m) => (m.description ?? '').trim())
-                .where((d) => d.isNotEmpty)
-                .toList(),
-            sourceUrl: target.permalinkUrl,
-          ),
-        );
-      }
+      final referencedStatuses = <ReferencedStatusContext>[
+        if (replyToStatus != null)
+          ReferencedStatusContext.fromStatus(replyToStatus!),
+      ];
 
       final input = BiasCheckInput(
         postText: textController.text,
@@ -414,7 +406,7 @@ class ComposerController extends ChangeNotifier {
       return result;
     } finally {
       _isCheckingBias = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -469,13 +461,13 @@ class ComposerController extends ChangeNotifier {
     final session = app.session;
     if (session == null) {
       _errorMessage = 'Not signed in to Mastodon.';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
     _isPublishing = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final mediaIds = <String>[];
@@ -538,7 +530,7 @@ class ComposerController extends ChangeNotifier {
       return null;
     } finally {
       _isPublishing = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -553,24 +545,12 @@ class ComposerController extends ChangeNotifier {
     _attachments = _attachments
         .map((a) => a.localId == localId ? updated : a)
         .toList();
-    notifyListeners();
-  }
-
-  String _guessMimeType(String path, {required bool isVideo}) {
-    final lower = path.toLowerCase();
-    if (isVideo) {
-      if (lower.endsWith('.mov')) return 'video/quicktime';
-      if (lower.endsWith('.webm')) return 'video/webm';
-      return 'video/mp4';
-    }
-    if (lower.endsWith('.png')) return 'image/png';
-    if (lower.endsWith('.webp')) return 'image/webp';
-    if (lower.endsWith('.gif')) return 'image/gif';
-    return 'image/jpeg';
+    _safeNotify();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     textController.dispose();
     spoilerController.dispose();
     super.dispose();

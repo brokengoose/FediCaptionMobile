@@ -81,21 +81,25 @@ class VideoFrameExtractor {
 
     // Fallback to frame 0 if duration-based seeking failed on a codec.
     if (frames.isEmpty) {
-      final fallbackBytes = await VideoThumbnail.thumbnailData(
-        video: videoPath,
-        imageFormat: ImageFormat.JPEG,
-        timeMs: 0,
-        maxWidth: maxWidth,
-        quality: quality,
-      );
-      if (fallbackBytes.isNotEmpty) {
-        frames.add(
-          MediaBinaryPayload(
-            bytes: fallbackBytes,
-            mimeType: 'image/jpeg',
-            isVideo: false,
-          ),
+      try {
+        final fallbackBytes = await VideoThumbnail.thumbnailData(
+          video: videoPath,
+          imageFormat: ImageFormat.JPEG,
+          timeMs: 0,
+          maxWidth: maxWidth,
+          quality: quality,
         );
+        if (fallbackBytes.isNotEmpty) {
+          frames.add(
+            MediaBinaryPayload(
+              bytes: fallbackBytes,
+              mimeType: 'image/jpeg',
+              isVideo: false,
+            ),
+          );
+        }
+      } catch (_) {
+        // Return empty list if the video codec cannot be decoded on this device.
       }
     }
 

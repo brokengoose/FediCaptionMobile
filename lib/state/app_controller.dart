@@ -19,9 +19,16 @@ import '../services/on_device_ai_service.dart';
 import '../services/storage_service.dart';
 import '../services/tts_service.dart';
 import '../services/update_check_service.dart';
+import 'quote_cache_controller.dart';
+import 'timeline_media_ai_controller.dart';
 
 /// Top-level application state coordinator for authentication, settings,
-/// AI model discovery, on-demand timeline descriptions, and GitHub update checks.
+/// AI model discovery, on-device AI status, and GitHub update checks.
+///
+/// High-frequency per-card updates (quoted-post resolution and on-demand
+/// timeline media descriptions) live on dedicated scoped sub-notifiers
+/// ([quoteCache] and [mediaAi]) so timeline scrolling does not rebuild the
+/// entire widget tree.
 class AppController extends ChangeNotifier {
   AppController({
     StorageService? storageService,
@@ -34,16 +41,26 @@ class AppController extends ChangeNotifier {
     ThemeController? themeController,
   })  : storage = storageService ?? StorageService(),
         mastodon = mastodonService ?? MastodonService(),
+        _ownsMastodon = mastodonService == null,
         onDeviceAi = onDeviceAiService ?? OnDeviceAiService(),
+        _linkPreviewFetcher = linkPreviewFetcher ?? LinkPreviewFetcher(),
+        _ownsLinkPreviewFetcher = linkPreviewFetcher == null,
         updateChecker = updateCheckService ?? UpdateCheckService(),
+        _ownsUpdateChecker = updateCheckService == null,
         tts = ttsService ?? TtsService(),
         themeController = themeController ?? ThemeController() {
+    _ownsAiProvider = aiProviderService == null;
     aiProvider = aiProviderService ??
         AiProviderService(onDeviceAiService: onDeviceAi);
     biasChecker = BiasCheckService(
       aiProviderService: aiProvider,
-      linkPreviewFetcher: linkPreviewFetcher ?? LinkPreviewFetcher(),
+      linkPreviewFetcher: _linkPreviewFetcher,
       mastodonService: mastodon,
+    );
+    quoteCache = QuoteCacheController(mastodon: mastodon);
+    mediaAi = TimelineMediaAiController(
+      mastodon: mastodon,
+      aiProvider: aiProvider,
     );
     for (final provider in AiProviderType.values) {
       _modelsByProvider[provider] = AiProviderService.defaultModelsFor(provider);
@@ -52,12 +69,21 @@ class AppController extends ChangeNotifier {
 
   final StorageService storage;
   final MastodonService mastodon;
+  final bool _ownsMastodon;
   final OnDeviceAiService onDeviceAi;
+  final LinkPreviewFetcher _linkPreviewFetcher;
+  final bool _ownsLinkPreviewFetcher;
   late final AiProviderService aiProvider;
+  late final bool _ownsAiProvider;
   late final BiasCheckService biasChecker;
   final UpdateCheckService updateChecker;
+  final bool _ownsUpdateChecker;
   final TtsService tts;
   final ThemeController themeController;
+  late final QuoteCacheController quoteCache;
+  late final TimelineMediaAiController mediaAi;
+
+  bool _disposed = false;
 
   OnDeviceAiStatus _onDeviceAiStatus =
       OnDeviceAiStatus.unavailableForCurrentPlatform();
@@ -82,15 +108,6 @@ class AppController extends ChangeNotifier {
   // Dynamic model lists for each AI provider
   final Map<AiProviderType, List<AiModelOption>> _modelsByProvider = {};
   final Set<AiProviderType> _loadingModels = {};
-
-  // On-demand timeline AI descriptions keyed by media attachment ID
-  final Map<String, String> _timelineAiDescriptions = {};
-  final Set<String> _describingMediaIds = {};
-  final Map<String, String> _mediaDescribeErrors = {};
-
-  // Cached resolved quoted statuses keyed by quote URL
-  final Map<String, MastodonStatus?> _resolvedQuotes = {};
-  final Set<String> _resolvingQuoteUrls = {};
 
   // Incrementing counter used to signal timelines to refresh after posting/editing/deleting.
   int _timelineRefreshNonce = 0;
@@ -124,58 +141,31 @@ class AppController extends ChangeNotifier {
   bool isLoadingModels(AiProviderType provider) =>
       _loadingModels.contains(provider);
 
+  // Scoped pass-through helpers for on-demand timeline media AI captions
   String? aiDescriptionForMedia(String mediaId) =>
-      _timelineAiDescriptions[mediaId];
+      mediaAi.descriptionFor(mediaId);
+  bool isDescribingMedia(String mediaId) => mediaAi.isDescribing(mediaId);
+  String? mediaDescribeError(String mediaId) => mediaAi.errorFor(mediaId);
 
-  bool isDescribingMedia(String mediaId) =>
-      _describingMediaIds.contains(mediaId);
-
-  String? mediaDescribeError(String mediaId) => _mediaDescribeErrors[mediaId];
-
-  MastodonStatus? cachedQuotedStatus(String url) => _resolvedQuotes[url];
-  bool hasResolvedQuote(String url) => _resolvedQuotes.containsKey(url);
-  bool isResolvingQuote(String url) => _resolvingQuoteUrls.contains(url);
+  // Scoped pass-through helpers for quoted status resolution
+  MastodonStatus? cachedQuotedStatus(String url) =>
+      quoteCache.cachedStatus(url);
+  bool hasResolvedQuote(String url) => quoteCache.hasResolved(url);
+  bool isResolvingQuote(String url) => quoteCache.isResolving(url);
 
   /// Resolves a quoted Mastodon post URL via `/api/v2/search?resolve=true` and
-  /// caches the result so timeline scrolling doesn't re-fetch it.
-  Future<MastodonStatus?> resolveQuotedStatus(String url) async {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty) return null;
-    if (_resolvedQuotes.containsKey(trimmed)) {
-      return _resolvedQuotes[trimmed];
-    }
-    if (_resolvingQuoteUrls.contains(trimmed)) {
-      return null;
-    }
-
-    final currentSession = _session;
-    if (currentSession == null) return null;
-
-    _resolvingQuoteUrls.add(trimmed);
-    notifyListeners();
-
-    try {
-      final resolved = await mastodon.resolveStatusByUrl(
-        instanceUrl: currentSession.instanceUrl,
-        accessToken: currentSession.accessToken,
-        statusUrl: trimmed,
-      );
-      _resolvedQuotes[trimmed] = resolved?.displayStatus;
-      return _resolvedQuotes[trimmed];
-    } catch (_) {
-      _resolvedQuotes[trimmed] = null;
-      return null;
-    } finally {
-      _resolvingQuoteUrls.remove(trimmed);
-      notifyListeners();
-    }
-  }
+  /// caches the result on [quoteCache].
+  Future<MastodonStatus?> resolveQuotedStatus(
+    String url, {
+    bool forceRetry = false,
+  }) =>
+      quoteCache.resolve(url, session: _session, forceRetry: forceRetry);
 
   /// Loads persisted settings, secure credentials, Mastodon session, instance limits,
   /// and runs the startup GitHub version check.
   Future<void> initialize() async {
     _isInitializing = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _settings = await storage.loadSettings();
@@ -201,8 +191,10 @@ class AppController extends ChangeNotifier {
       }
     } finally {
       _isInitializing = false;
-      notifyListeners();
+      _safeNotify();
     }
+
+    if (_disposed) return;
 
     // Fire-and-forget startup tasks: on-device AI check, GitHub update check & models refresh.
     refreshOnDeviceAiStatus();
@@ -215,7 +207,7 @@ class AppController extends ChangeNotifier {
   Future<OnDeviceAiStatus> refreshOnDeviceAiStatus() async {
     _isCheckingOnDeviceAi = true;
     _onDeviceAiError = null;
-    notifyListeners();
+    _safeNotify();
     try {
       _onDeviceAiStatus = await onDeviceAi.checkStatus();
     } catch (e) {
@@ -223,7 +215,7 @@ class AppController extends ChangeNotifier {
       _onDeviceAiError = e.toString();
     } finally {
       _isCheckingOnDeviceAi = false;
-      notifyListeners();
+      _safeNotify();
     }
     return _onDeviceAiStatus;
   }
@@ -233,7 +225,7 @@ class AppController extends ChangeNotifier {
     if (_isDownloadingOnDeviceModel) return;
     _isDownloadingOnDeviceModel = true;
     _onDeviceAiError = null;
-    notifyListeners();
+    _safeNotify();
 
     AccessibilityAnnouncer.announce('Downloading on-device AI model.');
     try {
@@ -244,7 +236,7 @@ class AppController extends ChangeNotifier {
       AccessibilityAnnouncer.announce('Failed to download on-device AI model.');
     } finally {
       _isDownloadingOnDeviceModel = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -252,14 +244,14 @@ class AppController extends ChangeNotifier {
     final update = await updateChecker.checkForUpdate(
       currentVersion: AppConstants.appVersion,
     );
-    if (update == null) return;
+    if (update == null || _disposed) return;
 
     final dismissedVersion = await storage.loadDismissedUpdateVersion();
-    if (dismissedVersion == update.latestVersion) return;
+    if (dismissedVersion == update.latestVersion || _disposed) return;
 
     _availableUpdate = update;
     _updateBannerDismissed = false;
-    notifyListeners();
+    _safeNotify();
 
     AccessibilityAnnouncer.announce(
       'Update available: FediCaption version ${update.latestVersion} is now on GitHub.',
@@ -269,7 +261,7 @@ class AppController extends ChangeNotifier {
   Future<void> dismissUpdateBanner() async {
     final update = _availableUpdate;
     _updateBannerDismissed = true;
-    notifyListeners();
+    _safeNotify();
     if (update != null) {
       await storage.saveDismissedUpdateVersion(update.latestVersion);
     }
@@ -279,14 +271,15 @@ class AppController extends ChangeNotifier {
   Future<bool> loginWithOAuth(String rawInstanceUrl) async {
     final instanceUrl = MastodonService.normalizeInstanceUrl(rawInstanceUrl);
     if (instanceUrl.isEmpty) {
-      _authError = 'Please enter a valid Mastodon server domain (e.g. mastodon.social).';
-      notifyListeners();
+      _authError =
+          'Please enter a valid Mastodon server domain (e.g. mastodon.social).';
+      _safeNotify();
       return false;
     }
 
     _isAuthenticating = true;
     _authError = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final appCreds = await mastodon.registerOAuthApp(instanceUrl);
@@ -323,7 +316,7 @@ class AppController extends ChangeNotifier {
     } catch (e) {
       _authError = e.toString();
       _isAuthenticating = false;
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -337,13 +330,13 @@ class AppController extends ChangeNotifier {
     final trimmedToken = accessToken.trim();
     if (instanceUrl.isEmpty || trimmedToken.isEmpty) {
       _authError = 'Both server URL and access token are required.';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     _isAuthenticating = true;
     _authError = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       return await _completeSignIn(
@@ -353,7 +346,7 @@ class AppController extends ChangeNotifier {
     } catch (e) {
       _authError = e.toString();
       _isAuthenticating = false;
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -382,7 +375,7 @@ class AppController extends ChangeNotifier {
     _instanceLimits = limits;
     _isAuthenticating = false;
     _authError = null;
-    notifyListeners();
+    _safeNotify();
 
     AccessibilityAnnouncer.announce(
       'Signed in as ${account.effectiveDisplayName} on $instanceUrl.',
@@ -396,43 +389,49 @@ class AppController extends ChangeNotifier {
     _session = null;
     _currentAccount = null;
     _instanceLimits = const InstanceLimits();
-    _timelineAiDescriptions.clear();
-    _mediaDescribeErrors.clear();
-    _resolvedQuotes.clear();
-    _resolvingQuoteUrls.clear();
-    notifyListeners();
+    mediaAi.clear();
+    quoteCache.clear();
+    _safeNotify();
     AccessibilityAnnouncer.announce('Signed out of Mastodon.');
   }
 
-  Future<void> updateSettings(AppSettings updated) async {
+  /// Persists updated non-secret settings and optionally refreshes models when
+  /// the active provider or server base URL changed.
+  Future<void> updateSettings(
+    AppSettings updated, {
+    bool autoRefreshModels = true,
+  }) async {
     final providerChanged = updated.activeProvider != _settings.activeProvider;
     final urlChanged = updated.openAiBaseUrl != _settings.openAiBaseUrl ||
         updated.localBaseUrl != _settings.localBaseUrl;
 
     _settings = updated;
     themeController.setPreference(updated.themePreference);
-    notifyListeners();
+    _safeNotify();
 
     await storage.saveSettings(updated);
 
-    if (providerChanged || urlChanged) {
-      refreshModelsFor(updated.activeProvider);
+    if (autoRefreshModels && (providerChanged || urlChanged)) {
+      await refreshModelsFor(updated.activeProvider);
     }
   }
 
+  /// Persists updated AI credentials to secure storage and optionally triggers
+  /// model discovery for [refreshProvider].
   Future<void> updateCredentials(
     AiCredentials updated, {
     AiProviderType? refreshProvider,
   }) async {
     _credentials = updated;
-    notifyListeners();
+    _safeNotify();
     await storage.saveAiCredentials(updated);
 
     if (refreshProvider != null) {
-      refreshModelsFor(refreshProvider);
+      await refreshModelsFor(refreshProvider);
     }
   }
 
+  /// Marks first-time AI setup as completed and saves both settings and credentials.
   Future<void> completeAiSetup({
     required AppSettings settings,
     required AiCredentials credentials,
@@ -441,7 +440,7 @@ class AppController extends ChangeNotifier {
     _settings = finalized;
     _credentials = credentials;
     themeController.setPreference(finalized.themePreference);
-    notifyListeners();
+    _safeNotify();
 
     await storage.saveAiCredentials(credentials);
     await storage.saveSettings(finalized);
@@ -463,11 +462,11 @@ class AppController extends ChangeNotifier {
   Future<void> refreshModelsFor(AiProviderType provider) async {
     if (provider == AiProviderType.none) {
       _modelsByProvider[provider] = const [];
-      notifyListeners();
+      _safeNotify();
       return;
     }
     _loadingModels.add(provider);
-    notifyListeners();
+    _safeNotify();
 
     try {
       final fetched = await aiProvider.fetchAvailableModels(
@@ -475,9 +474,10 @@ class AppController extends ChangeNotifier {
         settings: _settings,
         credentials: _credentials,
       );
+      if (_disposed) return;
       _modelsByProvider[provider] = fetched;
 
-      // If the currently stored model isn't in the freshly returned list, keep it or adopt top choice.
+      // If the currently stored model isn't in the freshly returned list, adopt top choice.
       final currentModel = _settings.modelForProvider(provider);
       final exists = fetched.any((m) => m.id == currentModel);
       if (!exists && fetched.isNotEmpty) {
@@ -490,65 +490,45 @@ class AppController extends ChangeNotifier {
       }
     } finally {
       _loadingModels.remove(provider);
-      notifyListeners();
+      _safeNotify();
     }
   }
 
-  /// On-demand AI alt-text generation for media attachments on timeline posts (Section 2.4).
+  /// On-demand AI alt-text generation for media attachments on timeline posts.
   Future<void> describeTimelineMedia(
     MastodonMediaAttachment attachment, {
     String? postContext,
-  }) async {
-    if (_describingMediaIds.contains(attachment.id)) return;
-
-    _describingMediaIds.add(attachment.id);
-    _mediaDescribeErrors.remove(attachment.id);
-    notifyListeners();
-
-    AccessibilityAnnouncer.announce('Generating AI description for media.');
-
-    try {
-      final targetUrl = attachment.isVideo
-          ? attachment.bestPreviewUrl
-          : (attachment.url.isNotEmpty ? attachment.url : attachment.previewUrl);
-
-      final downloaded = await mastodon.downloadMediaBytes(targetUrl);
-      final caption = await aiProvider.generateAltText(
+  }) =>
+      mediaAi.describeMedia(
+        attachment: attachment,
         settings: _settings,
         credentials: _credentials,
-        isVideo: attachment.isVideo,
-        detailLevel: _settings.defaultDetailLevel,
         maxAltTextLength: _instanceLimits.altTextLimit,
-        preExtractedMedia: [
-          MediaBinaryPayload(
-            bytes: downloaded.bytes,
-            mimeType: downloaded.mimeType,
-            isVideo: false,
-          ),
-        ],
-        draftPostContext: postContext,
+        postContext: postContext,
       );
-
-      _timelineAiDescriptions[attachment.id] = caption;
-      AccessibilityAnnouncer.announce('AI description ready. $caption');
-    } catch (e) {
-      _mediaDescribeErrors[attachment.id] = e.toString();
-      AccessibilityAnnouncer.announce('Failed to generate AI description.');
-    } finally {
-      _describingMediaIds.remove(attachment.id);
-      notifyListeners();
-    }
-  }
 
   void notifyTimelinesShouldRefresh() {
     _timelineRefreshNonce++;
-    notifyListeners();
+    _safeNotify();
+  }
+
+  void _safeNotify() {
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    quoteCache.dispose();
+    mediaAi.dispose();
     tts.dispose();
     themeController.dispose();
+    if (_ownsMastodon) mastodon.dispose();
+    if (_ownsAiProvider) aiProvider.dispose();
+    if (_ownsLinkPreviewFetcher) _linkPreviewFetcher.dispose();
+    if (_ownsUpdateChecker) updateChecker.dispose();
     super.dispose();
   }
 }

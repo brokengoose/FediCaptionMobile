@@ -196,6 +196,11 @@ class AppSettings {
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final keyframeCount = json['videoKeyframeCount'] as int? ?? 4;
     final rawRate = (json['ttsSpeechRate'] as num?)?.toDouble() ?? 0.5;
+    final rawLocalModel = (json['localModel'] as String?) ?? 'llama3.2-vision';
+    // Migrate legacy 'on-device-fallback' selection (removed from Local LAN list).
+    final normalizedLocalModel = rawLocalModel == 'on-device-fallback'
+        ? 'llama3.2-vision'
+        : rawLocalModel;
     return AppSettings(
       activeProvider: AiProviderType.fromId(json['activeProvider'] as String?),
       onDeviceModel: (json['onDeviceModel'] as String?) ?? 'on-device-auto',
@@ -205,7 +210,7 @@ class AppSettings {
           (json['openAiBaseUrl'] as String?) ?? AppConstants.openAiDefaultBaseUrl,
       anthropicModel:
           (json['anthropicModel'] as String?) ?? 'claude-sonnet-4-20250514',
-      localModel: (json['localModel'] as String?) ?? 'llama3.2-vision',
+      localModel: normalizedLocalModel,
       localBaseUrl:
           (json['localBaseUrl'] as String?) ?? AppConstants.localDefaultBaseUrl,
       defaultDetailLevel:

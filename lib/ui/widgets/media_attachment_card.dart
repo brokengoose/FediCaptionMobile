@@ -32,7 +32,11 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([widget.app, widget.app.tts]),
+      listenable: Listenable.merge([
+        widget.app.mediaAi,
+        widget.app.tts,
+        widget.app,
+      ]),
       builder: (context, _) {
         final att = widget.attachment;
         final fedi = context.fediColors;

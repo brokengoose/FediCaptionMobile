@@ -1,0 +1,401 @@
+// Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
+// SPDX-License-Identifier: MIT
+
+import 'dart:async';
+
+import 'package:material_ui/material_ui.dart';
+
+import '../../core/constants.dart';
+import '../../core/theme/app_theme.dart';
+import '../../models/ai_models.dart';
+import '../../models/app_settings.dart';
+import '../../services/ai_provider_service.dart';
+import '../../state/app_controller.dart';
+import 'on_device_ai_status_card.dart';
+
+/// Shared AI provider configuration form used by both [AiSetupScreen] (first-time
+/// onboarding) and [SettingsScreen].
+///
+/// Consolidates provider selection, [OnDeviceAiStatusCard], API keys & server URLs,
+/// unified debounced persistence + single model refresh (preventing lost URL edits
+/// or duplicate concurrent requests), `"No AI"` guidance, and the alphabetically
+/// sorted dynamic model drop-down picker.
+class AiProviderConfigSection extends StatefulWidget {
+  const AiProviderConfigSection({
+    super.key,
+    required this.app,
+    this.providerLabel = 'Active AI Provider',
+    this.modelHelperText = 'Sorted alphabetically. Select a vision-capable model.',
+    this.noAiNoticeText =
+        'AI is disabled ("No AI"). Alt-text can be entered manually, Read Aloud remains available, and pre-post bias checks use offline local heuristics.',
+    this.showNoAiTitle = false,
+    this.enabled = true,
+    this.onProviderChanged,
+  });
+
+  final AppController app;
+  final String providerLabel;
+  final String modelHelperText;
+  final String noAiNoticeText;
+  final bool showNoAiTitle;
+  final bool enabled;
+  final ValueChanged<AiProviderType>? onProviderChanged;
+
+  @override
+  State<AiProviderConfigSection> createState() =>
+      AiProviderConfigSectionState();
+}
+
+class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
+  late final TextEditingController _geminiKeyCtrl;
+  late final TextEditingController _openAiKeyCtrl;
+  late final TextEditingController _openAiUrlCtrl;
+  late final TextEditingController _anthropicKeyCtrl;
+  late final TextEditingController _localUrlCtrl;
+  late final TextEditingController _localKeyCtrl;
+
+  bool _obscureApiKey = true;
+  Timer? _saveDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.app.settings;
+    final c = widget.app.credentials;
+    _geminiKeyCtrl = TextEditingController(text: c.geminiApiKey);
+    _openAiKeyCtrl = TextEditingController(text: c.openAiApiKey);
+    _openAiUrlCtrl = TextEditingController(text: s.openAiBaseUrl);
+    _anthropicKeyCtrl = TextEditingController(text: c.anthropicApiKey);
+    _localUrlCtrl = TextEditingController(text: s.localBaseUrl);
+    _localKeyCtrl = TextEditingController(text: c.localApiKey);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.app.refreshOnDeviceAiStatus();
+      if (widget.app.settings.activeProvider != AiProviderType.none) {
+        widget.app.refreshModelsFor(widget.app.settings.activeProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _saveDebounce?.cancel();
+    _geminiKeyCtrl.dispose();
+    _openAiKeyCtrl.dispose();
+    _openAiUrlCtrl.dispose();
+    _anthropicKeyCtrl.dispose();
+    _localUrlCtrl.dispose();
+    _localKeyCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Snapshot of all current API key fields.
+  AiCredentials buildCredentials() {
+    return AiCredentials(
+      geminiApiKey: _geminiKeyCtrl.text.trim(),
+      openAiApiKey: _openAiKeyCtrl.text.trim(),
+      anthropicApiKey: _anthropicKeyCtrl.text.trim(),
+      localApiKey: _localKeyCtrl.text.trim(),
+    );
+  }
+
+  /// Snapshot of settings merged with the current base URL fields (and optional provider override).
+  AppSettings buildSettings({AiProviderType? providerOverride}) {
+    final base = widget.app.settings;
+    final openAiUrl = _openAiUrlCtrl.text.trim();
+    final localUrl = _localUrlCtrl.text.trim();
+    return base.copyWith(
+      activeProvider: providerOverride ?? base.activeProvider,
+      openAiBaseUrl:
+          openAiUrl.isEmpty ? AppConstants.openAiDefaultBaseUrl : openAiUrl,
+      localBaseUrl:
+          localUrl.isEmpty ? AppConstants.localDefaultBaseUrl : localUrl,
+    );
+  }
+
+  /// Debounces saving BOTH credentials and base URLs together before triggering
+  /// a single model discovery request, preventing concurrent edits from cancelling
+  /// each other or firing duplicate fetches.
+  void _scheduleSyncAndRefresh(AiProviderType provider) {
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 650), () async {
+      await _persistInputsAndRefresh(provider);
+    });
+  }
+
+  Future<void> _persistInputsAndRefresh(AiProviderType provider) async {
+    await widget.app.updateCredentials(buildCredentials());
+    await widget.app.updateSettings(
+      buildSettings(),
+      autoRefreshModels: false,
+    );
+    if (provider != AiProviderType.none) {
+      await widget.app.refreshModelsFor(provider);
+    }
+  }
+
+  Future<void> _handleProviderChange(AiProviderType next) async {
+    _saveDebounce?.cancel();
+    await widget.app.updateCredentials(buildCredentials());
+    await widget.app.updateSettings(
+      buildSettings(providerOverride: next),
+      autoRefreshModels: false,
+    );
+    widget.onProviderChanged?.call(next);
+    if (next != AiProviderType.none) {
+      await widget.app.refreshModelsFor(next);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fedi = context.fediColors;
+
+    return ListenableBuilder(
+      listenable: widget.app,
+      builder: (context, _) {
+        final s = widget.app.settings;
+        final activeProvider = s.activeProvider;
+        final isNone = activeProvider == AiProviderType.none;
+        final isLoadingModels =
+            !isNone && widget.app.isLoadingModels(activeProvider);
+        final rawModels = isNone
+            ? const <AiModelOption>[]
+            : widget.app.modelsFor(activeProvider);
+        final selectedModel = s.modelForProvider(activeProvider);
+
+        // Guarantee DropdownButtonFormField always contains the currently selected value
+        // and stays strictly sorted alphabetically.
+        final dropdownModels = List<AiModelOption>.from(rawModels);
+        if (!isNone &&
+            selectedModel.isNotEmpty &&
+            !dropdownModels.any((m) => m.id == selectedModel)) {
+          dropdownModels.add(
+            AiModelOption(id: selectedModel, displayName: selectedModel),
+          );
+        }
+        final sortedModels = AiProviderService.sortAlphabetically(dropdownModels);
+        final effectiveModel = sortedModels.any((m) => m.id == selectedModel)
+            ? selectedModel
+            : (sortedModels.isNotEmpty ? sortedModels.first.id : null);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DropdownButtonFormField<AiProviderType>(
+              key: ValueKey('ai_provider_${activeProvider.id}'),
+              initialValue: activeProvider,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: widget.providerLabel),
+              items: AiProviderType.values
+                  .map(
+                    (p) => DropdownMenuItem(
+                      value: p,
+                      child: Text(p.displayName),
+                    ),
+                  )
+                  .toList(),
+              onChanged: widget.enabled
+                  ? (next) {
+                      if (next != null) _handleProviderChange(next);
+                    }
+                  : null,
+            ),
+
+            const SizedBox(height: 12),
+
+            if (activeProvider == AiProviderType.onDevice)
+              OnDeviceAiStatusCard(app: widget.app),
+
+            if (activeProvider == AiProviderType.gemini)
+              _buildApiKeyField(
+                controller: _geminiKeyCtrl,
+                label: 'Google Gemini API Key',
+                hint: 'AIza…',
+                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.gemini),
+              ),
+
+            if (activeProvider == AiProviderType.openai) ...[
+              TextField(
+                controller: _openAiUrlCtrl,
+                enabled: widget.enabled,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
+                decoration: const InputDecoration(
+                  labelText: 'OpenAI-Compatible Base URL',
+                  hintText: AppConstants.openAiDefaultBaseUrl,
+                  helperText:
+                      'Supports OpenAI, OpenRouter, LM Studio, vLLM, or llama.cpp.',
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildApiKeyField(
+                controller: _openAiKeyCtrl,
+                label: 'API Key (Optional for local servers)',
+                hint: 'sk-…',
+                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
+              ),
+            ],
+
+            if (activeProvider == AiProviderType.anthropic)
+              _buildApiKeyField(
+                controller: _anthropicKeyCtrl,
+                label: 'Anthropic API Key',
+                hint: 'sk-ant-…',
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.anthropic),
+              ),
+
+            if (activeProvider == AiProviderType.local) ...[
+              TextField(
+                controller: _localUrlCtrl,
+                enabled: widget.enabled,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.local),
+                decoration: const InputDecoration(
+                  labelText: 'Local AI Server URL (Ollama / LM Studio LAN)',
+                  hintText: 'http://192.168.1.50:11434',
+                  helperText:
+                      'Use your computer\'s LAN IP for Ollama (port 11434) or LM Studio (port 1234/v1).',
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildApiKeyField(
+                controller: _localKeyCtrl,
+                label: 'Optional LAN Server Token / Key',
+                hint: 'Leave blank if not required',
+                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.local),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            if (isNone)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withAlpha(115),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: fedi.cardBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.showNoAiTitle) ...[
+                      Text(
+                        'No AI Selected',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    Text(
+                      widget.noAiNoticeText,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(
+                        'ai_model_${activeProvider.id}_${effectiveModel ?? ''}',
+                      ),
+                      initialValue: effectiveModel,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'AI Model (A–Z)',
+                        helperText: isLoadingModels
+                            ? 'Fetching available models from provider…'
+                            : widget.modelHelperText,
+                      ),
+                      items: sortedModels
+                          .map(
+                            (m) => DropdownMenuItem(
+                              value: m.id,
+                              child: Text(
+                                m.displayName,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: widget.enabled
+                          ? (modelId) {
+                              if (modelId != null) {
+                                widget.app.updateSettings(
+                                  s.withModelForProvider(
+                                    activeProvider,
+                                    modelId,
+                                  ),
+                                  autoRefreshModels: false,
+                                );
+                              }
+                            }
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: IconButton.filledTonal(
+                      tooltip: 'Refresh Models',
+                      onPressed: (!widget.enabled || isLoadingModels)
+                          ? null
+                          : () {
+                              _saveDebounce?.cancel();
+                              _persistInputsAndRefresh(activeProvider);
+                            },
+                      icon: isLoadingModels
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildApiKeyField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required ValueChanged<String> onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: widget.enabled,
+      obscureText: _obscureApiKey,
+      autocorrect: false,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        suffixIcon: IconButton(
+          tooltip: _obscureApiKey ? 'Show API key' : 'Hide API key',
+          icon: Icon(
+            _obscureApiKey ? Icons.visibility : Icons.visibility_off,
+          ),
+          onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
+        ),
+      ),
+    );
+  }
+}

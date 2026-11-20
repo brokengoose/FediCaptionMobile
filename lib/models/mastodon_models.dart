@@ -92,6 +92,7 @@ class InstanceLimits {
   }
 }
 
+/// Represents a Mastodon/Fediverse user account profile.
 class MastodonAccount {
   const MastodonAccount({
     required this.id,
@@ -147,6 +148,7 @@ class MastodonAccount {
   }
 }
 
+/// Represents an image, video, GIFV, or audio attachment on a Mastodon status.
 class MastodonMediaAttachment {
   const MastodonMediaAttachment({
     required this.id,
@@ -181,6 +183,7 @@ class MastodonMediaAttachment {
   }
 }
 
+/// Represents an `@mention` entity referenced inside a Mastodon status.
 class MastodonMention {
   const MastodonMention({
     required this.id,
@@ -194,6 +197,17 @@ class MastodonMention {
   final String acct;
   final String url;
 
+  /// Creates a lightweight [MastodonAccount] stub for immediately navigating to
+  /// `ProfileScreen` before full profile metadata finishes loading.
+  MastodonAccount toStubAccount() => MastodonAccount(
+        id: id,
+        username: username,
+        acct: acct,
+        displayName: username,
+        avatar: '',
+        url: url,
+      );
+
   factory MastodonMention.fromJson(Map<String, dynamic> json) {
     return MastodonMention(
       id: (json['id'] ?? '').toString(),
@@ -204,6 +218,8 @@ class MastodonMention {
   }
 }
 
+/// Represents a Mastodon status (post), including optional boost (`reblog`) and
+/// native quote (`quotedStatus`) payloads.
 class MastodonStatus {
   const MastodonStatus({
     required this.id,
@@ -279,9 +295,11 @@ class MastodonStatus {
     int? favouritesCount,
     int? repliesCount,
     MastodonStatus? reblog,
+    MastodonStatus? quotedStatus,
     String? contentHtml,
     String? spoilerText,
     List<MastodonMediaAttachment>? mediaAttachments,
+    List<MastodonMention>? mentions,
     DateTime? editedAt,
   }) {
     return MastodonStatus(
@@ -304,9 +322,9 @@ class MastodonStatus {
       bookmarked: bookmarked ?? this.bookmarked,
       sensitive: sensitive,
       mediaAttachments: mediaAttachments ?? this.mediaAttachments,
-      mentions: mentions,
+      mentions: mentions ?? this.mentions,
       reblog: reblog ?? this.reblog,
-      quotedStatus: quotedStatus,
+      quotedStatus: quotedStatus ?? this.quotedStatus,
       editedAt: editedAt ?? this.editedAt,
     );
   }
@@ -365,6 +383,7 @@ class MastodonStatus {
   }
 }
 
+/// Unformatted source text and content warning returned by `GET /api/v1/statuses/{id}/source`.
 class MastodonStatusSource {
   const MastodonStatusSource({
     required this.id,
@@ -385,6 +404,7 @@ class MastodonStatusSource {
   }
 }
 
+/// Follow, notification, mute, and block relationship state for a Mastodon account.
 class MastodonRelationship {
   const MastodonRelationship({
     required this.id,
@@ -417,6 +437,7 @@ class MastodonRelationship {
   }
 }
 
+/// Represents a Mastodon notification event (mention, boost, favorite, follow, quote, etc.).
 class MastodonNotification {
   const MastodonNotification({
     required this.id,
@@ -427,7 +448,7 @@ class MastodonNotification {
   });
 
   final String id;
-  final String type; // mention, status, reblog, follow, follow_request, favourite, poll, update
+  final String type; // mention, status, reblog, follow, follow_request, favourite, poll, update, quote, quoted_update
   final DateTime createdAt;
   final MastodonAccount account;
   final MastodonStatus? status;
@@ -450,6 +471,10 @@ class MastodonNotification {
         return 'edited a post';
       case 'poll':
         return 'a poll you participated in has ended';
+      case 'quote':
+        return 'quoted your post';
+      case 'quoted_update':
+        return 'edited a post you quoted';
       default:
         return type;
     }
@@ -470,6 +495,7 @@ class MastodonNotification {
   }
 }
 
+/// Ancestor and descendant posts forming a conversation thread around a focal status.
 class MastodonContext {
   const MastodonContext({
     required this.ancestors,

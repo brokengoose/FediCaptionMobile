@@ -9,7 +9,7 @@ import '../../state/app_controller.dart';
 import 'settings_screen.dart';
 
 /// Mastodon authentication screen supporting OAuth 2.0 (`ASWebAuthenticationSession` /
-/// Custom Tabs) and a manual Direct Access Token fallback (Section 6.1).
+/// Custom Tabs) and a manual Direct Access Token fallback.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,

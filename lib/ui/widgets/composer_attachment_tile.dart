@@ -10,7 +10,7 @@ import '../../models/ai_models.dart';
 import '../../models/composer_attachment.dart';
 import '../../services/tts_service.dart';
 
-/// Per-attachment editor card in the composer (Section 2.3):
+/// Per-attachment editor card in the composer:
 /// - Status badge (`AI Scanning...`, `Alt-Text Ready`, `Missing Alt-Text`, or `Error`)
 /// - Editable alt-text text area with live character counter (`current / max chars`)
 /// - Re-Scan with AI button & per-attachment detail-level selector

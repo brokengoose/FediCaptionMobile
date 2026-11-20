@@ -7,15 +7,14 @@ import '../../core/accessibility_announcer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/linkified_text.dart';
 import '../widgets/status_card.dart';
-import 'composer_screen.dart';
-import 'thread_screen.dart';
 
 /// Displays any Mastodon user's profile and personal posts timeline
 /// (`GET /api/v1/accounts/{id}` & `/statuses`), with a prominent Subscribe/Unsubscribe
-/// button and Notifications bell toggle (`notify: true/false`) near the top (Section 6.4).
+/// button, Notifications bell toggle (`notify: true/false`), and lazy pagination.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
@@ -33,10 +32,15 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final ScrollController _scrollController = ScrollController();
+  late final StatusActionHandler _actions;
+
   MastodonAccount? _account;
   MastodonRelationship? _relationship;
   List<MastodonStatus> _statuses = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   bool _isUpdatingFollow = false;
   String? _error;
 
@@ -45,8 +49,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _actions = StatusActionHandler(app: widget.app);
     _account = widget.initialAccount;
+    _scrollController.addListener(_onScroll);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 320 &&
+        !_isLoading &&
+        !_isLoadingMore &&
+        _hasMore &&
+        _statuses.isNotEmpty) {
+      _loadMore();
+    }
   }
 
   Future<void> _load() async {
@@ -55,6 +78,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _hasMore = true;
     });
 
     try {
@@ -86,6 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _statuses = statuses;
         _relationship = rel;
         _isLoading = false;
+        _hasMore = statuses.length >= 15;
       });
       AccessibilityAnnouncer.announce(
         'Loaded profile for ${account.effectiveDisplayName} with ${statuses.length} posts.',
@@ -96,6 +121,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final session = widget.app.session;
+    if (session == null || _statuses.isEmpty) return;
+
+    setState(() => _isLoadingMore = true);
+    try {
+      final items = await widget.app.mastodon.fetchAccountStatuses(
+        instanceUrl: session.instanceUrl,
+        accessToken: session.accessToken,
+        accountId: widget.accountId,
+        maxId: _statuses.last.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _statuses = [..._statuses, ...items];
+        _isLoadingMore = false;
+        _hasMore = items.length >= 15;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -170,39 +219,186 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _replaceStatus(MastodonStatus updatedTarget) {
+    if (!mounted) return;
     setState(() {
-      _statuses = _statuses.map((s) {
-        if (s.id == updatedTarget.id) return updatedTarget;
-        if (s.reblog?.id == updatedTarget.id) {
-          return s.copyWith(reblog: updatedTarget);
-        }
-        return s;
-      }).toList();
+      _statuses = StatusActionHandler.replaceInList(_statuses, updatedTarget);
     });
   }
 
   Future<void> _deleteStatus(MastodonStatus target) async {
-    final session = widget.app.session;
-    if (session == null) return;
-    await widget.app.mastodon.deleteStatus(
-      instanceUrl: session.instanceUrl,
-      accessToken: session.accessToken,
-      statusId: target.id,
+    final deleted = await _actions.confirmAndDelete(context, target);
+    if (deleted && mounted) {
+      setState(() {
+        _statuses = StatusActionHandler.removeFromList(_statuses, target.id);
+      });
+    }
+  }
+
+  Widget _buildHeader(
+    BuildContext context,
+    MastodonAccount account,
+    MastodonRelationship? rel,
+  ) {
+    final fedi = context.fediColors;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: fedi.cardBorder),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AccessibleAvatar(
+                imageUrl: account.avatar,
+                displayName: account.effectiveDisplayName,
+                radius: 30,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      account.effectiveDisplayName,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      account.handle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: fedi.subtleText),
+                    ),
+                    if (rel?.followedBy == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Follows you',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Prominent Subscribe / Unsubscribe & Notifications bell toggle
+          if (!_isOwnProfile) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    toggled: rel?.following == true,
+                    label: rel?.following == true
+                        ? 'Unsubscribe from ${account.effectiveDisplayName}'
+                        : (rel?.requested == true
+                            ? 'Follow request pending'
+                            : 'Subscribe to ${account.effectiveDisplayName}'),
+                    child: rel?.following == true
+                        ? OutlinedButton.icon(
+                            onPressed:
+                                _isUpdatingFollow ? null : _toggleSubscribe,
+                            icon: const Icon(Icons.person_remove),
+                            label: const Text('Unsubscribe'),
+                          )
+                        : FilledButton.icon(
+                            onPressed:
+                                _isUpdatingFollow ? null : _toggleSubscribe,
+                            icon: const Icon(Icons.person_add),
+                            label: Text(
+                              rel?.requested == true
+                                  ? 'Requested'
+                                  : 'Subscribe',
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Semantics(
+                  button: true,
+                  toggled: rel?.notifying == true,
+                  label: rel?.notifying == true
+                      ? 'Disable post notifications for ${account.effectiveDisplayName}'
+                      : 'Enable post notifications for ${account.effectiveDisplayName}',
+                  child: IconButton.filledTonal(
+                    onPressed: (_isUpdatingFollow || rel?.following != true)
+                        ? null
+                        : _toggleNotifyBell,
+                    tooltip: rel?.notifying == true
+                        ? 'Notifications On (tap to disable)'
+                        : 'Notifications Off (tap to enable)',
+                    icon: Icon(
+                      rel?.notifying == true
+                          ? Icons.notifications_active
+                          : Icons.notifications_none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          if (account.plainBio.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            LinkifiedText.html(
+              account.note,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 6,
+            children: [
+              Text(
+                '${account.statusesCount} Posts',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${account.followingCount} Following',
+                style: TextStyle(color: fedi.subtleText),
+              ),
+              Text(
+                '${account.followersCount} Followers',
+                style: TextStyle(color: fedi.subtleText),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
-    if (!mounted) return;
-    setState(() {
-      _statuses = _statuses
-          .where((s) => s.id != target.id && s.reblog?.id != target.id)
-          .toList();
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final account = _account;
     final rel = _relationship;
-    final fedi = context.fediColors;
-    final scheme = Theme.of(context).colorScheme;
+    final hasHeader = account != null;
+
+    // Header slot + either a single status-state placeholder or lazy list of posts + optional loader.
+    final int bodyCount = (_isLoading || _error != null || _statuses.isEmpty)
+        ? 1
+        : _statuses.length + (_isLoadingMore ? 1 : 0);
+    final int totalCount = (hasHeader ? 1 : 0) + bodyCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -214,165 +410,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: ListView(
+        child: ListView.builder(
+          controller: _scrollController,
           padding: const EdgeInsets.only(bottom: 48),
-          children: [
-            if (account != null)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: fedi.cardBorder),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        AccessibleAvatar(
-                          imageUrl: account.avatar,
-                          displayName: account.effectiveDisplayName,
-                          radius: 30,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                account.effectiveDisplayName,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                account.handle,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(color: fedi.subtleText),
-                              ),
-                              if (rel?.followedBy == true)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'Follows you',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: scheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+          itemCount: totalCount,
+          itemBuilder: (context, index) {
+            if (hasHeader && index == 0) {
+              return _buildHeader(context, account, rel);
+            }
+            final bodyIndex = hasHeader ? index - 1 : index;
 
-                    // Prominent Subscribe / Unsubscribe & Notifications bell toggle (Section 6.4)
-                    if (!_isOwnProfile) ...[
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Semantics(
-                              button: true,
-                              toggled: rel?.following == true,
-                              label: rel?.following == true
-                                  ? 'Unsubscribe from ${account.effectiveDisplayName}'
-                                  : (rel?.requested == true
-                                      ? 'Follow request pending'
-                                      : 'Subscribe to ${account.effectiveDisplayName}'),
-                              child: rel?.following == true
-                                  ? OutlinedButton.icon(
-                                      onPressed: _isUpdatingFollow
-                                          ? null
-                                          : _toggleSubscribe,
-                                      icon: const Icon(Icons.person_remove),
-                                      label: const Text('Unsubscribe'),
-                                    )
-                                  : FilledButton.icon(
-                                      onPressed: _isUpdatingFollow
-                                          ? null
-                                          : _toggleSubscribe,
-                                      icon: const Icon(Icons.person_add),
-                                      label: Text(
-                                        rel?.requested == true
-                                            ? 'Requested'
-                                            : 'Subscribe',
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Semantics(
-                            button: true,
-                            toggled: rel?.notifying == true,
-                            label: rel?.notifying == true
-                                ? 'Disable post notifications for ${account.effectiveDisplayName}'
-                                : 'Enable post notifications for ${account.effectiveDisplayName}',
-                            child: IconButton.filledTonal(
-                              onPressed: (_isUpdatingFollow ||
-                                      rel?.following != true)
-                                  ? null
-                                  : _toggleNotifyBell,
-                              tooltip: rel?.notifying == true
-                                  ? 'Notifications On (tap to disable)'
-                                  : 'Notifications Off (tap to enable)',
-                              icon: Icon(
-                                rel?.notifying == true
-                                    ? Icons.notifications_active
-                                    : Icons.notifications_none,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-
-                    if (account.plainBio.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      LinkifiedText.html(
-                        account.note,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 6,
-                      children: [
-                        Text(
-                          '${account.statusesCount} Posts',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '${account.followingCount} Following',
-                          style: TextStyle(color: fedi.subtleText),
-                        ),
-                        Text(
-                          '${account.followersCount} Followers',
-                          style: TextStyle(color: fedi.subtleText),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-            if (_isLoading)
-              const Padding(
+            if (_isLoading) {
+              return const Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null)
-              Padding(
+              );
+            }
+            if (_error != null) {
+              return Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
@@ -384,83 +439,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-              )
-            else if (_statuses.isEmpty)
-              const Padding(
+              );
+            }
+            if (_statuses.isEmpty) {
+              return const Padding(
                 padding: EdgeInsets.all(32),
                 child: Center(child: Text('No posts published yet.')),
-              )
-            else
-              for (final status in _statuses)
-                StatusCard(
-                  status: status,
-                  app: widget.app,
-                  onOpenProfile: (acc) {
-                    if (acc.id == widget.accountId) return;
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => ProfileScreen(
-                          app: widget.app,
-                          accountId: acc.id,
-                          initialAccount: acc,
-                        ),
-                      ),
-                    );
-                  },
-                  onOpenThread: (st) => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          ThreadScreen(app: widget.app, rootStatus: st),
-                    ),
-                  ),
-                  onReply: (st) => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          ComposerScreen(app: widget.app, replyToStatus: st),
-                    ),
-                  ),
-                  onToggleBoost: (st) async {
-                    final s = widget.app.session;
-                    if (s == null) return;
-                    final updated = await widget.app.mastodon.toggleReblog(
-                      instanceUrl: s.instanceUrl,
-                      accessToken: s.accessToken,
-                      statusId: st.id,
-                      currentlyReblogged: st.reblogged,
-                    );
-                    _replaceStatus(updated.displayStatus);
-                  },
-                  onToggleFavorite: (st) async {
-                    final s = widget.app.session;
-                    if (s == null) return;
-                    final updated = await widget.app.mastodon.toggleFavourite(
-                      instanceUrl: s.instanceUrl,
-                      accessToken: s.accessToken,
-                      statusId: st.id,
-                      currentlyFavourited: st.favourited,
-                    );
-                    _replaceStatus(updated.displayStatus);
-                  },
-                  onToggleBookmark: (st) async {
-                    final s = widget.app.session;
-                    if (s == null) return;
-                    final updated = await widget.app.mastodon.toggleBookmark(
-                      instanceUrl: s.instanceUrl,
-                      accessToken: s.accessToken,
-                      statusId: st.id,
-                      currentlyBookmarked: st.bookmarked,
-                    );
-                    _replaceStatus(updated.displayStatus);
-                  },
-                  onEdit: (st) => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          ComposerScreen(app: widget.app, editingStatus: st),
-                    ),
-                  ),
-                  onDelete: _deleteStatus,
-                ),
-          ],
+              );
+            }
+            if (bodyIndex >= _statuses.length) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final status = _statuses[bodyIndex];
+            return StatusCard(
+              status: status,
+              app: widget.app,
+              onOpenProfile: (acc) => _actions.openProfile(
+                context,
+                acc,
+                skipIfAccountId: widget.accountId,
+              ),
+              onOpenThread: (st) => _actions.openThread(context, st),
+              onReply: (st) => _actions.openReply(context, st),
+              onToggleBoost: (st) async {
+                final updated = await _actions.toggleBoost(context, st);
+                if (updated != null) _replaceStatus(updated);
+              },
+              onToggleFavorite: (st) async {
+                final updated = await _actions.toggleFavorite(context, st);
+                if (updated != null) _replaceStatus(updated);
+              },
+              onToggleBookmark: (st) async {
+                final updated = await _actions.toggleBookmark(context, st);
+                if (updated != null) _replaceStatus(updated);
+              },
+              onEdit: (st) async {
+                final edited = await _actions.openEdit(context, st);
+                if (edited != null) _replaceStatus(edited.displayStatus);
+              },
+              onDelete: _deleteStatus,
+            );
+          },
         ),
       ),
     );

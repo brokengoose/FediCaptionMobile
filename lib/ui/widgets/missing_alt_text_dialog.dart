@@ -12,7 +12,7 @@ enum MissingAltTextAction {
 }
 
 /// Dialog shown before publishing when one or more attachments lack alt-text
-/// and Accessibility Rules policy is `warn` or `require` (Section 5.1).
+/// and Accessibility Rules policy is `warn` or `require`.
 class MissingAltTextDialog extends StatelessWidget {
   const MissingAltTextDialog({
     super.key,

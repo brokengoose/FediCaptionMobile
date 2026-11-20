@@ -58,18 +58,8 @@ class BiasCheckService {
           statusUrl: url,
         );
         if (resolved != null) {
-          final target = resolved.displayStatus;
           referencedStatuses.add(
-            ReferencedStatusContext(
-              authorHandle: target.account.acct,
-              contentText: target.plainText,
-              spoilerText: target.spoilerText,
-              mediaAltTexts: target.mediaAttachments
-                  .map((m) => (m.description ?? '').trim())
-                  .where((d) => d.isNotEmpty)
-                  .toList(),
-              sourceUrl: url,
-            ),
+            ReferencedStatusContext.fromStatus(resolved, sourceUrl: url),
           );
           fetchedCount++;
           continue;
@@ -96,10 +86,8 @@ class BiasCheckService {
       links: externalLinks,
     );
 
-    // If user selected "No AI" or on-device fallback, return deterministic check directly.
-    if (settings.activeProvider == AiProviderType.none ||
-        (settings.activeProvider == AiProviderType.local &&
-            settings.localModel == 'on-device-fallback')) {
+    // If user selected "No AI", return deterministic offline heuristics directly.
+    if (settings.activeProvider == AiProviderType.none) {
       return localResult;
     }
 

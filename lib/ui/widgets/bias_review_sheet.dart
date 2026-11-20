@@ -14,8 +14,8 @@ enum BiasReviewAction {
   publishAnyway,
 }
 
-/// Modal sheet presented ONLY when racial or gender bias is detected before publishing
-/// (Sections 4.2 and 5.2).
+/// Modal sheet presented only when racial or gender bias is detected before
+/// publishing, enforcing Warn vs. Require bias policies.
 class BiasReviewSheet extends StatelessWidget {
   const BiasReviewSheet({
     super.key,

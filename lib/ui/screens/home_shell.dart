@@ -60,7 +60,7 @@ class _HomeShellState extends State<HomeShell> {
           appBar: AppBar(
             leadingWidth: 56,
             titleSpacing: 4,
-            // Upper-left logged-in profile header: tapping immediately shows My Published Posts (Section 6.4)
+            // Upper-left logged-in profile header: tapping immediately shows My Published Posts
             title: account == null
                 ? Text(_selectedTimeline.fullTitle)
                 : Semantics(
@@ -224,7 +224,7 @@ class _HomeShellState extends State<HomeShell> {
           ),
           body: Column(
             children: [
-              // Dismissible GitHub Update Available banner (Section 8)
+              // Dismissible GitHub Update Available banner
               if (update != null)
                 UpdateBanner(
                   update: update,

@@ -8,13 +8,12 @@ import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/linkified_text.dart';
-import 'profile_screen.dart';
-import 'thread_screen.dart';
 
 /// Displays Mastodon notifications (`GET /api/v1/notifications`) with clickable
-/// user avatars/handles and direct thread navigation.
+/// user avatars/handles, direct thread navigation, and infinite-scroll pagination.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({
     super.key,
@@ -28,14 +27,38 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  final ScrollController _scrollController = ScrollController();
+  late final StatusActionHandler _actions;
+
   List<MastodonNotification> _notifications = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _actions = StatusActionHandler(app: widget.app);
+    _scrollController.addListener(_onScroll);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 320 &&
+        !_isLoading &&
+        !_isLoadingMore &&
+        _hasMore &&
+        _notifications.isNotEmpty) {
+      _loadMore();
+    }
   }
 
   Future<void> _load() async {
@@ -44,6 +67,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _hasMore = true;
     });
 
     try {
@@ -55,6 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _notifications = items;
         _isLoading = false;
+        _hasMore = items.length >= 15;
       });
       AccessibilityAnnouncer.announce(
         'Loaded ${items.length} notifications.',
@@ -68,24 +93,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  void _openProfile(MastodonAccount account) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ProfileScreen(
-          app: widget.app,
-          accountId: account.id,
-          initialAccount: account,
-        ),
-      ),
-    );
-  }
+  Future<void> _loadMore() async {
+    final session = widget.app.session;
+    if (session == null || _notifications.isEmpty) return;
 
-  void _openThread(MastodonStatus status) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ThreadScreen(app: widget.app, rootStatus: status),
-      ),
-    );
+    setState(() => _isLoadingMore = true);
+    try {
+      final items = await widget.app.mastodon.fetchNotifications(
+        instanceUrl: session.instanceUrl,
+        accessToken: session.accessToken,
+        maxId: _notifications.last.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _notifications = [..._notifications, ...items];
+        _isLoadingMore = false;
+        _hasMore = items.length >= 15;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+    }
   }
 
   IconData _iconForType(String type) {
@@ -101,6 +129,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.person_add;
       case 'status':
         return Icons.notifications_active;
+      case 'quote':
+      case 'quoted_update':
+        return Icons.format_quote;
       default:
         return Icons.notifications;
     }
@@ -148,9 +179,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.only(top: 6, bottom: 88),
-        itemCount: _notifications.length,
+        itemCount: _notifications.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index >= _notifications.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
           final item = _notifications[index];
           final relTime = TimeUtils.formatRelativeCompact(item.createdAt);
 
@@ -172,12 +211,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         imageUrl: item.account.avatar,
                         displayName: item.account.effectiveDisplayName,
                         radius: 18,
-                        onTap: () => _openProfile(item.account),
+                        onTap: () =>
+                            _actions.openProfile(context, item.account),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: InkWell(
-                          onTap: () => _openProfile(item.account),
+                          onTap: () =>
+                              _actions.openProfile(context, item.account),
                           borderRadius: BorderRadius.circular(8),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -208,7 +249,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (item.status != null) ...[
                     const SizedBox(height: 8),
                     InkWell(
-                      onTap: () => _openThread(item.status!),
+                      onTap: () => _actions.openThread(context, item.status!),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         width: double.infinity,
@@ -225,15 +266,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodyMedium,
                                 mentions: item.status!.mentions,
-                                onTapMention: (mention) => _openProfile(
-                                  MastodonAccount(
-                                    id: mention.id,
-                                    username: mention.username,
-                                    acct: mention.acct,
-                                    displayName: mention.username,
-                                    avatar: '',
-                                    url: mention.url,
-                                  ),
+                                onTapMention: (mention) => _actions.openProfile(
+                                  context,
+                                  mention.toStubAccount(),
                                 ),
                               )
                             : Text(

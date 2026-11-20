@@ -10,9 +10,19 @@ import '../models/update_info.dart';
 
 /// Checks GitHub for newer releases (and falls back to the `VERSION` file on `main`).
 class UpdateCheckService {
-  UpdateCheckService({http.Client? client}) : _client = client ?? http.Client();
+  UpdateCheckService({http.Client? client})
+      : _client = client ?? http.Client(),
+        _ownsClient = client == null;
 
   final http.Client _client;
+  final bool _ownsClient;
+
+  /// Closes the internally owned HTTP client (no-op if an external client was injected).
+  void dispose() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
 
   /// Compares two semantic version strings (e.g. `v1.2.0` vs `1.0.0`).
   /// Returns `true` strictly when [latest] > [current].

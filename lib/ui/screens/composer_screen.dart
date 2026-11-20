@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:file_picker/file_picker.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 
+import '../../core/media_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/app_settings.dart';
 import '../../models/mastodon_models.dart';
@@ -87,11 +88,10 @@ class _ComposerScreenState extends State<ComposerScreen> {
     );
     final path = picked?.path;
     if (path == null || path.isEmpty) return;
-    final lower = path.toLowerCase();
-    final isVideo = lower.endsWith('.mp4') ||
-        lower.endsWith('.mov') ||
-        lower.endsWith('.webm');
-    await _controller.addLocalMedia(filePath: path, isVideo: isVideo);
+    await _controller.addLocalMedia(
+      filePath: path,
+      isVideo: MediaUtils.isVideoFilePath(path),
+    );
   }
 
   /// Complete pre-post publishing flow:
@@ -130,7 +130,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
       final biasResult = await _controller.runBiasCheck();
       if (!mounted) return;
 
-      // Per Section 4.2: If NO bias is detected, publish IMMEDIATELY without showing a dialog.
+      // Silent pass: if no bias is detected, publish immediately without showing a dialog.
       if (biasResult.hasBias) {
         final action = await showModalBottomSheet<BiasReviewAction>(
           context: context,

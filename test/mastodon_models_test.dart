@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:fedicaption_mobile/core/html_utils.dart';
+import 'package:fedicaption_mobile/core/media_utils.dart';
+import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -126,6 +128,64 @@ void main() {
       expect(status.quotedStatus, isNotNull);
       expect(status.quotedStatus!.id, '100');
       expect(status.quotedStatus!.plainText, 'Original post text');
+    });
+  });
+
+  group('Model helpers & settings migration', () {
+    test('MastodonMention.toStubAccount creates an account stub for profile navigation', () {
+      const mention = MastodonMention(
+        id: '42',
+        username: 'alice',
+        acct: 'alice@example.social',
+        url: 'https://example.social/@alice',
+      );
+      final stub = mention.toStubAccount();
+      expect(stub.id, '42');
+      expect(stub.username, 'alice');
+      expect(stub.handle, '@alice@example.social');
+      expect(stub.url, 'https://example.social/@alice');
+    });
+
+    test('MastodonNotification describes Mastodon 4.5+ quote notification types', () {
+      final account = MastodonAccount.fromJson(const {
+        'id': '1',
+        'username': 'alice',
+        'acct': 'alice',
+        'display_name': 'Alice',
+        'avatar': '',
+      });
+      final quoteNotif = MastodonNotification(
+        id: 'n1',
+        type: 'quote',
+        createdAt: DateTime.utc(2026, 11, 20),
+        account: account,
+      );
+      final quotedUpdateNotif = MastodonNotification(
+        id: 'n2',
+        type: 'quoted_update',
+        createdAt: DateTime.utc(2026, 11, 20),
+        account: account,
+      );
+      expect(quoteNotif.actionDescription, 'quoted your post');
+      expect(quotedUpdateNotif.actionDescription, 'edited a post you quoted');
+    });
+
+    test('MediaUtils detects video paths and infers MIME types', () {
+      expect(MediaUtils.isVideoFilePath('/tmp/clip.MOV'), isTrue);
+      expect(MediaUtils.isVideoFilePath('/tmp/photo.webp'), isFalse);
+      expect(MediaUtils.guessMimeType('clip.mov', isVideo: true), 'video/quicktime');
+      expect(MediaUtils.guessMimeType('clip.webm', isVideo: true), 'video/webm');
+      expect(MediaUtils.guessMimeType('photo.png', isVideo: false), 'image/png');
+      expect(MediaUtils.guessMimeType('photo.gif', isVideo: false), 'image/gif');
+      expect(MediaUtils.guessMimeType('photo.jpg', isVideo: false), 'image/jpeg');
+    });
+
+    test('AppSettings.fromJson migrates removed legacy on-device-fallback localModel', () {
+      final migrated = AppSettings.fromJson(const {
+        'activeProvider': 'local',
+        'localModel': 'on-device-fallback',
+      });
+      expect(migrated.localModel, 'llama3.2-vision');
     });
   });
 }

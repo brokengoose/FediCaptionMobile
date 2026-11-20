@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
-import 'accessible_avatar.dart';
 import 'linkified_text.dart';
 import 'media_attachment_card.dart';
+import 'status_header_parts.dart';
 
 /// Embedded inset window rendering a quoted Mastodon post inside a parent [StatusCard].
 class QuotedStatusCard extends StatefulWidget {
@@ -23,6 +20,7 @@ class QuotedStatusCard extends StatefulWidget {
     this.quotedStatus,
     this.quoteUrl,
     this.isLoading = false,
+    this.onRetry,
   });
 
   final AppController app;
@@ -31,6 +29,7 @@ class QuotedStatusCard extends StatefulWidget {
   final MastodonStatus? quotedStatus;
   final String? quoteUrl;
   final bool isLoading;
+  final VoidCallback? onRetry;
 
   @override
   State<QuotedStatusCard> createState() => _QuotedStatusCardState();
@@ -38,13 +37,6 @@ class QuotedStatusCard extends StatefulWidget {
 
 class _QuotedStatusCardState extends State<QuotedStatusCard> {
   bool _cwRevealed = false;
-
-  Future<void> _openExternalUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,9 +105,15 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                         ),
                   ),
                 ),
+                if (widget.onRetry != null)
+                  TextButton.icon(
+                    onPressed: widget.onRetry,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Retry'),
+                  ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             LinkifiedText.plain(
               fallbackUrl,
               style: Theme.of(context).textTheme.bodySmall,
@@ -126,8 +124,6 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
     }
 
     final hasCw = quoted.spoilerText.trim().isNotEmpty;
-    final compactTime = TimeUtils.formatRelativeCompact(quoted.createdAt);
-    final verboseTime = TimeUtils.formatRelativeAccessible(quoted.createdAt);
 
     return Semantics(
       container: true,
@@ -140,7 +136,6 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Quoted post label strip
             Row(
               children: [
                 Icon(Icons.format_quote, size: 16, color: scheme.primary),
@@ -156,124 +151,20 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
             ),
             const SizedBox(height: 6),
 
-            // Author header + clickable permalink timestamp
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                AccessibleAvatar(
-                  imageUrl: quoted.account.avatar,
-                  displayName: quoted.account.effectiveDisplayName,
-                  radius: 16,
-                  onTap: () => widget.onOpenProfile(quoted.account),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => widget.onOpenProfile(quoted.account),
-                    borderRadius: BorderRadius.circular(8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minHeight: AppConstants.minTouchTargetSize,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            quoted.account.effectiveDisplayName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            quoted.account.handle,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: fedi.subtleText),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Semantics(
-                  link: true,
-                  label:
-                      'Quoted post from $verboseTime. Open original post in browser.',
-                  child: InkWell(
-                    onTap: quoted.permalinkUrl.isNotEmpty
-                        ? () => _openExternalUrl(quoted.permalinkUrl)
-                        : null,
-                    borderRadius: BorderRadius.circular(8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: AppConstants.minTouchTargetSize,
-                        minHeight: AppConstants.minTouchTargetSize,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              compactTime,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                    color: scheme.primary,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              Icons.open_in_new,
-                              size: 13,
-                              color: scheme.primary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            StatusAuthorHeader(
+              status: quoted,
+              onOpenProfile: widget.onOpenProfile,
+              compact: true,
             ),
 
             const SizedBox(height: 6),
 
             if (hasCw) ...[
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: fedi.biasWarningBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: fedi.cardBorder),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'CW: ${quoted.spoilerText}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: fedi.biasWarningFg,
-                            ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () =>
-                          setState(() => _cwRevealed = !_cwRevealed),
-                      child: Text(_cwRevealed ? 'Hide' : 'Show'),
-                    ),
-                  ],
-                ),
+              ContentWarningBanner(
+                spoilerText: quoted.spoilerText,
+                revealed: _cwRevealed,
+                onToggle: () => setState(() => _cwRevealed = !_cwRevealed),
+                compact: true,
               ),
               const SizedBox(height: 6),
             ],
@@ -289,16 +180,8 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                       quoted.contentHtml,
                       style: Theme.of(context).textTheme.bodyMedium,
                       mentions: quoted.mentions,
-                      onTapMention: (mention) => widget.onOpenProfile(
-                        MastodonAccount(
-                          id: mention.id,
-                          username: mention.username,
-                          acct: mention.acct,
-                          displayName: mention.username,
-                          avatar: '',
-                          url: mention.url,
-                        ),
-                      ),
+                      onTapMention: (mention) =>
+                          widget.onOpenProfile(mention.toStubAccount()),
                     ),
                   ),
                 ),

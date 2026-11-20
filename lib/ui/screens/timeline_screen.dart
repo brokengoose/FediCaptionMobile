@@ -6,10 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/accessibility_announcer.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/status_action_handler.dart';
 import '../widgets/status_card.dart';
-import 'composer_screen.dart';
-import 'profile_screen.dart';
-import 'thread_screen.dart';
 
 /// Displays any Mastodon status feed (`Home`, `Local`, `Federated`, `Bookmarks`,
 /// `Favorites`, `My Published Posts`) with pull-to-refresh and pagination.
@@ -29,6 +27,7 @@ class TimelineScreen extends StatefulWidget {
 
 class _TimelineScreenState extends State<TimelineScreen> {
   final ScrollController _scrollController = ScrollController();
+  late final StatusActionHandler _actions;
 
   List<MastodonStatus> _statuses = [];
   bool _isLoading = true;
@@ -40,6 +39,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   @override
   void initState() {
     super.initState();
+    _actions = StatusActionHandler(app: widget.app);
     _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
     widget.app.addListener(_onAppChanged);
     _scrollController.addListener(_onScroll);
@@ -137,159 +137,34 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   void _replaceStatus(MastodonStatus updatedTarget) {
+    if (!mounted) return;
     setState(() {
-      _statuses = _statuses.map((s) {
-        if (s.id == updatedTarget.id) return updatedTarget;
-        if (s.reblog?.id == updatedTarget.id) {
-          return s.copyWith(reblog: updatedTarget);
-        }
-        return s;
-      }).toList();
+      _statuses = StatusActionHandler.replaceInList(_statuses, updatedTarget);
     });
   }
 
   Future<void> _toggleBoost(MastodonStatus target) async {
-    final session = widget.app.session;
-    if (session == null) return;
-    try {
-      final updated = await widget.app.mastodon.toggleReblog(
-        instanceUrl: session.instanceUrl,
-        accessToken: session.accessToken,
-        statusId: target.id,
-        currentlyReblogged: target.reblogged,
-      );
-      _replaceStatus(updated.displayStatus);
-      AccessibilityAnnouncer.announce(
-        updated.displayStatus.reblogged ? 'Post boosted.' : 'Boost removed.',
-      );
-    } catch (e) {
-      _showSnack('Could not update boost: $e');
-    }
+    final updated = await _actions.toggleBoost(context, target);
+    if (updated != null) _replaceStatus(updated);
   }
 
   Future<void> _toggleFavorite(MastodonStatus target) async {
-    final session = widget.app.session;
-    if (session == null) return;
-    try {
-      final updated = await widget.app.mastodon.toggleFavourite(
-        instanceUrl: session.instanceUrl,
-        accessToken: session.accessToken,
-        statusId: target.id,
-        currentlyFavourited: target.favourited,
-      );
-      _replaceStatus(updated.displayStatus);
-      AccessibilityAnnouncer.announce(
-        updated.displayStatus.favourited
-            ? 'Post favorited.'
-            : 'Removed from favorites.',
-      );
-    } catch (e) {
-      _showSnack('Could not update favorite: $e');
-    }
+    final updated = await _actions.toggleFavorite(context, target);
+    if (updated != null) _replaceStatus(updated);
   }
 
   Future<void> _toggleBookmark(MastodonStatus target) async {
-    final session = widget.app.session;
-    if (session == null) return;
-    try {
-      final updated = await widget.app.mastodon.toggleBookmark(
-        instanceUrl: session.instanceUrl,
-        accessToken: session.accessToken,
-        statusId: target.id,
-        currentlyBookmarked: target.bookmarked,
-      );
-      _replaceStatus(updated.displayStatus);
-      AccessibilityAnnouncer.announce(
-        updated.displayStatus.bookmarked
-            ? 'Post bookmarked.'
-            : 'Bookmark removed.',
-      );
-    } catch (e) {
-      _showSnack('Could not update bookmark: $e');
-    }
+    final updated = await _actions.toggleBookmark(context, target);
+    if (updated != null) _replaceStatus(updated);
   }
 
   Future<void> _deleteStatus(MastodonStatus target) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Post?'),
-        content: const Text(
-          'This will permanently delete your post from your Mastodon server.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    final session = widget.app.session;
-    if (session == null) return;
-    try {
-      await widget.app.mastodon.deleteStatus(
-        instanceUrl: session.instanceUrl,
-        accessToken: session.accessToken,
-        statusId: target.id,
-      );
-      if (!mounted) return;
+    final deleted = await _actions.confirmAndDelete(context, target);
+    if (deleted && mounted) {
       setState(() {
-        _statuses = _statuses
-            .where((s) => s.id != target.id && s.reblog?.id != target.id)
-            .toList();
+        _statuses = StatusActionHandler.removeFromList(_statuses, target.id);
       });
-      AccessibilityAnnouncer.announce('Post deleted.');
-    } catch (e) {
-      _showSnack('Failed to delete post: $e');
     }
-  }
-
-  void _openProfile(MastodonAccount account) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ProfileScreen(
-          app: widget.app,
-          accountId: account.id,
-          initialAccount: account,
-        ),
-      ),
-    );
-  }
-
-  void _openThread(MastodonStatus status) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ThreadScreen(app: widget.app, rootStatus: status),
-      ),
-    );
-  }
-
-  void _openReply(MastodonStatus status) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ComposerScreen(app: widget.app, replyToStatus: status),
-      ),
-    );
-  }
-
-  void _openEdit(MastodonStatus status) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ComposerScreen(app: widget.app, editingStatus: status),
-      ),
-    );
-  }
-
-  void _showSnack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -362,13 +237,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
           return StatusCard(
             status: status,
             app: widget.app,
-            onOpenProfile: _openProfile,
-            onOpenThread: _openThread,
-            onReply: _openReply,
+            onOpenProfile: (acc) => _actions.openProfile(context, acc),
+            onOpenThread: (st) => _actions.openThread(context, st),
+            onReply: (st) => _actions.openReply(context, st),
             onToggleBoost: _toggleBoost,
             onToggleFavorite: _toggleFavorite,
             onToggleBookmark: _toggleBookmark,
-            onEdit: _openEdit,
+            onEdit: (st) => _actions.openEdit(context, st),
             onDelete: _deleteStatus,
           );
         },
