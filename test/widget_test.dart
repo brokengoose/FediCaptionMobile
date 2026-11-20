@@ -344,6 +344,11 @@ void main() {
       expect(find.textContaining('Original insightful Mastodon post.'), findsOneWidget);
       expect(find.textContaining('Strongly agree with this!'), findsOneWidget);
       expect(find.textContaining('RE: https://example.social/@orig/100'), findsNothing);
+
+      // Quoted post window should render above the reply text.
+      final quoteRect = tester.getRect(find.byType(QuotedStatusCard));
+      final replyRect = tester.getRect(find.textContaining('Strongly agree with this!'));
+      expect(quoteRect.bottom, lessThanOrEqualTo(replyRect.top));
     });
   });
 }

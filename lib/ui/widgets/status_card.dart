@@ -314,6 +314,17 @@ class _StatusCardState extends State<StatusCard> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (hasQuoteWindow)
+                        QuotedStatusCard(
+                          app: widget.app,
+                          quotedStatus: embeddedQuote,
+                          quoteUrl: quoteUrl,
+                          isLoading: isLoadingQuote,
+                          onOpenProfile: widget.onOpenProfile,
+                          onOpenThread: widget.onOpenThread,
+                        ),
+                      if (hasQuoteWindow && bodyPlainText.isNotEmpty)
+                        const SizedBox(height: 6),
                       if (bodyPlainText.isNotEmpty)
                         InkWell(
                           onTap: () => widget.onOpenThread(target),
@@ -336,15 +347,6 @@ class _StatusCardState extends State<StatusCard> {
                               ),
                             ),
                           ),
-                        ),
-                      if (hasQuoteWindow)
-                        QuotedStatusCard(
-                          app: widget.app,
-                          quotedStatus: embeddedQuote,
-                          quoteUrl: quoteUrl,
-                          isLoading: isLoadingQuote,
-                          onOpenProfile: widget.onOpenProfile,
-                          onOpenThread: widget.onOpenThread,
                         ),
                     ],
                   );

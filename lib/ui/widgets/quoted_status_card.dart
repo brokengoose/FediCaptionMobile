@@ -65,7 +65,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
 
     if (widget.isLoading && quoted == null) {
       return Container(
-        margin: const EdgeInsets.only(top: 10),
+        margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: containerDecoration,
         child: Row(
@@ -94,7 +94,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
       final fallbackUrl = (widget.quoteUrl ?? '').trim();
       if (fallbackUrl.isEmpty) return const SizedBox.shrink();
       return Container(
-        margin: const EdgeInsets.only(top: 10),
+        margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: containerDecoration,
         child: Column(
@@ -134,7 +134,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
       label:
           'Quoted post by ${quoted.account.effectiveDisplayName}, ${quoted.account.handle}.',
       child: Container(
-        margin: const EdgeInsets.only(top: 10),
+        margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: containerDecoration,
         child: Column(
