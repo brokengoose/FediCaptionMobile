@@ -76,10 +76,14 @@ class _SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.closed_caption_rounded,
-                size: 56,
-                color: Theme.of(context).colorScheme.primary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  width: 84,
+                  height: 84,
+                  semanticLabel: 'FediCaption app icon',
+                ),
               ),
               const SizedBox(height: 16),
               const CircularProgressIndicator(),

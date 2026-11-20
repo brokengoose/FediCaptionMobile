@@ -72,12 +72,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 12),
-                      Icon(
-                        Icons.closed_caption_rounded,
-                        size: 56,
-                        color: scheme.primary,
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            'assets/icon/app_icon.png',
+                            width: 84,
+                            height: 84,
+                            semanticLabel:
+                                'FediCaption cartoon elephant wearing dark sunglasses',
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       Semantics(
                         header: true,
                         child: Text(
