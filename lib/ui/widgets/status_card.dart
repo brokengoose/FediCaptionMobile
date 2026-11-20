@@ -10,6 +10,7 @@ import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import 'accessible_avatar.dart';
+import 'linkified_text.dart';
 import 'media_attachment_card.dart';
 
 /// Accessible Mastodon status card supporting:
@@ -259,9 +260,20 @@ class _StatusCardState extends State<StatusCard> {
                   borderRadius: BorderRadius.circular(6),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      target.plainText,
+                    child: LinkifiedText.html(
+                      target.contentHtml,
                       style: Theme.of(context).textTheme.bodyLarge,
+                      mentions: target.mentions,
+                      onTapMention: (mention) => widget.onOpenProfile(
+                        MastodonAccount(
+                          id: mention.id,
+                          username: mention.username,
+                          acct: mention.acct,
+                          displayName: mention.username,
+                          avatar: '',
+                          url: mention.url,
+                        ),
+                      ),
                     ),
                   ),
                 ),

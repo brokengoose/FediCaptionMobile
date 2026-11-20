@@ -132,7 +132,7 @@ class TtsService extends ChangeNotifier {
 
   @override
   void dispose() {
-    _tts.stop();
+    _tts.stop().catchError((_) {});
     super.dispose();
   }
 }

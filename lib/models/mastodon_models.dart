@@ -181,6 +181,29 @@ class MastodonMediaAttachment {
   }
 }
 
+class MastodonMention {
+  const MastodonMention({
+    required this.id,
+    required this.username,
+    required this.acct,
+    required this.url,
+  });
+
+  final String id;
+  final String username;
+  final String acct;
+  final String url;
+
+  factory MastodonMention.fromJson(Map<String, dynamic> json) {
+    return MastodonMention(
+      id: (json['id'] ?? '').toString(),
+      username: (json['username'] as String?) ?? '',
+      acct: (json['acct'] as String?) ?? '',
+      url: (json['url'] as String?) ?? '',
+    );
+  }
+}
+
 class MastodonStatus {
   const MastodonStatus({
     required this.id,
@@ -202,6 +225,7 @@ class MastodonStatus {
     this.bookmarked = false,
     this.sensitive = false,
     this.mediaAttachments = const [],
+    this.mentions = const [],
     this.reblog,
     this.editedAt,
   });
@@ -225,6 +249,7 @@ class MastodonStatus {
   final bool bookmarked;
   final bool sensitive;
   final List<MastodonMediaAttachment> mediaAttachments;
+  final List<MastodonMention> mentions;
   final MastodonStatus? reblog;
   final DateTime? editedAt;
 
@@ -277,6 +302,7 @@ class MastodonStatus {
       bookmarked: bookmarked ?? this.bookmarked,
       sensitive: sensitive,
       mediaAttachments: mediaAttachments ?? this.mediaAttachments,
+      mentions: mentions,
       reblog: reblog ?? this.reblog,
       editedAt: editedAt ?? this.editedAt,
     );
@@ -284,6 +310,7 @@ class MastodonStatus {
 
   factory MastodonStatus.fromJson(Map<String, dynamic> json) {
     final rawMedia = (json['media_attachments'] as List<dynamic>?) ?? const [];
+    final rawMentions = (json['mentions'] as List<dynamic>?) ?? const [];
     final rawReblog = json['reblog'] as Map<String, dynamic>?;
     final rawEditedAt = json['edited_at'] as String?;
 
@@ -312,6 +339,10 @@ class MastodonStatus {
       mediaAttachments: rawMedia
           .whereType<Map<String, dynamic>>()
           .map(MastodonMediaAttachment.fromJson)
+          .toList(),
+      mentions: rawMentions
+          .whereType<Map<String, dynamic>>()
+          .map(MastodonMention.fromJson)
           .toList(),
       reblog: rawReblog != null ? MastodonStatus.fromJson(rawReblog) : null,
       editedAt: rawEditedAt != null ? DateTime.tryParse(rawEditedAt) : null,

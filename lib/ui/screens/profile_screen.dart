@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/linkified_text.dart';
 import '../widgets/status_card.dart';
 import 'composer_screen.dart';
 import 'thread_screen.dart';
@@ -336,8 +337,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     if (account.plainBio.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(
-                        account.plainBio,
+                      LinkifiedText.html(
+                        account.note,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],

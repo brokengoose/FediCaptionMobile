@@ -9,6 +9,7 @@ import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/linkified_text.dart';
 import 'profile_screen.dart';
 import 'thread_screen.dart';
 
@@ -217,14 +218,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: fedi.cardBorder),
                         ),
-                        child: Text(
-                          item.status!.plainText.isNotEmpty
-                              ? item.status!.plainText
-                              : '(Media post)',
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
+                        child: item.status!.plainText.isNotEmpty
+                            ? LinkifiedText.html(
+                                item.status!.contentHtml,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                mentions: item.status!.mentions,
+                                onTapMention: (mention) => _openProfile(
+                                  MastodonAccount(
+                                    id: mention.id,
+                                    username: mention.username,
+                                    acct: mention.acct,
+                                    displayName: mention.username,
+                                    avatar: '',
+                                    url: mention.url,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                '(Media post)',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
                       ),
                     ),
                   ],

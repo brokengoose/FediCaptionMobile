@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import 'linkified_text.dart';
 
 /// Displays a timeline media attachment with ALT TEXT PROVIDED / NO ALT TEXT status,
 /// expandable readable alt-text box, on-demand "Describe with AI" button, and "Read Aloud" TTS.
@@ -181,7 +182,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               ),
                         ),
                         const SizedBox(height: 4),
-                        SelectableText(
+                        LinkifiedText.plain(
                           authorAlt,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
@@ -196,7 +197,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               ),
                         ),
                         const SizedBox(height: 4),
-                        SelectableText(
+                        LinkifiedText.plain(
                           aiAlt,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
