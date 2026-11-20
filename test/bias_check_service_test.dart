@@ -63,5 +63,38 @@ void main() {
         'Hey everyone, check out https://example.org/post',
       );
     });
+
+    test('parses AI JSON with trailing commas and merges local backstop for "bitching"', () async {
+      final aiClient = MockClient((_) async {
+        return http.Response(
+          '{"candidates":[{"content":{"parts":[{"text":"```json\\n{\\"has_bias\\": false, \\"summary\\": \\"No bias.\\", \\"findings\\": [],}\\n```"}]}}]}',
+          200,
+        );
+      });
+
+      final service = BiasCheckService(
+        aiProviderService: AiProviderService(client: aiClient),
+        linkPreviewFetcher: LinkPreviewFetcher(client: aiClient),
+        mastodonService: MastodonService(client: aiClient),
+      );
+
+      final result = await service.checkDraft(
+        input: const BiasCheckInput(
+          postText: 'Quit bitching about the rain.',
+        ),
+        settings: const AppSettings(activeProvider: AiProviderType.gemini),
+        credentials: const AiCredentials(geminiApiKey: 'key'),
+      );
+
+      expect(result.hasBias, isTrue);
+      expect(
+        result.findings.any((f) => f.excerpt?.toLowerCase() == 'bitching'),
+        isTrue,
+      );
+      expect(
+        result.suggestedAlternateWording,
+        'Quit complaining about the rain.',
+      );
+    });
   });
 }

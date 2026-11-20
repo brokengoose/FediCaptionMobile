@@ -155,6 +155,206 @@ class LocalBiasHeuristics {
       biasType: 'Implicit Gender Bias',
       explanation: '"man-made" uses male-default wording; consider "human-made" or "artificial".',
     ),
+    // Gendered pejoratives, slurs, and stereotypes (longer phrases before base words)
+    _BiasRule(
+      pattern: RegExp(r'\bsons?\s+of\s+a\s+bitch(?:es)?\b', caseSensitive: false),
+      replacement: 'jerk',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"son of a bitch" uses a gendered slur as an insult; consider neutral wording like "jerk".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bbitching\b', caseSensitive: false),
+      replacement: 'complaining',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"bitching" derives from a gendered slur used to demean complaining; consider "complaining" or "venting".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bbitched\b', caseSensitive: false),
+      replacement: 'complained',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"bitched" derives from a gendered slur; consider "complained" or "vented".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bbitchy\b', caseSensitive: false),
+      replacement: 'snappy',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"bitchy" is a gendered pejorative; consider "snappy", "irritable", or "rude".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bbitches\b', caseSensitive: false),
+      replacement: 'jerks',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"bitches" is a gendered slur; consider neutral language.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bbitch\b', caseSensitive: false),
+      replacement: 'complain',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"bitch" is a gendered slur/pejorative; consider neutral wording such as "complain" or "jerk".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bman\s+up\b', caseSensitive: false),
+      replacement: 'step up',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"man up" equates courage or toughness with masculinity; consider "step up" or "be brave".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bgrow\s+a\s+pair\b', caseSensitive: false),
+      replacement: 'be brave',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"grow a pair" equates courage with male anatomy; consider "be brave" or "stand firm".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bballsy\b', caseSensitive: false),
+      replacement: 'bold',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"ballsy" associates boldness with male anatomy; consider "bold" or "gutsy".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\b(throw|throws|threw|run|runs|ran|fight|fights|fought|cry|cries|cried)\s+like\s+a\s+girl\b', caseSensitive: false),
+      replacement: 'do it weakly',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"like a girl" used as an insult reinforces gender stereotypes.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bslutty\b', caseSensitive: false),
+      replacement: 'provocative',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"slutty" is a gendered pejorative used to shame women; consider neutral wording.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bsluts?\b', caseSensitive: false),
+      replacement: 'person',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"slut" is a gendered slur used to demean women.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bwhores?\b', caseSensitive: false),
+      replacement: 'person',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"whore" is a gendered slur.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bcunts?\b', caseSensitive: false),
+      replacement: 'jerk',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"cunt" is an explicit gendered slur.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bbimbos?\b', caseSensitive: false),
+      replacement: 'person',
+      biasType: 'Explicit Gender Bias',
+      explanation: '"bimbo" is a derogatory gendered stereotype.',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bhousewives\b', caseSensitive: false),
+      replacement: 'homemakers',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"housewives" assumes domestic caregivers are women; consider "homemakers".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bhousewife\b', caseSensitive: false),
+      replacement: 'homemaker',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"housewife" assumes a domestic caregiver is a woman; consider "homemaker".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bsalesmen\b', caseSensitive: false),
+      replacement: 'salespeople',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"salesmen" is gender-exclusive; consider "salespeople".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bsalesman\b', caseSensitive: false),
+      replacement: 'salesperson',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"salesman" is gender-exclusive; consider "salesperson".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bcraftsmen\b', caseSensitive: false),
+      replacement: 'artisans',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"craftsmen" is gender-exclusive; consider "artisans" or "craftspeople".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bcraftsman\b', caseSensitive: false),
+      replacement: 'artisan',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"craftsman" is gender-exclusive; consider "artisan" or "craftsperson".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bfreshmen\b', caseSensitive: false),
+      replacement: 'first-year students',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"freshmen" uses male-default language; consider "first-year students".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bfreshman\b', caseSensitive: false),
+      replacement: 'first-year student',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"freshman" uses male-default language; consider "first-year student".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bwaitresses\b', caseSensitive: false),
+      replacement: 'servers',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"waitresses" is gendered occupational language; consider "servers".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bwaitress\b', caseSensitive: false),
+      replacement: 'server',
+      biasType: 'Implicit Gender Bias',
+      explanation: '"waitress" is gendered occupational language; consider "server".',
+    ),
+    // Racially and culturally loaded idioms
+    _BiasRule(
+      pattern: RegExp(r'\bgypped\b', caseSensitive: false),
+      replacement: 'cheated',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"gypped" derives from a derogatory stereotype of Romani people; consider "cheated" or "ripped off".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bgyp\b', caseSensitive: false),
+      replacement: 'cheat',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"gyp" derives from a derogatory stereotype of Romani people; consider "cheat" or "scam".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bpow[\-\s]?wow\b', caseSensitive: false),
+      replacement: 'meeting',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"powwow" appropriates an Indigenous ceremony for casual meetings; consider "meeting" or "huddle".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bspirit\s+animal\b', caseSensitive: false),
+      replacement: 'kindred spirit',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"spirit animal" appropriates Indigenous spiritual traditions; consider "kindred spirit" or "mascot".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bsold\s+down\s+the\s+river\b', caseSensitive: false),
+      replacement: 'betrayed',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"sold down the river" originates from American chattel slavery; consider "betrayed".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\buppity\b', caseSensitive: false),
+      replacement: 'assertive',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"uppity" has a racially loaded history used to demean Black people; consider "assertive" or "arrogant".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bcotton[\-\s]picking\b', caseSensitive: false),
+      replacement: 'darn',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"cotton-picking" is rooted in American slavery terminology; consider "darn".',
+    ),
+    _BiasRule(
+      pattern: RegExp(r'\bmaster\s+bedroom\b', caseSensitive: false),
+      replacement: 'primary bedroom',
+      biasType: 'Implicit Racial Bias',
+      explanation: '"master bedroom" carries historical associations with slavery; consider "primary bedroom".',
+    ),
   ];
 
   /// Scans all text-bearing components of a draft and produces findings plus
@@ -247,7 +447,9 @@ class LocalBiasHeuristics {
     var modified = false;
 
     for (final rule in _rules) {
-      final match = rule.pattern.firstMatch(text);
+      // Match against the running rewritten text so compound phrases (e.g.
+      // "son of a bitch") do not also trigger shorter sub-word rules ("bitch").
+      final match = rule.pattern.firstMatch(rewritten);
       if (match != null) {
         findings.add(
           BiasFinding(

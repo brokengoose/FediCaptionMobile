@@ -74,5 +74,43 @@ void main() {
       // Main post text itself had no bias, so no rewrite needed.
       expect(result.suggestedAlternateWording, isNull);
     });
+
+    test('detects gendered pejoratives like "bitching" and racially loaded idioms', () {
+      final result = LocalBiasHeuristics.evaluate(
+        input: const BiasCheckInput(
+          postText: 'Stop bitching about the weather and man up, we got gypped on the forecast.',
+        ),
+      );
+
+      expect(result.hasBias, isTrue);
+      expect(
+        result.findings.any((f) => f.excerpt?.toLowerCase() == 'bitching'),
+        isTrue,
+      );
+      expect(
+        result.findings.any((f) => f.excerpt?.toLowerCase() == 'man up'),
+        isTrue,
+      );
+      expect(
+        result.findings.any((f) => f.excerpt?.toLowerCase() == 'gypped'),
+        isTrue,
+      );
+      expect(
+        result.suggestedAlternateWording,
+        'Stop complaining about the weather and step up, we got cheated on the forecast.',
+      );
+    });
+
+    test('compound phrase "son of a bitch" does not emit duplicate "bitch" finding', () {
+      final result = LocalBiasHeuristics.evaluate(
+        input: const BiasCheckInput(
+          postText: 'That son of a bitch cut me off in traffic.',
+        ),
+      );
+
+      expect(result.hasBias, isTrue);
+      expect(result.findings.length, 1);
+      expect(result.findings.first.excerpt?.toLowerCase(), 'son of a bitch');
+    });
   });
 }

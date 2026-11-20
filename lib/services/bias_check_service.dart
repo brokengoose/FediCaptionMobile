@@ -115,7 +115,7 @@ class BiasCheckService {
         settings: settings,
         credentials: credentials,
         systemPrompt:
-            'You are an objective, fair racial and gender bias reviewer for social media posts. Analyze all provided components (post text, content warning, attached images/video keyframes and their alt-text, linked webpage excerpts, and referenced/replied-to messages) for explicit or implicit racial bias or gender bias. Avoid false positives on neutral discussions or anti-bias advocacy. Respond ONLY with valid JSON.',
+            'You are an objective, fair racial and gender bias reviewer for social media posts. Analyze all provided components (post text, content warning, attached images/video keyframes and their alt-text, linked webpage excerpts, and referenced/replied-to messages) for explicit or implicit racial bias or gender bias — INCLUDING gendered profanity, slurs, or pejoratives (such as "bitch", "bitching", "bitchy", "cunt", "slut", "whore", "man up", "like a girl"), male-default terminology, gendered stereotypes, racial slurs, and racially loaded idioms (such as "gypped", "uppity", "whitelist/blacklist"). Avoid false positives on neutral discussions or anti-bias advocacy. Respond ONLY with valid JSON.',
         userPrompt: prompt,
         media: visualMedia,
         expectJson: true,
@@ -300,8 +300,9 @@ class BiasCheckService {
     final firstBrace = trimmed.indexOf('{');
     final lastBrace = trimmed.lastIndexOf('}');
     if (firstBrace >= 0 && lastBrace > firstBrace) {
-      return trimmed.substring(firstBrace, lastBrace + 1);
+      trimmed = trimmed.substring(firstBrace, lastBrace + 1);
     }
-    return trimmed;
+    // Strip trailing commas before '}' or ']' that smaller on-device LLMs sometimes emit.
+    return trimmed.replaceAll(RegExp(r',\s*([}\]])'), r'$1');
   }
 }
