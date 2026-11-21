@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../screens/image_viewer_screen.dart';
 import 'linkified_text.dart';
 
 /// Displays a timeline media attachment with ALT TEXT PROVIDED / NO ALT TEXT status,
@@ -68,52 +69,70 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
               if (att.bestPreviewUrl.isNotEmpty)
                 Semantics(
                   image: true,
+                  button: !att.isVideo,
                   label: hasAnyAlt
-                      ? '${att.isVideo ? 'Video' : 'Image'}: $effectiveAlt'
-                      : '${att.isVideo ? 'Video' : 'Image'} with no alt text provided.',
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 280),
-                        child: Image.network(
-                          att.bestPreviewUrl,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 120,
-                            color: scheme.surfaceContainerHighest,
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.broken_image, size: 40),
-                          ),
-                        ),
-                      ),
-                      if (att.isVideo)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.play_arrow, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text(
-                                'VIDEO',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                      ? '${att.isVideo ? 'Video' : 'Image'}: $effectiveAlt${att.isVideo ? '' : ' Tap to view full image.'}'
+                      : '${att.isVideo ? 'Video' : 'Image'} with no alt text provided.${att.isVideo ? '' : ' Tap to view full image.'}',
+                  child: InkWell(
+                    onTap: att.isVideo
+                        ? null
+                        : () {
+                            final fullUrl = att.url.isNotEmpty
+                                ? att.url
+                                : att.bestPreviewUrl;
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ImageViewerScreen(
+                                  imageUrl: fullUrl,
+                                  altText: effectiveAlt,
                                 ),
                               ),
-                            ],
+                            );
+                          },
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 280),
+                          child: Image.network(
+                            att.bestPreviewUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              height: 120,
+                              color: scheme.surfaceContainerHighest,
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.broken_image, size: 40),
+                            ),
                           ),
                         ),
-                    ],
+                        if (att.isVideo)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_arrow, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'VIDEO',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
 

@@ -10,8 +10,10 @@ import 'package:fedicaption_mobile/services/on_device_ai_service.dart';
 import 'package:fedicaption_mobile/state/app_controller.dart';
 import 'package:fedicaption_mobile/ui/helpers/status_action_handler.dart';
 import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
+import 'package:fedicaption_mobile/ui/screens/image_viewer_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/linkified_text.dart';
+import 'package:fedicaption_mobile/ui/widgets/media_attachment_card.dart';
 import 'package:fedicaption_mobile/ui/widgets/missing_alt_text_dialog.dart';
 import 'package:fedicaption_mobile/ui/widgets/quoted_status_card.dart';
 import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
@@ -429,6 +431,61 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(deleteOutcome, isFalse);
+    });
+  });
+
+  group('MediaAttachmentCard full-screen image viewer', () {
+    testWidgets('tapping an image opens ImageViewerScreen scaled to fit screen', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(),
+      );
+      addTearDown(controller.dispose);
+
+      const attachment = MastodonMediaAttachment(
+        id: 'img_1',
+        type: 'image',
+        url: 'https://example.social/media/full.jpg',
+        previewUrl: 'https://example.social/media/preview.jpg',
+        description: 'A tall sunset photograph over mountains.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MediaAttachmentCard(
+                attachment: attachment,
+                app: controller,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.broken_image));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ImageViewerScreen), findsOneWidget);
+      expect(find.text('Full Image'), findsOneWidget);
+
+      final fullImage = tester.widget<Image>(
+        find.descendant(
+          of: find.byType(ImageViewerScreen),
+          matching: find.byType(Image),
+        ),
+      );
+      expect(fullImage.fit, BoxFit.contain);
+      expect(
+        (fullImage.image as NetworkImage).url,
+        'https://example.social/media/full.jpg',
+      );
+
+      await tester.tap(find.byTooltip('Close full-screen image'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ImageViewerScreen), findsNothing);
     });
   });
 }
