@@ -7,7 +7,7 @@
 # onto the emulator, and launches the app.
 #
 # Usage:
-#   ./scripts/run_android_emulator.sh [--release | --debug] [--avd <name>] [--no-launch]
+#   ./scripts/run_android_emulator.sh [--release | --debug] [--avd <name>] [--quick-boot] [--no-launch]
 
 set -euo pipefail
 
@@ -18,6 +18,7 @@ APP_ID="io.github.brokengoose.fedicaption_mobile"
 MAIN_ACTIVITY="${APP_ID}/.MainActivity"
 BUILD_MODE="release"
 AVD_NAME="${AVD_NAME:-Medium_Phone_API_37.0}"
+QUICK_BOOT="false"
 LAUNCH_APP="true"
 BOOT_TIMEOUT_SECONDS=180
 
@@ -39,6 +40,10 @@ while [[ $# -gt 0 ]]; do
       fi
       AVD_NAME="$2"
       shift 2
+      ;;
+    --quick-boot)
+      QUICK_BOOT="true"
+      shift
       ;;
     --no-launch)
       LAUNCH_APP="false"
@@ -94,7 +99,9 @@ if [[ ! -f "$APK_PATH" ]]; then
 fi
 echo "==> Built APK: $APK_PATH"
 
-# 2. Find an existing running emulator or start one.
+# 2. Ensure adb server is running, then reuse an existing emulator or start one.
+"$ADB" start-server >/dev/null 2>&1 || true
+
 find_running_emulator() {
   "$ADB" devices | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }'
 }
@@ -114,20 +121,48 @@ if [[ -z "$EMULATOR_SERIAL" ]]; then
     AVD_NAME="$FALLBACK_AVD"
   fi
 
-  AUDIO_ARGS=()
+  EMU_ARGS=(-avd "$AVD_NAME" -no-boot-anim)
+  if [[ "$QUICK_BOOT" != "true" ]]; then
+    # Cold boot avoids hanging on stale/corrupted default_boot snapshots.
+    EMU_ARGS+=(-no-snapshot-load)
+  fi
   if [[ "$(uname -s)" == "Darwin" ]]; then
     # CoreAudio ensures TTS playback routes properly to macOS speakers.
-    AUDIO_ARGS=(-audio coreaudio)
+    EMU_ARGS+=(-audio coreaudio)
   fi
 
   EMULATOR_LOG="/tmp/fedicaption-emulator.log"
   echo "==> Starting Android emulator '$AVD_NAME' (log: $EMULATOR_LOG)..."
-  nohup "$EMULATOR" -avd "$AVD_NAME" "${AUDIO_ARGS[@]}" -no-boot-anim \
-    >"$EMULATOR_LOG" 2>&1 </dev/null &
+  if command -v python3 >/dev/null 2>&1; then
+    # Detach into a new session so the emulator stays open after this script exits.
+    python3 -c '
+import subprocess, sys
+log_path = sys.argv[1]
+cmd = sys.argv[2:]
+with open(log_path, "wb") as log_file:
+    subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        close_fds=True,
+    )
+' "$EMULATOR_LOG" "$EMULATOR" "${EMU_ARGS[@]}"
+  else
+    nohup "$EMULATOR" "${EMU_ARGS[@]}" >"$EMULATOR_LOG" 2>&1 </dev/null &
+    disown || true
+  fi
 
   echo "==> Waiting for emulator to boot..."
   ELAPSED=0
   while [[ $ELAPSED -lt $BOOT_TIMEOUT_SECONDS ]]; do
+    # If the emulator booted but a stale adb daemon missed it, restart adb server.
+    if [[ -z "${EMULATOR_SERIAL:-}" && ( $ELAPSED -eq 20 || $ELAPSED -eq 60 ) ]]; then
+      echo "==> Refreshing adb server to detect emulator..."
+      "$ADB" kill-server >/dev/null 2>&1 || true
+      "$ADB" start-server >/dev/null 2>&1 || true
+    fi
     EMULATOR_SERIAL="$(find_running_emulator || true)"
     if [[ -n "$EMULATOR_SERIAL" ]]; then
       BOOT_COMPLETED="$("$ADB" -s "$EMULATOR_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
