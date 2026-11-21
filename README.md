@@ -79,6 +79,10 @@
    ```bash
    flutter build apk --release
    ```
+5. Rebuild, boot the Android emulator (with CoreAudio for TTS), install, and launch in one step:
+   ```bash
+   ./scripts/run_android_emulator.sh
+   ```
 
 ---
 
