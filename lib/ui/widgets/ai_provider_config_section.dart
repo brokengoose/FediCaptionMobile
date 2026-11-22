@@ -229,6 +229,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                   hintText: AppConstants.openAiDefaultBaseUrl,
                   helperText:
                       'Supports OpenAI, OpenRouter, LM Studio, vLLM, or llama.cpp.',
+                  helperMaxLines: 4,
                 ),
               ),
               const SizedBox(height: 12),
@@ -261,7 +262,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                   hintText: AppConstants.localDefaultBaseUrl,
                   helperText:
                       'Default: ${AppConstants.localDefaultBaseUrl}. Use your computer\'s LAN IP for Ollama (port 11434/v1) or LM Studio (port 1234/v1).',
-                  helperMaxLines: 2,
+                  helperMaxLines: 5,
                 ),
               ),
               const SizedBox(height: 12),
@@ -319,6 +320,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                         helperText: isLoadingModels
                             ? 'Fetching available models from provider…'
                             : widget.modelHelperText,
+                        helperMaxLines: 4,
                       ),
                       items: sortedModels
                           .map(
