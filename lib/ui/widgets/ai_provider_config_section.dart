@@ -258,9 +258,10 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.local),
                 decoration: const InputDecoration(
                   labelText: 'Local AI Server URL (Ollama / LM Studio LAN)',
-                  hintText: 'http://192.168.1.50:11434',
+                  hintText: AppConstants.localDefaultBaseUrl,
                   helperText:
-                      'Use your computer\'s LAN IP for Ollama (port 11434) or LM Studio (port 1234/v1).',
+                      'Default: ${AppConstants.localDefaultBaseUrl}. Use your computer\'s LAN IP for Ollama (port 11434/v1) or LM Studio (port 1234/v1).',
+                  helperMaxLines: 2,
                 ),
               ),
               const SizedBox(height: 12),

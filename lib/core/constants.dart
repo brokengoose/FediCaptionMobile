@@ -43,7 +43,7 @@ class AppConstants {
   static const String openAiDefaultBaseUrl = 'https://api.openai.com/v1';
   static const String anthropicBaseUrl = 'https://api.anthropic.com/v1';
   static const String anthropicVersion = '2023-06-01';
-  static const String localDefaultBaseUrl = 'http://localhost:11434';
+  static const String localDefaultBaseUrl = 'http://localhost:11434/v1';
 
   // Accessible minimum touch target size (>= 44pt iOS / 48dp Android)
   static const double minTouchTargetSize = 48.0;
