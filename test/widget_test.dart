@@ -487,5 +487,31 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ImageViewerScreen), findsNothing);
     });
+
+    testWidgets('long-pressing full-screen image triggers share menu', (tester) async {
+      String? sharedUrl;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: ImageViewerScreen(
+            imageUrl: 'https://example.social/media/full.jpg',
+            altText: 'Sunset photo',
+            onShareImage: (url, _) async => sharedUrl = url,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.longPress(find.byType(InteractiveViewer));
+      await tester.pumpAndSettle();
+      expect(sharedUrl, 'https://example.social/media/full.jpg');
+
+      // Also verify the accessible AppBar share button triggers sharing.
+      sharedUrl = null;
+      await tester.tap(find.byTooltip('Share or save image'));
+      await tester.pumpAndSettle();
+      expect(sharedUrl, 'https://example.social/media/full.jpg');
+    });
   });
 }

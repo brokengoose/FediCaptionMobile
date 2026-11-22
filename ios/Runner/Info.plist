@@ -87,6 +87,8 @@
 	<string>FediCaption uses the camera so you can take photos and videos to attach to Mastodon posts and generate accessible alt-text.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>FediCaption accesses your photo library so you can attach images and videos to Mastodon posts and generate accessible alt-text.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>FediCaption saves images you choose to save from the full-screen image viewer to your photo library.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>FediCaption uses the microphone when recording video attachments.</string>
 	<key>NSLocalNetworkUsageDescription</key>
