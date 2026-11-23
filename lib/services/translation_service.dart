@@ -7,11 +7,13 @@ import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 
 import 'on_device_ai_service.dart';
 
-/// Result of translating a Mastodon post (and optional Content Warning).
+/// Result of translating a Mastodon post (including optional Content Warning
+/// and media alt-text descriptions).
 class PostTranslationResult {
   const PostTranslationResult({
     required this.translatedText,
     this.translatedSpoiler,
+    this.translatedAltTexts = const {},
     required this.sourceLanguage,
     required this.targetLanguage,
     required this.engineName,
@@ -19,6 +21,10 @@ class PostTranslationResult {
 
   final String translatedText;
   final String? translatedSpoiler;
+
+  /// Map of `MastodonMediaAttachment.id` -> translated alt-text.
+  final Map<String, String> translatedAltTexts;
+
   final String sourceLanguage;
   final String targetLanguage;
   final String engineName;
@@ -179,14 +185,15 @@ class TranslationService {
     return detectScriptLanguage(cleaned);
   }
 
-  /// Translates [text] (and optional [spoilerText]) from [sourceLanguage] to
-  /// [targetLanguage] using:
+  /// Translates [text] (plus optional [spoilerText] and media [altTexts]) from
+  /// [sourceLanguage] to [targetLanguage] using:
   /// 1. On-Device AI (`Apple Foundation Models` / `Google Gemini Nano`) when ready
   /// 2. Apple's `Translation` framework on iOS 18+ and macOS 15+
   /// 3. `google_mlkit_translation` on Android (and iOS fallback)
   Future<PostTranslationResult> translatePost({
     required String text,
     String? spoilerText,
+    Map<String, String> altTexts = const {},
     required String sourceLanguage,
     String? targetLanguage,
   }) async {
@@ -194,8 +201,12 @@ class TranslationService {
     final tgt = normalizeLanguageCode(targetLanguage) ?? currentOsLanguageCode();
     final trimmedText = text.trim();
     final trimmedSpoiler = (spoilerText ?? '').trim();
+    final cleanedAlts = <String, String>{
+      for (final entry in altTexts.entries)
+        if (entry.value.trim().isNotEmpty) entry.key: entry.value.trim(),
+    };
 
-    if (trimmedText.isEmpty && trimmedSpoiler.isEmpty) {
+    if (trimmedText.isEmpty && trimmedSpoiler.isEmpty && cleanedAlts.isEmpty) {
       throw StateError('There is no text to translate in this post.');
     }
 
@@ -217,9 +228,18 @@ class TranslationService {
                 sourceLanguage: src,
                 targetLanguage: tgt,
               );
+        final translatedAlts = <String, String>{};
+        for (final entry in cleanedAlts.entries) {
+          translatedAlts[entry.key] = await _translateWithOnDeviceAi(
+            text: entry.value,
+            sourceLanguage: src,
+            targetLanguage: tgt,
+          );
+        }
         return PostTranslationResult(
           translatedText: translatedBody,
           translatedSpoiler: translatedCw,
+          translatedAltTexts: translatedAlts,
           sourceLanguage: src,
           targetLanguage: tgt,
           engineName: aiStatus.engineName,
@@ -249,9 +269,18 @@ class TranslationService {
                   sourceLanguage: src,
                   targetLanguage: tgt,
                 );
+          final translatedAlts = <String, String>{};
+          for (final entry in cleanedAlts.entries) {
+            translatedAlts[entry.key] = await _runAppleTranslate(
+              text: entry.value,
+              sourceLanguage: src,
+              targetLanguage: tgt,
+            );
+          }
           return PostTranslationResult(
             translatedText: translatedBody,
             translatedSpoiler: translatedCw,
+            translatedAltTexts: translatedAlts,
             sourceLanguage: src,
             targetLanguage: tgt,
             engineName: 'Apple Translation',
@@ -284,9 +313,18 @@ class TranslationService {
                 sourceLanguage: src,
                 targetLanguage: tgt,
               );
+        final translatedAlts = <String, String>{};
+        for (final entry in cleanedAlts.entries) {
+          translatedAlts[entry.key] = await _runMlKitTranslate(
+            text: entry.value,
+            sourceLanguage: src,
+            targetLanguage: tgt,
+          );
+        }
         return PostTranslationResult(
           translatedText: translatedBody,
           translatedSpoiler: translatedCw,
+          translatedAltTexts: translatedAlts,
           sourceLanguage: src,
           targetLanguage: tgt,
           engineName: 'ML Kit Translation',

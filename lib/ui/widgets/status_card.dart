@@ -118,6 +118,8 @@ class _StatusCardState extends State<StatusCard> {
     final combinedText = [
       if (target.spoilerText.trim().isNotEmpty) target.spoilerText.trim(),
       if (bodyText.isNotEmpty) bodyText,
+      for (final media in target.mediaAttachments)
+        if (media.hasAltText) media.description!.trim(),
     ].join('\n');
     if (combinedText.isEmpty) return;
 
@@ -149,6 +151,10 @@ class _StatusCardState extends State<StatusCard> {
     final target = widget.status.displayStatus;
     final bodyText = _translatableBodyPlainText();
     final spoiler = target.spoilerText.trim();
+    final altTexts = <String, String>{
+      for (final media in target.mediaAttachments)
+        if (media.hasAltText) media.id: media.description!.trim(),
+    };
 
     setState(() {
       _isTranslating = true;
@@ -159,6 +165,7 @@ class _StatusCardState extends State<StatusCard> {
       final result = await widget.app.translation.translatePost(
         text: bodyText,
         spoilerText: spoiler.isEmpty ? null : spoiler,
+        altTexts: altTexts,
         sourceLanguage: sourceLang,
         targetLanguage: targetLang,
       );
@@ -374,6 +381,9 @@ class _StatusCardState extends State<StatusCard> {
                   attachment: media,
                   app: widget.app,
                   postContext: target.plainText,
+                  translatedAltText: _showingTranslation
+                      ? _translationResult?.translatedAltTexts[media.id]
+                      : null,
                 ),
             ],
 

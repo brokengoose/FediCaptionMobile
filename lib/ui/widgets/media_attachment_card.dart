@@ -17,11 +17,16 @@ class MediaAttachmentCard extends StatefulWidget {
     required this.attachment,
     required this.app,
     this.postContext,
+    this.translatedAltText,
   });
 
   final MastodonMediaAttachment attachment;
   final AppController app;
   final String? postContext;
+
+  /// Optional translated alt-text displayed in place of the author's original
+  /// alt-text when the parent post is showing a translation.
+  final String? translatedAltText;
 
   @override
   State<MediaAttachmentCard> createState() => _MediaAttachmentCardState();
@@ -44,11 +49,14 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
         final scheme = Theme.of(context).colorScheme;
 
         final authorAlt = (att.description ?? '').trim();
+        final translatedAlt = (widget.translatedAltText ?? '').trim();
+        final displayedAuthorAlt =
+            translatedAlt.isNotEmpty ? translatedAlt : authorAlt;
         final aiAlt = widget.app.aiDescriptionForMedia(att.id);
         final isDescribing = widget.app.isDescribingMedia(att.id);
         final describeError = widget.app.mediaDescribeError(att.id);
 
-        final effectiveAlt = aiAlt ?? authorAlt;
+        final effectiveAlt = aiAlt ?? displayedAuthorAlt;
         final hasAnyAlt = effectiveAlt.isNotEmpty;
         final ttsKey = 'timeline_media_${att.id}';
         final isSpeaking = widget.app.tts.isSpeakingKey(ttsKey);
@@ -196,9 +204,11 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (authorAlt.isNotEmpty) ...[
+                      if (displayedAuthorAlt.isNotEmpty) ...[
                         Text(
-                          'Author Alt-Text:',
+                          translatedAlt.isNotEmpty
+                              ? 'Author Alt-Text (Translated):'
+                              : 'Author Alt-Text:',
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: fedi.subtleText,
@@ -206,7 +216,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                         ),
                         const SizedBox(height: 4),
                         LinkifiedText.plain(
-                          authorAlt,
+                          displayedAuthorAlt,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       ],

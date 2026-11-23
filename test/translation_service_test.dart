@@ -221,6 +221,7 @@ void main() {
     MastodonStatus makeStatus({
       required String language,
       required String contentHtml,
+      List<MastodonMediaAttachment> mediaAttachments = const [],
     }) {
       return MastodonStatus(
         id: 'st-1',
@@ -234,19 +235,19 @@ void main() {
         ),
         contentHtml: contentHtml,
         language: language,
+        mediaAttachments: mediaAttachments,
       );
     }
 
     testWidgets(
-      'offers translation at top of post when language differs from OS and toggles original',
+      'offers translation at top of post when language differs from OS, translates alt-text, and toggles original',
       (tester) async {
         final fakeAi = _FakeOnDeviceAiService(
           status: const OnDeviceAiStatus(
-            promptAvailability: EdgeGenAIAvailability.available,
+            promptAvailability: EdgeGenAIAvailability.unavailable,
             imageDescriptionAvailability: EdgeGenAIAvailability.unavailable,
             engineName: 'Apple Foundation Models',
           ),
-          promptResponse: 'Hello from Lyon!',
         );
         final translation = TranslationService(
           onDeviceAi: fakeAi,
@@ -254,6 +255,15 @@ void main() {
           isWebOverride: false,
           osLanguageProvider: () => 'en',
           appleSupportCheck: () async => true,
+          appleTranslate: ({
+            required text,
+            required sourceLanguage,
+            required targetLanguage,
+          }) async {
+            if (text.contains('Lyon')) return 'Hello from Lyon!';
+            if (text.contains('chat')) return 'A black cat sleeping in the sun.';
+            return text;
+          },
         );
         final app = AppController(
           onDeviceAiService: fakeAi,
@@ -270,6 +280,15 @@ void main() {
                   status: makeStatus(
                     language: 'fr',
                     contentHtml: '<p>Bonjour de Lyon !</p>',
+                    mediaAttachments: const [
+                      MastodonMediaAttachment(
+                        id: 'media-1',
+                        type: 'image',
+                        url: '',
+                        previewUrl: '',
+                        description: 'Un chat noir qui dort au soleil.',
+                      ),
+                    ],
                   ),
                   app: app,
                   enableTranslationOffer: true,
@@ -288,22 +307,34 @@ void main() {
 
         expect(find.text('Written in French'), findsOneWidget);
         expect(find.text('Translate to English'), findsOneWidget);
+        expect(
+          find.textContaining('Un chat noir qui dort au soleil.'),
+          findsOneWidget,
+        );
 
         await tester.tap(find.text('Translate to English'));
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Translated from French via Apple Foundation Models'),
+          find.text('Translated from French via Apple Translation'),
           findsOneWidget,
         );
         expect(find.text('Show Original'), findsOneWidget);
         expect(find.textContaining('Hello from Lyon!'), findsOneWidget);
+        expect(
+          find.textContaining('A black cat sleeping in the sun.'),
+          findsOneWidget,
+        );
 
         await tester.tap(find.text('Show Original'));
         await tester.pumpAndSettle();
 
         expect(find.text('Show Translation'), findsOneWidget);
         expect(find.textContaining('Bonjour de Lyon !'), findsOneWidget);
+        expect(
+          find.textContaining('Un chat noir qui dort au soleil.'),
+          findsOneWidget,
+        );
       },
     );
 
