@@ -105,6 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final rel = await relFuture;
 
       if (!mounted) return;
+      widget.app.quoteCache.seedStatuses(statuses);
       setState(() {
         _account = account;
         _statuses = statuses;

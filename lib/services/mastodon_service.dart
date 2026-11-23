@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import '../core/constants.dart';
 import '../models/mastodon_models.dart';
+import 'media_cache_service.dart';
 
 /// Exception thrown when a Mastodon REST API request returns a non-2xx status
 /// or an invalid payload.
@@ -43,8 +44,21 @@ class MastodonService {
   final http.Client _client;
   final bool _ownsClient;
 
+  static const Duration _profileCacheTtl = Duration(minutes: 3);
+  final Map<String, ({MastodonAccount account, DateTime fetchedAt})>
+      _accountCache = {};
+  final Map<String, ({MastodonRelationship? relationship, DateTime fetchedAt})>
+      _relationshipCache = {};
+
+  /// Clears short-lived in-memory profile/relationship caches (e.g. on logout).
+  void clearSessionCaches() {
+    _accountCache.clear();
+    _relationshipCache.clear();
+  }
+
   /// Closes the internally owned HTTP client (no-op if an external client was injected).
   void dispose() {
+    clearSessionCaches();
     if (_ownsClient) {
       _client.close();
     }
@@ -170,18 +184,21 @@ class MastodonService {
     return const InstanceLimits();
   }
 
-  /// Fetches statuses for any supported [TimelineType] with optional `maxId` pagination.
+  /// Fetches statuses for any supported [TimelineType] with optional `maxId`
+  /// pagination or `sinceId` incremental delta polling.
   Future<List<MastodonStatus>> fetchTimeline({
     required String instanceUrl,
     required String accessToken,
     required TimelineType type,
     required String currentUserId,
     String? maxId,
+    String? sinceId,
     int limit = 25,
   }) async {
     final query = <String, String>{
       'limit': '$limit',
       if (maxId != null && maxId.isNotEmpty) 'max_id': maxId,
+      if (sinceId != null && sinceId.isNotEmpty) 'since_id': sinceId,
     };
 
     String path;
@@ -214,11 +231,13 @@ class MastodonService {
     return _parseStatusList(list);
   }
 
-  /// Fetches account notifications (`GET /api/v1/notifications`) with optional `maxId` pagination.
+  /// Fetches account notifications (`GET /api/v1/notifications`) with optional
+  /// `maxId` pagination or `sinceId` incremental delta polling.
   Future<List<MastodonNotification>> fetchNotifications({
     required String instanceUrl,
     required String accessToken,
     String? maxId,
+    String? sinceId,
     int limit = 30,
   }) async {
     final list = await _getJsonList(
@@ -228,6 +247,7 @@ class MastodonService {
       queryParameters: {
         'limit': '$limit',
         if (maxId != null && maxId.isNotEmpty) 'max_id': maxId,
+        if (sinceId != null && sinceId.isNotEmpty) 'since_id': sinceId,
       },
       errorContext: 'Failed to load notifications',
       timeout: const Duration(seconds: 20),
@@ -238,19 +258,31 @@ class MastodonService {
         .toList();
   }
 
-  /// Fetches full profile metadata for a Mastodon account (`GET /api/v1/accounts/{id}`).
+  /// Fetches full profile metadata for a Mastodon account (`GET /api/v1/accounts/{id}`),
+  /// serving a short-TTL in-memory cache hit unless [forceRefresh] is true.
   Future<MastodonAccount> fetchAccount({
     required String instanceUrl,
     required String accessToken,
     required String accountId,
+    bool forceRefresh = false,
   }) async {
+    final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
+    if (!forceRefresh) {
+      final cached = _accountCache[cacheKey];
+      if (cached != null &&
+          DateTime.now().difference(cached.fetchedAt) < _profileCacheTtl) {
+        return cached.account;
+      }
+    }
     final decoded = await _getJsonObject(
       instanceUrl: instanceUrl,
       path: '/api/v1/accounts/$accountId',
       accessToken: accessToken,
       errorContext: 'Failed to load user profile',
     );
-    return MastodonAccount.fromJson(decoded);
+    final account = MastodonAccount.fromJson(decoded);
+    _accountCache[cacheKey] = (account: account, fetchedAt: DateTime.now());
+    return account;
   }
 
   /// Fetches statuses published by [accountId] with optional `maxId` pagination.
@@ -275,13 +307,23 @@ class MastodonService {
     return _parseStatusList(list);
   }
 
-  /// Fetches the current user's follow/notification relationship with [accountId].
+  /// Fetches the current user's follow/notification relationship with [accountId],
+  /// serving a short-TTL cache hit unless [forceRefresh] is true.
   Future<MastodonRelationship?> fetchRelationship({
     required String instanceUrl,
     required String accessToken,
     required String accountId,
+    bool forceRefresh = false,
   }) async {
     final base = normalizeInstanceUrl(instanceUrl);
+    final cacheKey = '$base|$accountId';
+    if (!forceRefresh) {
+      final cached = _relationshipCache[cacheKey];
+      if (cached != null &&
+          DateTime.now().difference(cached.fetchedAt) < _profileCacheTtl) {
+        return cached.relationship;
+      }
+    }
     final uri = Uri.parse(
       '$base/api/v1/accounts/relationships?id[]=${Uri.encodeQueryComponent(accountId)}',
     );
@@ -290,8 +332,12 @@ class MastodonService {
         .timeout(const Duration(seconds: 15));
     _ensureSuccess(res, 'Failed to load relationship');
     final list = jsonDecode(res.body) as List<dynamic>;
-    if (list.isEmpty || list.first is! Map<String, dynamic>) return null;
-    return MastodonRelationship.fromJson(list.first as Map<String, dynamic>);
+    final rel = (list.isEmpty || list.first is! Map<String, dynamic>)
+        ? null
+        : MastodonRelationship.fromJson(list.first as Map<String, dynamic>);
+    _relationshipCache[cacheKey] =
+        (relationship: rel, fetchedAt: DateTime.now());
+    return rel;
   }
 
   /// Subscribes (`follow`) or updates notification preference (`notify: true/false`).
@@ -308,7 +354,11 @@ class MastodonService {
       body: {if (notify != null) 'notify': notify},
       errorContext: 'Failed to follow user',
     );
-    return MastodonRelationship.fromJson(decoded);
+    final rel = MastodonRelationship.fromJson(decoded);
+    final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
+    _relationshipCache[cacheKey] =
+        (relationship: rel, fetchedAt: DateTime.now());
+    return rel;
   }
 
   /// Unsubscribes (`unfollow`) from [accountId].
@@ -323,7 +373,11 @@ class MastodonService {
       accessToken: accessToken,
       errorContext: 'Failed to unfollow user',
     );
-    return MastodonRelationship.fromJson(decoded);
+    final rel = MastodonRelationship.fromJson(decoded);
+    final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
+    _relationshipCache[cacheKey] =
+        (relationship: rel, fetchedAt: DateTime.now());
+    return rel;
   }
 
   /// Fetches ancestor and descendant posts for a conversation thread (`GET /api/v1/statuses/{id}/context`).
@@ -356,12 +410,60 @@ class MastodonService {
     return MastodonStatusSource.fromJson(decoded);
   }
 
-  /// Resolves a referenced Mastodon status URL via `/api/v2/search?resolve=true`.
+  /// Extracts a local numeric Mastodon status ID if [statusUrl] is hosted on
+  /// the exact same [instanceUrl] (e.g. `https://mastodon.social/@user/12345`),
+  /// allowing a cheap `GET /api/v1/statuses/{id}` instead of an expensive
+  /// federated `/api/v2/search?resolve=true` query.
+  static String? extractSameInstanceStatusId({
+    required String instanceUrl,
+    required String statusUrl,
+  }) {
+    final baseUri = Uri.tryParse(normalizeInstanceUrl(instanceUrl));
+    final targetUri = Uri.tryParse(statusUrl.trim());
+    if (baseUri == null || targetUri == null) return null;
+    if (baseUri.host.isEmpty ||
+        baseUri.host.toLowerCase() != targetUri.host.toLowerCase()) {
+      return null;
+    }
+    final segments =
+        targetUri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    if (segments.length < 2) return null;
+    final last = segments.last;
+    if (!RegExp(r'^\d{6,}$').hasMatch(last)) return null;
+    final prev = segments[segments.length - 2];
+    if (prev.startsWith('@') || prev == 'statuses') {
+      return last;
+    }
+    return null;
+  }
+
+  /// Resolves a referenced Mastodon status URL. Uses cheap primary-key lookup
+  /// `GET /api/v1/statuses/{id}` for same-instance URLs and falls back to
+  /// `/api/v2/search?resolve=true` only for remote federated posts.
   Future<MastodonStatus?> resolveStatusByUrl({
     required String instanceUrl,
     required String accessToken,
     required String statusUrl,
   }) async {
+    final localId = extractSameInstanceStatusId(
+      instanceUrl: instanceUrl,
+      statusUrl: statusUrl,
+    );
+    if (localId != null) {
+      try {
+        final decoded = await _getJsonObject(
+          instanceUrl: instanceUrl,
+          path: '/api/v1/statuses/$localId',
+          accessToken: accessToken,
+          errorContext: 'Failed to load local status',
+          timeout: const Duration(seconds: 10),
+        );
+        return MastodonStatus.fromJson(decoded);
+      } catch (_) {
+        // Fall through to search resolver if status ID scheme differs.
+      }
+    }
+
     final uri = _buildUri(
       instanceUrl,
       '/api/v2/search',
@@ -434,8 +536,12 @@ class MastodonService {
     required String mediaId,
     required MastodonMediaAttachment fallback,
   }) async {
-    for (var attempt = 0; attempt < 20; attempt++) {
-      await Future<void>.delayed(const Duration(seconds: 2));
+    // Progressive backoff reduces polling pressure on Sidekiq video workers.
+    const delaysMs = [1500, 2000, 2500, 3000, 4000, 5000];
+    for (var attempt = 0; attempt < 15; attempt++) {
+      final delayMs =
+          delaysMs[attempt < delaysMs.length ? attempt : delaysMs.length - 1];
+      await Future<void>.delayed(Duration(milliseconds: delayMs));
       final res = await _client
           .get(
             Uri.parse('$base/api/v1/media/$mediaId'),
@@ -584,12 +690,17 @@ class MastodonService {
       );
 
   /// Downloads remote image/preview bytes for on-demand timeline AI descriptions
-  /// or re-scanning existing media while editing a post.
+  /// or re-scanning existing media while editing a post, reusing the local disk
+  /// cache whenever possible.
   Future<({Uint8List bytes, String mimeType})> downloadMediaBytes(
     String mediaUrl,
   ) async {
+    if (_ownsClient) {
+      final cached = await MediaCacheService.instance.getOrFetch(mediaUrl);
+      return (bytes: cached.bytes, mimeType: cached.mimeType);
+    }
     final res = await _client
-        .get(Uri.parse(mediaUrl))
+        .get(Uri.parse(mediaUrl), headers: _baseHeaders)
         .timeout(const Duration(seconds: 25));
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw MastodonApiException(
@@ -658,6 +769,7 @@ class MastodonService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final headers = <String, String>{
+      ..._baseHeaders,
       if (accessToken != null) ..._authHeaders(accessToken),
       if (body != null) 'Content-Type': 'application/json',
     };
@@ -693,13 +805,29 @@ class MastodonService {
       .map(MastodonStatus.fromJson)
       .toList();
 
+  static const Map<String, String> _baseHeaders = {
+    'Accept': 'application/json',
+    'User-Agent':
+        'FediCaption/${AppConstants.appVersion} (+${AppConstants.repositoryUrl})',
+  };
+
   Map<String, String> _authHeaders(String accessToken) => {
+        ..._baseHeaders,
         'Authorization': 'Bearer $accessToken',
-        'Accept': 'application/json',
       };
 
   void _ensureSuccess(http.Response res, String fallbackMessage) {
     if (res.statusCode >= 200 && res.statusCode < 300) return;
+    if (res.statusCode == 429) {
+      final retryAfter = res.headers['retry-after'];
+      final waitHint = (retryAfter != null && retryAfter.trim().isNotEmpty)
+          ? ' Please retry after ${retryAfter.trim()}s.'
+          : ' Please wait a moment before trying again.';
+      throw MastodonApiException(
+        'Mastodon server rate limit reached (429).$waitHint',
+        statusCode: 429,
+      );
+    }
     String detail = fallbackMessage;
     try {
       final decoded = jsonDecode(res.body);

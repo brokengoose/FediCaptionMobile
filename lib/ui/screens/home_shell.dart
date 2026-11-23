@@ -10,6 +10,7 @@ import '../../state/app_controller.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/update_banner.dart';
 import 'composer_screen.dart';
+import 'local_search_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
 import 'timeline_screen.dart';
@@ -148,6 +149,15 @@ class _HomeShellState extends State<HomeShell> {
                     ),
                   ),
             actions: [
+              IconButton(
+                tooltip: 'Search cached posts (offline)',
+                icon: const Icon(Icons.search),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => LocalSearchScreen(app: widget.app),
+                  ),
+                ),
+              ),
               IconButton(
                 tooltip: 'Settings',
                 icon: const Icon(Icons.settings_outlined),

@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
+import 'cached_network_image_provider.dart';
 
 /// Accessible user avatar with >= 48x48dp touch target when interactive.
 class AccessibleAvatar extends StatelessWidget {
@@ -35,7 +36,8 @@ class AccessibleAvatar extends StatelessWidget {
       radius: radius,
       backgroundColor: scheme.primaryContainer,
       foregroundColor: scheme.onPrimaryContainer,
-      backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+      backgroundImage:
+          imageUrl.isNotEmpty ? DiskCachedNetworkImage(imageUrl) : null,
       onBackgroundImageError: imageUrl.isNotEmpty ? (_, __) {} : null,
       child: imageUrl.isEmpty
           ? Text(

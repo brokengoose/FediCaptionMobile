@@ -43,21 +43,21 @@ class _TimelineScreenState extends State<TimelineScreen> {
     _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
     widget.app.addListener(_onAppChanged);
     _scrollController.addListener(_onScroll);
-    _loadInitial();
+    _loadOrUseCache();
   }
 
   @override
   void didUpdateWidget(covariant TimelineScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.timelineType != widget.timelineType) {
-      _loadInitial();
+      _loadOrUseCache();
     }
   }
 
   void _onAppChanged() {
     if (widget.app.timelineRefreshNonce != _lastSeenRefreshNonce) {
       _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
-      _loadInitial(silentAnnouncement: true);
+      _refreshIncremental(silentAnnouncement: true);
     }
   }
 
@@ -69,6 +69,77 @@ class _TimelineScreenState extends State<TimelineScreen> {
         _hasMore &&
         _statuses.isNotEmpty) {
       _loadMore();
+    }
+  }
+
+  /// Serves cached posts immediately on tab switch with zero server requests
+  /// while the cache is fresh, falling back to an incremental `since_id` check
+  /// if stale or a full initial load if empty.
+  void _loadOrUseCache() {
+    final cached = widget.app.timelineCache.timelineFor(widget.timelineType);
+    if (cached != null && cached.statuses.isNotEmpty) {
+      setState(() {
+        _statuses = cached.statuses;
+        _hasMore = cached.hasMore;
+        _isLoading = false;
+        _error = null;
+      });
+      if (!widget.app.timelineCache.isTimelineFresh(widget.timelineType)) {
+        _refreshIncremental(silentAnnouncement: true);
+      }
+      return;
+    }
+    _loadInitial();
+  }
+
+  /// Pull-to-refresh / post-publish refresh using `since_id` so Mastodon only
+  /// transfers genuinely new posts instead of re-serializing the full page.
+  Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {
+    final session = widget.app.session;
+    final account = widget.app.currentAccount;
+    if (session == null || account == null) return;
+
+    if (_statuses.isEmpty) {
+      await _loadInitial(silentAnnouncement: silentAnnouncement);
+      return;
+    }
+
+    try {
+      final newer = await widget.app.mastodon.fetchTimeline(
+        instanceUrl: session.instanceUrl,
+        accessToken: session.accessToken,
+        type: widget.timelineType,
+        currentUserId: account.id,
+        sinceId: _statuses.first.id,
+      );
+      if (!mounted) return;
+      if (newer.isNotEmpty) {
+        widget.app.quoteCache.seedStatuses(newer);
+      }
+      final merged = widget.app.timelineCache.mergeNewerTimeline(
+        widget.timelineType,
+        newer,
+      );
+      setState(() {
+        _statuses = merged;
+        _error = null;
+        _isLoading = false;
+      });
+      if (!silentAnnouncement) {
+        AccessibilityAnnouncer.announce(
+          newer.isEmpty
+              ? '${widget.timelineType.fullTitle} is up to date.'
+              : 'Loaded ${newer.length} new posts in ${widget.timelineType.fullTitle}.',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      if (_statuses.isEmpty) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -91,10 +162,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
         currentUserId: account.id,
       );
       if (!mounted) return;
+      final hasMore = items.length >= 15;
+      widget.app.quoteCache.seedStatuses(items);
+      widget.app.timelineCache.putTimeline(
+        widget.timelineType,
+        items,
+        hasMore: hasMore,
+      );
       setState(() {
         _statuses = items;
         _isLoading = false;
-        _hasMore = items.length >= 15;
+        _hasMore = hasMore;
       });
       if (!silentAnnouncement) {
         AccessibilityAnnouncer.announce(
@@ -125,10 +203,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
         maxId: _statuses.last.id,
       );
       if (!mounted) return;
+      final hasMore = items.length >= 15;
+      widget.app.quoteCache.seedStatuses(items);
+      final combined = widget.app.timelineCache.appendOlderTimeline(
+        widget.timelineType,
+        items,
+        hasMore: hasMore,
+      );
       setState(() {
-        _statuses = [..._statuses, ...items];
+        _statuses = combined;
         _isLoadingMore = false;
-        _hasMore = items.length >= 15;
+        _hasMore = hasMore;
       });
     } catch (_) {
       if (!mounted) return;
@@ -138,6 +223,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   void _replaceStatus(MastodonStatus updatedTarget) {
     if (!mounted) return;
+    widget.app.timelineCache.updateStatusEverywhere(updatedTarget);
     setState(() {
       _statuses = StatusActionHandler.replaceInList(_statuses, updatedTarget);
     });
@@ -161,6 +247,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Future<void> _deleteStatus(MastodonStatus target) async {
     final deleted = await _actions.confirmAndDelete(context, target);
     if (deleted && mounted) {
+      widget.app.timelineCache.removeStatusEverywhere(target.id);
       setState(() {
         _statuses = StatusActionHandler.removeFromList(_statuses, target.id);
       });
@@ -220,7 +307,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadInitial,
+      onRefresh: _refreshIncremental,
       child: ListView.builder(
         controller: _scrollController,
         scrollCacheExtent: const ScrollCacheExtent.pixels(1000),

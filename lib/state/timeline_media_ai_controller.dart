@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/accessibility_announcer.dart';
 import '../models/ai_models.dart';
@@ -33,11 +35,46 @@ class TimelineMediaAiController extends ChangeNotifier {
   final Map<String, String> _errors = {};
   bool _disposed = false;
 
+  static const String _prefsCacheKey = 'fedicaption_media_ai_captions_v1';
+
   String? descriptionFor(String mediaId) => _descriptions[mediaId];
   bool isDescribing(String mediaId) => _describingIds.contains(mediaId);
   String? errorFor(String mediaId) => _errors[mediaId];
 
-  /// Downloads [attachment] media bytes and generates an accessible AI alt-text
+  /// Loads previously generated timeline AI descriptions from local storage so
+  /// restarting the app does not re-download media or re-call the AI model.
+  Future<void> loadPersistedCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsCacheKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return;
+      for (final entry in decoded.entries) {
+        if (entry.value is String && (entry.value as String).isNotEmpty) {
+          _descriptions[entry.key] = entry.value as String;
+        }
+      }
+      while (_descriptions.length > maxEntries) {
+        _descriptions.remove(_descriptions.keys.first);
+      }
+      _safeNotify();
+    } catch (_) {
+      // Best-effort cache restore.
+    }
+  }
+
+  Future<void> _persistCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsCacheKey, jsonEncode(_descriptions));
+    } catch (_) {
+      // Best-effort cache persistence.
+    }
+  }
+
+  /// Downloads [attachment] media bytes (preferring pre-sized `preview_url`
+  /// and reusing the local disk cache) and generates an accessible AI alt-text
   /// caption on demand.
   Future<void> describeMedia({
     required MastodonMediaAttachment attachment,
@@ -55,9 +92,9 @@ class TimelineMediaAiController extends ChangeNotifier {
     AccessibilityAnnouncer.announce('Generating AI description for media.');
 
     try {
-      final targetUrl = attachment.isVideo
-          ? attachment.bestPreviewUrl
-          : (attachment.url.isNotEmpty ? attachment.url : attachment.previewUrl);
+      // Prefer Mastodon's pre-sized preview_url (typically 20-50x smaller than
+      // full-resolution url and already in our disk cache from timeline display).
+      final targetUrl = attachment.bestPreviewUrl;
 
       final downloaded = await _mastodon.downloadMediaBytes(targetUrl);
       final caption = await _aiProvider.generateAltText(
@@ -81,6 +118,7 @@ class TimelineMediaAiController extends ChangeNotifier {
       while (_descriptions.length > maxEntries) {
         _descriptions.remove(_descriptions.keys.first);
       }
+      _persistCache();
       AccessibilityAnnouncer.announce('AI description ready. $caption');
     } catch (e) {
       _errors[attachment.id] = e.toString();

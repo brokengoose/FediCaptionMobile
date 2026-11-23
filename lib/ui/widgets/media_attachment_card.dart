@@ -8,6 +8,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../screens/image_viewer_screen.dart';
 import '../screens/video_player_screen.dart';
+import 'cached_network_image_provider.dart';
 import 'linkified_text.dart';
 
 /// Displays a timeline media attachment with ALT TEXT PROVIDED / NO ALT TEXT status,
@@ -125,12 +126,15 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                             height: _previewHeightFor(att.aspectRatio),
                             child: ColoredBox(
                               color: scheme.surfaceContainerHighest,
-                              child: Image.network(
-                                att.bestPreviewUrl,
+                              child: Image(
+                                image: ResizeImage.resizeIfNeeded(
+                                  1200,
+                                  null,
+                                  DiskCachedNetworkImage(att.bestPreviewUrl),
+                                ),
                                 width: double.infinity,
                                 height: _previewHeightFor(att.aspectRatio),
                                 fit: BoxFit.cover,
-                                cacheWidth: 1200,
                                 gaplessPlayback: true,
                                 errorBuilder: (_, __, ___) => const Center(
                                   child: Icon(Icons.broken_image, size: 40),

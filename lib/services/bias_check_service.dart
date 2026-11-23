@@ -7,6 +7,7 @@ import '../core/html_utils.dart';
 import '../models/ai_models.dart';
 import '../models/app_settings.dart';
 import '../models/bias_models.dart';
+import '../state/quote_cache_controller.dart';
 import 'ai_provider_service.dart';
 import 'link_preview_fetcher.dart';
 import 'local_bias_heuristics.dart';
@@ -24,13 +25,16 @@ class BiasCheckService {
     required AiProviderService aiProviderService,
     required LinkPreviewFetcher linkPreviewFetcher,
     required MastodonService mastodonService,
+    QuoteCacheController? quoteCache,
   })  : _aiProviderService = aiProviderService,
         _linkPreviewFetcher = linkPreviewFetcher,
-        _mastodonService = mastodonService;
+        _mastodonService = mastodonService,
+        _quoteCache = quoteCache;
 
   final AiProviderService _aiProviderService;
   final LinkPreviewFetcher _linkPreviewFetcher;
   final MastodonService _mastodonService;
+  final QuoteCacheController? _quoteCache;
 
   static const int _maxLinksToFetch = 3;
 
@@ -52,11 +56,13 @@ class BiasCheckService {
       if (fetchedCount >= _maxLinksToFetch) break;
 
       if (session != null && HtmlUtils.looksLikeMastodonStatusUrl(url)) {
-        final resolved = await _mastodonService.resolveStatusByUrl(
-          instanceUrl: session.instanceUrl,
-          accessToken: session.accessToken,
-          statusUrl: url,
-        );
+        final resolved = _quoteCache != null
+            ? await _quoteCache.resolve(url, session: session)
+            : await _mastodonService.resolveStatusByUrl(
+                instanceUrl: session.instanceUrl,
+                accessToken: session.accessToken,
+                statusUrl: url,
+              );
         if (resolved != null) {
           referencedStatuses.add(
             ReferencedStatusContext.fromStatus(resolved, sourceUrl: url),

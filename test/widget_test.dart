@@ -12,6 +12,7 @@ import 'package:fedicaption_mobile/ui/helpers/status_action_handler.dart';
 import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
 import 'package:fedicaption_mobile/ui/screens/image_viewer_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
+import 'package:fedicaption_mobile/ui/widgets/cached_network_image_provider.dart';
 import 'package:fedicaption_mobile/ui/widgets/linkified_text.dart';
 import 'package:fedicaption_mobile/ui/widgets/media_attachment_card.dart';
 import 'package:fedicaption_mobile/ui/widgets/missing_alt_text_dialog.dart';
@@ -479,7 +480,7 @@ void main() {
       );
       expect(fullImage.fit, BoxFit.contain);
       expect(
-        (fullImage.image as NetworkImage).url,
+        (fullImage.image as DiskCachedNetworkImage).url,
         'https://example.social/media/full.jpg',
       );
 

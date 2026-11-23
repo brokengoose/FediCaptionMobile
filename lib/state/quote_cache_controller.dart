@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
@@ -10,79 +11,169 @@ import '../models/mastodon_models.dart';
 import '../services/mastodon_service.dart';
 
 /// Scoped [ChangeNotifier] that resolves and caches quoted Mastodon post URLs
-/// with bounded LRU eviction so scrolling timelines do not trigger full-app rebuilds
-/// or grow memory unboundedly.
+/// with:
+/// - Automatic seeding from timelines, threads, profiles, and notifications
+///   (zero server calls when a quoted post is already in memory)
+/// - Concurrency throttling (max [maxConcurrentResolutions] simultaneous
+///   `/api/v2/search?resolve=true` calls so fast scrolling never bursts)
+/// - Bounded LRU eviction so memory stays bounded
 class QuoteCacheController extends ChangeNotifier {
   QuoteCacheController({
     required MastodonService mastodon,
-    this.maxEntries = 200,
+    this.maxEntries = 300,
+    this.maxConcurrentResolutions = 2,
   }) : _mastodon = mastodon;
 
   final MastodonService _mastodon;
   final int maxEntries;
+  final int maxConcurrentResolutions;
 
   // LinkedHashMap maintains insertion order for lightweight LRU eviction.
   final LinkedHashMap<String, MastodonStatus?> _cache =
       LinkedHashMap<String, MastodonStatus?>();
-  final Set<String> _inFlightUrls = {};
+  final Map<String, Future<MastodonStatus?>> _inFlightFutures = {};
+  final Queue<Completer<void>> _slotWaiters = Queue<Completer<void>>();
+  int _activeResolutions = 0;
   bool _disposed = false;
 
   MastodonStatus? cachedStatus(String url) {
-    final trimmed = url.trim();
-    if (!_cache.containsKey(trimmed)) return null;
+    final key = _normalizeKey(url);
+    if (!_cache.containsKey(key)) return null;
     // Touch entry to refresh recency for LRU ordering.
-    final value = _cache.remove(trimmed);
-    _cache[trimmed] = value;
+    final value = _cache.remove(key);
+    _cache[key] = value;
     return value;
   }
 
-  bool hasResolved(String url) => _cache.containsKey(url.trim());
-  bool isResolving(String url) => _inFlightUrls.contains(url.trim());
+  bool hasResolved(String url) => _cache.containsKey(_normalizeKey(url));
+  bool isResolving(String url) => _inFlightFutures.containsKey(_normalizeKey(url));
 
-  /// Resolves [url] via `/api/v2/search?resolve=true` and caches the result.
+  /// Pre-populates the quote cache with statuses already fetched from timelines,
+  /// threads, notifications, or profiles so subsequent `RE: <url>` resolutions
+  /// hit memory with zero Mastodon server calls.
+  void seedStatuses(Iterable<MastodonStatus> statuses) {
+    var added = false;
+    for (final raw in statuses) {
+      final target = raw.displayStatus;
+      added |= _seedSingle(target);
+      if (target.quotedStatus != null) {
+        added |= _seedSingle(target.quotedStatus!.displayStatus);
+      }
+    }
+    if (added) {
+      _safeNotify();
+    }
+  }
+
+  bool _seedSingle(MastodonStatus status) {
+    var changed = false;
+    for (final candidate in [status.permalinkUrl, status.uri]) {
+      final key = _normalizeKey(candidate);
+      if (key.isNotEmpty && _cache[key] == null) {
+        _putEntry(key, status);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /// Resolves [url] (via cheap local status lookup or throttled
+  /// `/api/v2/search?resolve=true`) and caches the result.
   /// Set [forceRetry] to bypass a previously cached `null` failure.
   Future<MastodonStatus?> resolve(
     String url, {
     required MastodonSession? session,
     bool forceRetry = false,
   }) async {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty || session == null) return null;
+    final key = _normalizeKey(url);
+    if (key.isEmpty || session == null) return null;
 
-    if (!forceRetry && _cache.containsKey(trimmed)) {
-      return cachedStatus(trimmed);
+    if (!forceRetry && _cache.containsKey(key)) {
+      return cachedStatus(key);
     }
-    if (_inFlightUrls.contains(trimmed)) {
-      return null;
+
+    final existing = _inFlightFutures[key];
+    if (existing != null) {
+      return existing;
     }
 
     if (forceRetry) {
-      _cache.remove(trimmed);
+      _cache.remove(key);
     }
 
-    _inFlightUrls.add(trimmed);
+    final future = _resolveThrottled(key, url.trim(), session);
+    _inFlightFutures[key] = future;
     _safeNotify();
 
     try {
-      final resolved = await _mastodon.resolveStatusByUrl(
-        instanceUrl: session.instanceUrl,
-        accessToken: session.accessToken,
-        statusUrl: trimmed,
-      );
-      _putEntry(trimmed, resolved?.displayStatus);
-      return _cache[trimmed];
-    } catch (_) {
-      _putEntry(trimmed, null);
-      return null;
+      return await future;
     } finally {
-      _inFlightUrls.remove(trimmed);
+      _inFlightFutures.remove(key);
       _safeNotify();
     }
   }
 
-  void _putEntry(String url, MastodonStatus? status) {
-    _cache.remove(url);
-    _cache[url] = status;
+  Future<MastodonStatus?> _resolveThrottled(
+    String key,
+    String rawUrl,
+    MastodonSession session,
+  ) async {
+    await _acquireSlot();
+    try {
+      if (_disposed) return null;
+      final resolved = await _mastodon.resolveStatusByUrl(
+        instanceUrl: session.instanceUrl,
+        accessToken: session.accessToken,
+        statusUrl: rawUrl,
+      );
+      final target = resolved?.displayStatus;
+      _putEntry(key, target);
+      if (target != null) {
+        _seedSingle(target);
+      }
+      return target;
+    } catch (_) {
+      _putEntry(key, null);
+      return null;
+    } finally {
+      _releaseSlot();
+    }
+  }
+
+  Future<void> _acquireSlot() async {
+    if (_activeResolutions < maxConcurrentResolutions) {
+      _activeResolutions++;
+      return;
+    }
+    final waiter = Completer<void>();
+    _slotWaiters.addLast(waiter);
+    await waiter.future;
+  }
+
+  void _releaseSlot() {
+    if (_slotWaiters.isNotEmpty) {
+      final next = _slotWaiters.removeFirst();
+      if (!next.isCompleted) {
+        next.complete();
+      }
+      return;
+    }
+    if (_activeResolutions > 0) {
+      _activeResolutions--;
+    }
+  }
+
+  static String _normalizeKey(String url) {
+    var trimmed = url.trim();
+    while (trimmed.endsWith('/')) {
+      trimmed = trimmed.substring(0, trimmed.length - 1);
+    }
+    return trimmed;
+  }
+
+  void _putEntry(String key, MastodonStatus? status) {
+    _cache.remove(key);
+    _cache[key] = status;
     while (_cache.length > maxEntries) {
       _cache.remove(_cache.keys.first);
     }
@@ -90,7 +181,7 @@ class QuoteCacheController extends ChangeNotifier {
 
   void clear() {
     _cache.clear();
-    _inFlightUrls.clear();
+    _inFlightFutures.clear();
     _safeNotify();
   }
 
@@ -103,6 +194,10 @@ class QuoteCacheController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    while (_slotWaiters.isNotEmpty) {
+      final waiter = _slotWaiters.removeFirst();
+      if (!waiter.isCompleted) waiter.complete();
+    }
     super.dispose();
   }
 }

@@ -8,6 +8,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_settings.dart';
+import '../models/mastodon_models.dart';
+import 'mastodon_service.dart';
 
 /// Manages secure storage of tokens/API keys (iOS Keychain / Android Keystore;
 /// sandboxed per-app preferences on macOS to avoid ad-hoc Keychain prompt loops)
@@ -65,6 +67,9 @@ class StorageService {
   static const String _keyAnthropicKey = 'ai_key_anthropic';
   static const String _keyLocalKey = 'ai_key_local';
   static const String _keyDismissedVersion = 'dismissed_update_version';
+  static const String _keyOAuthAppsPrefix = 'oauth_app_creds_v1_';
+  static const String _keyInstanceLimitsPrefix = 'instance_limits_v1_';
+  static const Duration _instanceLimitsTtl = Duration(hours: 24);
 
   Future<AppSettings> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -141,5 +146,104 @@ class StorageService {
   Future<void> saveDismissedUpdateVersion(String version) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyDismissedVersion, version);
+  }
+
+  /// Loads cached OAuth `client_id` + `client_secret` for [instanceUrl] so
+  /// re-authenticating reuses the existing registered Mastodon application
+  /// instead of creating duplicate rows in the server's `oauth_applications` table.
+  Future<OAuthAppCredentials?> loadOAuthAppCredentials(
+    String instanceUrl,
+  ) async {
+    final key = _instanceKey(_keyOAuthAppsPrefix, instanceUrl);
+    final raw = await _readSecret(key);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final clientId = (decoded['client_id'] as String?) ?? '';
+        final clientSecret = (decoded['client_secret'] as String?) ?? '';
+        if (clientId.isNotEmpty && clientSecret.isNotEmpty) {
+          return OAuthAppCredentials(
+            clientId: clientId,
+            clientSecret: clientSecret,
+          );
+        }
+      }
+    } catch (_) {
+      // Ignore corrupted cache entry.
+    }
+    return null;
+  }
+
+  Future<void> saveOAuthAppCredentials(
+    String instanceUrl,
+    OAuthAppCredentials creds,
+  ) async {
+    if (creds.clientId.isEmpty || creds.clientSecret.isEmpty) return;
+    final key = _instanceKey(_keyOAuthAppsPrefix, instanceUrl);
+    await _writeSecret(
+      key,
+      jsonEncode({
+        'client_id': creds.clientId,
+        'client_secret': creds.clientSecret,
+      }),
+    );
+  }
+
+  Future<void> clearOAuthAppCredentials(String instanceUrl) async {
+    final key = _instanceKey(_keyOAuthAppsPrefix, instanceUrl);
+    await _deleteSecret(key);
+  }
+
+  /// Loads cached [InstanceLimits] for [instanceUrl] if fetched within 24 hours,
+  /// avoiding redundant `/api/v2/instance` calls on every app cold start.
+  Future<InstanceLimits?> loadCachedInstanceLimits(String instanceUrl) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _instanceKey(_keyInstanceLimitsPrefix, instanceUrl);
+    final raw = prefs.getString(key);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final fetchedMs = (decoded['fetched_at_ms'] as num?)?.toInt() ?? 0;
+      if (fetchedMs <= 0) return null;
+      final age = DateTime.now()
+          .difference(DateTime.fromMillisecondsSinceEpoch(fetchedMs));
+      if (age > _instanceLimitsTtl) return null;
+      return InstanceLimits(
+        maxCharacters: (decoded['max_characters'] as num?)?.toInt() ?? 500,
+        maxMediaAttachments:
+            (decoded['max_media_attachments'] as num?)?.toInt() ?? 4,
+        altTextLimit: (decoded['alt_text_limit'] as num?)?.toInt() ?? 1500,
+        instanceTitle: (decoded['instance_title'] as String?) ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveCachedInstanceLimits(
+    String instanceUrl,
+    InstanceLimits limits,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _instanceKey(_keyInstanceLimitsPrefix, instanceUrl);
+    await prefs.setString(
+      key,
+      jsonEncode({
+        'fetched_at_ms': DateTime.now().millisecondsSinceEpoch,
+        'max_characters': limits.maxCharacters,
+        'max_media_attachments': limits.maxMediaAttachments,
+        'alt_text_limit': limits.altTextLimit,
+        'instance_title': limits.instanceTitle,
+      }),
+    );
+  }
+
+  static String _instanceKey(String prefix, String instanceUrl) {
+    final normalized = MastodonService.normalizeInstanceUrl(instanceUrl)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    return '$prefix$normalized';
   }
 }

@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/accessibility_announcer.dart';
+import '../../services/media_cache_service.dart';
+import '../widgets/cached_network_image_provider.dart';
 
 /// Full-screen image viewer that displays the entire image scaled to fit the
 /// viewport (`BoxFit.contain`) with pinch-to-zoom, accessible controls, and
@@ -51,13 +52,8 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
         throw StateError('Invalid image URL.');
       }
 
-      final res = await http.get(uri).timeout(const Duration(seconds: 25));
-      if (res.statusCode < 200 || res.statusCode >= 300 || res.bodyBytes.isEmpty) {
-        throw StateError('Could not download image (${res.statusCode}).');
-      }
-
-      final mimeType =
-          (res.headers['content-type'] ?? 'image/jpeg').split(';').first.trim();
+      final cached = await MediaCacheService.instance.getOrFetch(widget.imageUrl);
+      final mimeType = cached.mimeType;
       final fileName = _deriveFileName(uri, mimeType);
 
       AccessibilityAnnouncer.announce('Opening share menu.');
@@ -65,7 +61,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
         ShareParams(
           files: [
             XFile.fromData(
-              res.bodyBytes,
+              cached.bytes,
               mimeType: mimeType,
             ),
           ],
@@ -166,8 +162,8 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                       globalPosition: details.globalPosition,
                     ),
                     child: SizedBox.expand(
-                      child: Image.network(
-                        widget.imageUrl,
+                      child: Image(
+                        image: DiskCachedNetworkImage(widget.imageUrl),
                         fit: BoxFit.contain,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;

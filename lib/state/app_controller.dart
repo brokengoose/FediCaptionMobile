@@ -15,12 +15,14 @@ import '../services/ai_provider_service.dart';
 import '../services/bias_check_service.dart';
 import '../services/link_preview_fetcher.dart';
 import '../services/mastodon_service.dart';
+import '../services/media_cache_service.dart';
 import '../services/on_device_ai_service.dart';
 import '../services/storage_service.dart';
 import '../services/translation_service.dart';
 import '../services/tts_service.dart';
 import '../services/update_check_service.dart';
 import 'quote_cache_controller.dart';
+import 'timeline_cache_controller.dart';
 import 'timeline_media_ai_controller.dart';
 
 /// Top-level application state coordinator for authentication, settings,
@@ -56,12 +58,14 @@ class AppController extends ChangeNotifier {
         AiProviderService(onDeviceAiService: onDeviceAi);
     translation =
         translationService ?? TranslationService(onDeviceAi: onDeviceAi);
+    quoteCache = QuoteCacheController(mastodon: mastodon);
+    timelineCache = TimelineCacheController();
     biasChecker = BiasCheckService(
       aiProviderService: aiProvider,
       linkPreviewFetcher: _linkPreviewFetcher,
       mastodonService: mastodon,
+      quoteCache: quoteCache,
     );
-    quoteCache = QuoteCacheController(mastodon: mastodon);
     mediaAi = TimelineMediaAiController(
       mastodon: mastodon,
       aiProvider: aiProvider,
@@ -86,6 +90,7 @@ class AppController extends ChangeNotifier {
   final TtsService tts;
   final ThemeController themeController;
   late final QuoteCacheController quoteCache;
+  late final TimelineCacheController timelineCache;
   late final TimelineMediaAiController mediaAi;
 
   bool _disposed = false;
@@ -186,7 +191,7 @@ class AppController extends ChangeNotifier {
           );
           _session = savedSession;
           _currentAccount = account;
-          _instanceLimits = await mastodon.fetchInstanceLimits(
+          _instanceLimits = await _loadOrFetchInstanceLimits(
             instanceUrl: savedSession.instanceUrl,
             accessToken: savedSession.accessToken,
           );
@@ -201,10 +206,27 @@ class AppController extends ChangeNotifier {
 
     if (_disposed) return;
 
-    // Fire-and-forget startup tasks: on-device AI check, GitHub update check & models refresh.
+    // Fire-and-forget startup tasks: restore AI caption cache, prune media disk
+    // cache, check on-device AI, GitHub update check & models refresh.
+    mediaAi.loadPersistedCache();
+    MediaCacheService.instance.pruneIfNeeded();
     refreshOnDeviceAiStatus();
     _runUpdateCheck();
     refreshModelsFor(_settings.activeProvider);
+  }
+
+  Future<InstanceLimits> _loadOrFetchInstanceLimits({
+    required String instanceUrl,
+    required String accessToken,
+  }) async {
+    final cached = await storage.loadCachedInstanceLimits(instanceUrl);
+    if (cached != null) return cached;
+    final fetched = await mastodon.fetchInstanceLimits(
+      instanceUrl: instanceUrl,
+      accessToken: accessToken,
+    );
+    await storage.saveCachedInstanceLimits(instanceUrl, fetched);
+    return fetched;
   }
 
   /// Checks whether the phone's built-in OS AI (Apple Foundation Models on iOS /
@@ -287,7 +309,15 @@ class AppController extends ChangeNotifier {
     _safeNotify();
 
     try {
-      final appCreds = await mastodon.registerOAuthApp(instanceUrl);
+      // Reuse cached OAuth app credentials per instance to avoid creating
+      // orphaned duplicate rows in Mastodon's oauth_applications table.
+      var appCreds = await storage.loadOAuthAppCredentials(instanceUrl);
+      var usedCachedApp = appCreds != null;
+      if (appCreds == null) {
+        appCreds = await mastodon.registerOAuthApp(instanceUrl);
+        await storage.saveOAuthAppCredentials(instanceUrl, appCreds);
+      }
+
       final authUri = mastodon.buildAuthorizeUrl(
         instanceUrl: instanceUrl,
         clientId: appCreds.clientId,
@@ -307,12 +337,22 @@ class AppController extends ChangeNotifier {
         throw MastodonApiException(err);
       }
 
-      final accessToken = await mastodon.exchangeOAuthCode(
-        instanceUrl: instanceUrl,
-        clientId: appCreds.clientId,
-        clientSecret: appCreds.clientSecret,
-        code: code,
-      );
+      String accessToken;
+      try {
+        accessToken = await mastodon.exchangeOAuthCode(
+          instanceUrl: instanceUrl,
+          clientId: appCreds.clientId,
+          clientSecret: appCreds.clientSecret,
+          code: code,
+        );
+      } catch (e) {
+        // If a cached OAuth app was revoked server-side, clear it so the next
+        // attempt registers cleanly.
+        if (usedCachedApp) {
+          await storage.clearOAuthAppCredentials(instanceUrl);
+        }
+        rethrow;
+      }
 
       return await _completeSignIn(
         instanceUrl: instanceUrl,
@@ -364,7 +404,7 @@ class AppController extends ChangeNotifier {
       instanceUrl: instanceUrl,
       accessToken: accessToken,
     );
-    final limits = await mastodon.fetchInstanceLimits(
+    final limits = await _loadOrFetchInstanceLimits(
       instanceUrl: instanceUrl,
       accessToken: accessToken,
     );
@@ -394,6 +434,8 @@ class AppController extends ChangeNotifier {
     _session = null;
     _currentAccount = null;
     _instanceLimits = const InstanceLimits();
+    mastodon.clearSessionCaches();
+    timelineCache.clear();
     mediaAi.clear();
     quoteCache.clear();
     _safeNotify();
@@ -513,6 +555,7 @@ class AppController extends ChangeNotifier {
       );
 
   void notifyTimelinesShouldRefresh() {
+    timelineCache.markAllStale();
     _timelineRefreshNonce++;
     _safeNotify();
   }
@@ -527,6 +570,7 @@ class AppController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     quoteCache.dispose();
+    timelineCache.dispose();
     mediaAi.dispose();
     tts.dispose();
     themeController.dispose();

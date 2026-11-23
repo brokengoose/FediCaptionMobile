@@ -13,6 +13,7 @@ import '../models/ai_models.dart';
 import '../models/bias_models.dart';
 import '../models/composer_attachment.dart';
 import '../models/mastodon_models.dart';
+import '../services/image_upload_optimizer.dart';
 import '../services/video_frame_extractor.dart';
 import 'app_controller.dart';
 
@@ -23,7 +24,10 @@ class ComposerController extends ChangeNotifier {
     this.replyToStatus,
     this.editingStatus,
     VideoFrameExtractor? videoFrameExtractor,
-  }) : _videoFrameExtractor = videoFrameExtractor ?? const VideoFrameExtractor() {
+    ImageUploadOptimizer? imageOptimizer,
+  })  : _videoFrameExtractor =
+            videoFrameExtractor ?? const VideoFrameExtractor(),
+        _imageOptimizer = imageOptimizer ?? const ImageUploadOptimizer() {
     if (replyToStatus != null) {
       final target = replyToStatus!.displayStatus;
       final mention = target.account.handle;
@@ -69,6 +73,8 @@ class ComposerController extends ChangeNotifier {
   final MastodonStatus? replyToStatus;
   final MastodonStatus? editingStatus;
   final VideoFrameExtractor _videoFrameExtractor;
+  final ImageUploadOptimizer _imageOptimizer;
+  final Set<String> _tempOptimizedFiles = {};
 
   final TextEditingController textController = TextEditingController();
   final TextEditingController spoilerController = TextEditingController();
@@ -180,7 +186,8 @@ class ComposerController extends ChangeNotifier {
     _safeNotify();
   }
 
-  /// Attaches a local image or video file and auto-scans it with AI if enabled.
+  /// Attaches a local image or video file, strips EXIF & resizes images
+  /// client-side before upload/AI analysis, and auto-scans with AI if enabled.
   Future<void> addLocalMedia({
     required String filePath,
     required bool isVideo,
@@ -195,14 +202,33 @@ class ComposerController extends ChangeNotifier {
     _errorMessage = null;
     final localId = 'local_${++_localIdCounter}';
     final fileName = p.basename(filePath);
-    final mimeType = MediaUtils.guessMimeType(filePath, isVideo: isVideo);
+    var effectivePath = filePath;
+    var mimeType = MediaUtils.guessMimeType(filePath, isVideo: isVideo);
+
+    if (!isVideo) {
+      final optimized = await _imageOptimizer.optimizeFile(
+        filePath,
+        fallbackMimeType: mimeType,
+      );
+      if (_disposed) {
+        if (optimized.isTempFile) {
+          _deleteTempFileQuietly(optimized.filePath);
+        }
+        return;
+      }
+      effectivePath = optimized.filePath;
+      mimeType = optimized.mimeType;
+      if (optimized.isTempFile) {
+        _tempOptimizedFiles.add(effectivePath);
+      }
+    }
 
     final shouldAutoScan = app.settings.isAiEnabled && app.settings.autoGenerate;
     final initial = ComposerAttachment(
       localId: localId,
       isVideo: isVideo,
       mimeType: mimeType,
-      filePath: filePath,
+      filePath: effectivePath,
       fileName: fileName,
       detailLevel: app.settings.defaultDetailLevel,
       status: shouldAutoScan
@@ -219,7 +245,12 @@ class ComposerController extends ChangeNotifier {
   }
 
   void removeAttachment(String localId) {
+    final removed = _findAttachment(localId);
     _attachments = _attachments.where((a) => a.localId != localId).toList();
+    if (removed?.filePath != null &&
+        _tempOptimizedFiles.remove(removed!.filePath)) {
+      _deleteTempFileQuietly(removed.filePath!);
+    }
     _safeNotify();
   }
 
@@ -271,9 +302,10 @@ class ComposerController extends ChangeNotifier {
       List<MediaBinaryPayload> preExtracted = const [];
 
       if (attachment.isExistingRemote) {
-        final targetUrl = attachment.isVideo
-            ? (attachment.previewUrl ?? attachment.remoteUrl ?? '')
-            : (attachment.remoteUrl ?? attachment.previewUrl ?? '');
+        // Prefer pre-sized preview_url over full-res url to save server egress.
+        final targetUrl = attachment.previewUrl?.isNotEmpty == true
+            ? attachment.previewUrl!
+            : (attachment.remoteUrl ?? '');
         final downloaded = await app.mastodon.downloadMediaBytes(targetUrl);
         preExtracted = [
           MediaBinaryPayload(
@@ -548,9 +580,24 @@ class ComposerController extends ChangeNotifier {
     _safeNotify();
   }
 
+  void _deleteTempFileQuietly(String path) {
+    try {
+      final f = File(path);
+      if (f.existsSync()) {
+        f.deleteSync();
+      }
+    } catch (_) {
+      // Best-effort cleanup.
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
+    for (final path in _tempOptimizedFiles) {
+      _deleteTempFileQuietly(path);
+    }
+    _tempOptimizedFiles.clear();
     textController.dispose();
     spoilerController.dispose();
     super.dispose();

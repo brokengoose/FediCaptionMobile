@@ -56,6 +56,11 @@ class _ThreadScreenState extends State<ThreadScreen> {
         statusId: _focalStatus.id,
       );
       if (!mounted) return;
+      widget.app.quoteCache.seedStatuses([
+        _focalStatus,
+        ...ctx.ancestors,
+        ...ctx.descendants,
+      ]);
       setState(() {
         _ancestors = ctx.ancestors;
         _descendants = ctx.descendants;

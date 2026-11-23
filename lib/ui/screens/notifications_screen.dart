@@ -41,7 +41,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     _actions = StatusActionHandler(app: widget.app);
     _scrollController.addListener(_onScroll);
-    _load();
+    _loadOrUseCache();
   }
 
   @override
@@ -52,12 +52,73 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 320 &&
+            _scrollController.position.maxScrollExtent - 500 &&
         !_isLoading &&
         !_isLoadingMore &&
         _hasMore &&
         _notifications.isNotEmpty) {
       _loadMore();
+    }
+  }
+
+  void _loadOrUseCache() {
+    final cached = widget.app.timelineCache.notifications;
+    if (cached != null && cached.notifications.isNotEmpty) {
+      setState(() {
+        _notifications = cached.notifications;
+        _hasMore = cached.hasMore;
+        _isLoading = false;
+        _error = null;
+      });
+      if (!widget.app.timelineCache.isNotificationsFresh()) {
+        _refreshIncremental(silentAnnouncement: true);
+      }
+      return;
+    }
+    _load();
+  }
+
+  Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {
+    final session = widget.app.session;
+    if (session == null) return;
+    if (_notifications.isEmpty) {
+      await _load();
+      return;
+    }
+
+    try {
+      final newer = await widget.app.mastodon.fetchNotifications(
+        instanceUrl: session.instanceUrl,
+        accessToken: session.accessToken,
+        sinceId: _notifications.first.id,
+      );
+      if (!mounted) return;
+      _seedNotificationStatuses(newer);
+      final merged = widget.app.timelineCache.mergeNewerNotifications(newer);
+      setState(() {
+        _notifications = merged;
+        _error = null;
+        _isLoading = false;
+      });
+      if (!silentAnnouncement) {
+        AccessibilityAnnouncer.announce(
+          newer.isEmpty
+              ? 'Notifications are up to date.'
+              : 'Loaded ${newer.length} new notifications.',
+        );
+      }
+    } catch (_) {
+      // Keep cached notifications visible on transient refresh error.
+    }
+  }
+
+  void _seedNotificationStatuses(List<MastodonNotification> items) {
+    final statuses = <MastodonStatus>[
+      for (final n in items)
+        if (n.status != null) n.status!,
+    ];
+    if (statuses.isNotEmpty) {
+      widget.app.quoteCache.seedStatuses(statuses);
     }
   }
 
@@ -76,10 +137,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         accessToken: session.accessToken,
       );
       if (!mounted) return;
+      final hasMore = items.length >= 15;
+      _seedNotificationStatuses(items);
+      widget.app.timelineCache.putNotifications(items, hasMore: hasMore);
       setState(() {
         _notifications = items;
         _isLoading = false;
-        _hasMore = items.length >= 15;
+        _hasMore = hasMore;
       });
       AccessibilityAnnouncer.announce(
         'Loaded ${items.length} notifications.',
@@ -105,10 +169,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         maxId: _notifications.last.id,
       );
       if (!mounted) return;
+      final hasMore = items.length >= 15;
+      _seedNotificationStatuses(items);
+      final combined = widget.app.timelineCache.appendOlderNotifications(
+        items,
+        hasMore: hasMore,
+      );
       setState(() {
-        _notifications = [..._notifications, ...items];
+        _notifications = combined;
         _isLoadingMore = false;
-        _hasMore = items.length >= 15;
+        _hasMore = hasMore;
       });
     } catch (_) {
       if (!mounted) return;
@@ -177,9 +247,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: _refreshIncremental,
       child: ListView.builder(
         controller: _scrollController,
+        scrollCacheExtent: const ScrollCacheExtent.pixels(800),
         padding: const EdgeInsets.only(top: 6, bottom: 88),
         itemCount: _notifications.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
