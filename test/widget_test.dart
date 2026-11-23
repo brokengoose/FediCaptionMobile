@@ -1,8 +1,11 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:edge_gen_ai/edge_gen_ai.dart';
 import 'package:fedicaption_mobile/core/theme/app_theme.dart';
+import 'package:fedicaption_mobile/models/ai_models.dart';
 import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/bias_models.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
@@ -22,13 +25,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 class _FakeOnDeviceAiService extends OnDeviceAiService {
-  @override
-  Future<OnDeviceAiStatus> checkStatus() async {
-    return const OnDeviceAiStatus(
+  _FakeOnDeviceAiService({
+    this.status = const OnDeviceAiStatus(
       promptAvailability: EdgeGenAIAvailability.available,
       imageDescriptionAvailability: EdgeGenAIAvailability.available,
       engineName: 'Apple Foundation Models',
-    );
+    ),
+    this.pendingCheck,
+  });
+
+  final OnDeviceAiStatus status;
+  final Completer<OnDeviceAiStatus>? pendingCheck;
+
+  @override
+  Future<OnDeviceAiStatus> checkStatus() async {
+    if (pendingCheck != null) {
+      return pendingCheck!.future;
+    }
+    return status;
   }
 }
 
@@ -167,11 +181,94 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(controller.settings.activeProvider, AiProviderType.onDevice);
       expect(find.text('Set Up AI'), findsOneWidget);
       expect(find.text('Apple Foundation Models — Ready on Device'), findsOneWidget);
       expect(find.text('Re-Check Device'), findsOneWidget);
       expect(find.text('Use No AI (Set Up Later)'), findsOneWidget);
       expect(find.text('Save AI Settings & Continue'), findsOneWidget);
+    });
+
+    testWidgets('defaults to On-Device AI when model is downloadable', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(
+          status: const OnDeviceAiStatus(
+            promptAvailability: EdgeGenAIAvailability.downloadable,
+            imageDescriptionAvailability: EdgeGenAIAvailability.unavailable,
+            engineName: 'Google Gemini Nano (ML Kit GenAI / AICore)',
+          ),
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: AiSetupScreen(app: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.activeProvider, AiProviderType.onDevice);
+      expect(find.text('Save AI Settings & Continue'), findsOneWidget);
+      expect(find.text('Use No AI (Set Up Later)'), findsOneWidget);
+    });
+
+    testWidgets('defaults to No AI when on-device AI is unavailable', (tester) async {
+      final pending = Completer<OnDeviceAiStatus>();
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(pendingCheck: pending),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: AiSetupScreen(app: controller),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Checking on-device AI availability…'), findsOneWidget);
+
+      pending.complete(
+        const OnDeviceAiStatus(
+          promptAvailability: EdgeGenAIAvailability.unavailable,
+          imageDescriptionAvailability: EdgeGenAIAvailability.unavailable,
+          engineName: 'On-Device AI',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.activeProvider, AiProviderType.none);
+      expect(find.text('No AI Selected'), findsOneWidget);
+      expect(find.text('Continue with No AI'), findsOneWidget);
+      expect(find.text('Use No AI (Set Up Later)'), findsNothing);
+    });
+
+    testWidgets('defaults to No AI when on-device AI is not yet ready', (tester) async {
+      final controller = AppController(
+        onDeviceAiService: _FakeOnDeviceAiService(
+          status: const OnDeviceAiStatus(
+            promptAvailability: EdgeGenAIAvailability.notYetReady,
+            imageDescriptionAvailability: EdgeGenAIAvailability.notYetReady,
+            engineName: 'Apple Foundation Models',
+          ),
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: AiSetupScreen(app: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.activeProvider, AiProviderType.none);
+      expect(find.text('No AI Selected'), findsOneWidget);
+      expect(find.text('Continue with No AI'), findsOneWidget);
     });
   });
 

@@ -27,10 +27,52 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
   final GlobalKey<AiProviderConfigSectionState> _configKey =
       GlobalKey<AiProviderConfigSectionState>();
 
+  bool _isDetectingOnDeviceAi = true;
+  bool _userChangedProvider = false;
+  bool _defaultedToNoAi = false;
   bool _isSaving = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _detectInitialProvider();
+      }
+    });
+  }
+
+  Future<void> _detectInitialProvider() async {
+    final status = await widget.app.refreshOnDeviceAiStatus();
+    if (!mounted) return;
+
+    final currentProvider = widget.app.settings.activeProvider;
+    final canAutoDefault = !_userChangedProvider &&
+        !widget.app.settings.aiSetupCompleted &&
+        (currentProvider == AiProviderType.onDevice ||
+            currentProvider == AiProviderType.none);
+
+    var defaultedNoAi = false;
+    if (canAutoDefault) {
+      final recommended =
+          status.isUsable ? AiProviderType.onDevice : AiProviderType.none;
+      widget.app.selectInitialSetupProvider(recommended);
+      defaultedNoAi = recommended == AiProviderType.none;
+    }
+
+    setState(() {
+      _defaultedToNoAi = defaultedNoAi;
+      _isDetectingOnDeviceAi = false;
+    });
+
+    final effectiveProvider = widget.app.settings.activeProvider;
+    if (effectiveProvider != AiProviderType.none) {
+      widget.app.refreshModelsFor(effectiveProvider);
+    }
+  }
+
   Future<void> _finishSetup({bool forceNoAi = false}) async {
-    if (_isSaving) return;
+    if (_isSaving || _isDetectingOnDeviceAi) return;
     setState(() => _isSaving = true);
     try {
       final configState = _configKey.currentState;
@@ -64,6 +106,10 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
       listenable: widget.app,
       builder: (context, _) {
         final isNone = widget.app.settings.activeProvider == AiProviderType.none;
+        final controlsDisabled = _isSaving || _isDetectingOnDeviceAi;
+        final noAiNotice = _defaultedToNoAi
+            ? 'On-device AI is not available on this device, so No AI is selected by default. You can choose a Cloud API or Local AI server above, or continue with No AI (manual alt-text, Read Aloud, and offline bias heuristics) and enable AI later in Settings.'
+            : 'FediCaption will not contact any AI service. You can still write alt-text manually, listen with Read Aloud, and use offline local bias heuristics. You can enable an AI provider later in Settings.';
 
         return Scaffold(
           appBar: AppBar(
@@ -109,22 +155,57 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      AiProviderConfigSection(
-                        key: _configKey,
-                        app: widget.app,
-                        providerLabel: 'AI Provider',
-                        modelHelperText:
-                            'Sorted alphabetically. Tap Refresh after entering your key or URL.',
-                        noAiNoticeText:
-                            'FediCaption will not contact any AI service. You can still write alt-text manually, listen with Read Aloud, and use offline local bias heuristics. You can enable an AI provider later in Settings.',
-                        showNoAiTitle: true,
-                        enabled: !_isSaving,
-                      ),
+                      if (_isDetectingOnDeviceAi)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color:
+                                scheme.surfaceContainerHighest.withAlpha(115),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: fedi.cardBorder),
+                          ),
+                          child: const Row(
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Checking on-device AI availability…',
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        AiProviderConfigSection(
+                          key: _configKey,
+                          app: widget.app,
+                          providerLabel: 'AI Provider',
+                          modelHelperText:
+                              'Sorted alphabetically. Tap Refresh after entering your key or URL.',
+                          noAiNoticeText: noAiNotice,
+                          showNoAiTitle: true,
+                          skipInitialRefresh: true,
+                          enabled: !controlsDisabled,
+                          onProviderChanged: (_) {
+                            setState(() {
+                              _userChangedProvider = true;
+                              _defaultedToNoAi = false;
+                            });
+                          },
+                        ),
 
                       const SizedBox(height: 24),
 
                       FilledButton.icon(
-                        onPressed: _isSaving ? null : () => _finishSetup(),
+                        onPressed:
+                            controlsDisabled ? null : () => _finishSetup(),
                         icon: Icon(isNone ? Icons.check : Icons.arrow_forward),
                         label: Text(
                           isNone
@@ -136,7 +217,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                       if (!isNone) ...[
                         const SizedBox(height: 12),
                         OutlinedButton(
-                          onPressed: _isSaving
+                          onPressed: controlsDisabled
                               ? null
                               : () => _finishSetup(forceNoAi: true),
                           child: const Text('Use No AI (Set Up Later)'),

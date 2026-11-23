@@ -536,6 +536,16 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  /// Applies the recommended default provider during first-time AI onboarding
+  /// before setup is saved, without writing incomplete onboarding state to disk.
+  void selectInitialSetupProvider(AiProviderType provider) {
+    if (_settings.aiSetupCompleted || _settings.activeProvider == provider) {
+      return;
+    }
+    _settings = _settings.copyWith(activeProvider: provider);
+    _safeNotify();
+  }
+
   /// Marks first-time AI setup as completed and saves both settings and credentials.
   Future<void> completeAiSetup({
     required AppSettings settings,

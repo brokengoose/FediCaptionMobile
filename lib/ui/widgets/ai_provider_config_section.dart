@@ -30,6 +30,7 @@ class AiProviderConfigSection extends StatefulWidget {
         'AI is disabled ("No AI"). Alt-text can be entered manually, Read Aloud remains available, and pre-post bias checks use offline local heuristics.',
     this.showNoAiTitle = false,
     this.enabled = true,
+    this.skipInitialRefresh = false,
     this.onProviderChanged,
   });
 
@@ -39,6 +40,10 @@ class AiProviderConfigSection extends StatefulWidget {
   final String noAiNoticeText;
   final bool showNoAiTitle;
   final bool enabled;
+
+  /// When `true`, skips the post-frame `refreshOnDeviceAiStatus` and
+  /// `refreshModelsFor` calls (used when the parent handles detection first).
+  final bool skipInitialRefresh;
   final ValueChanged<AiProviderType>? onProviderChanged;
 
   @override
@@ -69,13 +74,15 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
     _localUrlCtrl = TextEditingController(text: s.localBaseUrl);
     _localKeyCtrl = TextEditingController(text: c.localApiKey);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      widget.app.refreshOnDeviceAiStatus();
-      if (widget.app.settings.activeProvider != AiProviderType.none) {
-        widget.app.refreshModelsFor(widget.app.settings.activeProvider);
-      }
-    });
+    if (!widget.skipInitialRefresh) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        widget.app.refreshOnDeviceAiStatus();
+        if (widget.app.settings.activeProvider != AiProviderType.none) {
+          widget.app.refreshModelsFor(widget.app.settings.activeProvider);
+        }
+      });
+    }
   }
 
   @override
