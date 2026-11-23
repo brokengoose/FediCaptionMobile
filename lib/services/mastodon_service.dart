@@ -79,13 +79,16 @@ class MastodonService {
 
   /// Registers the OAuth 2.0 application with the Mastodon instance (`POST /api/v1/apps`),
   /// setting `website` to FediCaption Mobile's GitHub repository URL.
-  Future<OAuthAppCredentials> registerOAuthApp(String instanceUrl) async {
+  Future<OAuthAppCredentials> registerOAuthApp(
+    String instanceUrl, {
+    String redirectUri = AppConstants.oauthRedirectUri,
+  }) async {
     final decoded = await _postJsonObject(
       instanceUrl: instanceUrl,
       path: '/api/v1/apps',
       body: {
         'client_name': AppConstants.oauthClientName,
-        'redirect_uris': AppConstants.oauthRedirectUri,
+        'redirect_uris': redirectUri,
         'scopes': AppConstants.oauthScopes,
         'website': AppConstants.oauthWebsite,
       },
@@ -98,10 +101,12 @@ class MastodonService {
     );
   }
 
-  /// Builds the `/oauth/authorize` URI for `ASWebAuthenticationSession` / Custom Tabs.
+  /// Builds the `/oauth/authorize` URI for `ASWebAuthenticationSession`,
+  /// Android Custom Tabs, or desktop default-browser loopback OAuth.
   Uri buildAuthorizeUrl({
     required String instanceUrl,
     required String clientId,
+    String redirectUri = AppConstants.oauthRedirectUri,
   }) {
     return _buildUri(
       instanceUrl,
@@ -109,7 +114,7 @@ class MastodonService {
       queryParameters: {
         'client_id': clientId,
         'scope': AppConstants.oauthScopes,
-        'redirect_uri': AppConstants.oauthRedirectUri,
+        'redirect_uri': redirectUri,
         'response_type': 'code',
       },
     );
@@ -121,6 +126,7 @@ class MastodonService {
     required String clientId,
     required String clientSecret,
     required String code,
+    String redirectUri = AppConstants.oauthRedirectUri,
   }) async {
     final decoded = await _postJsonObject(
       instanceUrl: instanceUrl,
@@ -128,7 +134,7 @@ class MastodonService {
       body: {
         'client_id': clientId,
         'client_secret': clientSecret,
-        'redirect_uri': AppConstants.oauthRedirectUri,
+        'redirect_uri': redirectUri,
         'grant_type': 'authorization_code',
         'code': code,
         'scope': AppConstants.oauthScopes,

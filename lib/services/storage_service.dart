@@ -152,9 +152,13 @@ class StorageService {
   /// re-authenticating reuses the existing registered Mastodon application
   /// instead of creating duplicate rows in the server's `oauth_applications` table.
   Future<OAuthAppCredentials?> loadOAuthAppCredentials(
-    String instanceUrl,
-  ) async {
-    final key = _instanceKey(_keyOAuthAppsPrefix, instanceUrl);
+    String instanceUrl, {
+    String redirectUri = '',
+  }) async {
+    final key = _instanceKey(
+      _keyOAuthAppsPrefix,
+      redirectUri.isEmpty ? instanceUrl : '$instanceUrl|$redirectUri',
+    );
     final raw = await _readSecret(key);
     if (raw == null || raw.isEmpty) return null;
     try {
@@ -177,10 +181,14 @@ class StorageService {
 
   Future<void> saveOAuthAppCredentials(
     String instanceUrl,
-    OAuthAppCredentials creds,
-  ) async {
+    OAuthAppCredentials creds, {
+    String redirectUri = '',
+  }) async {
     if (creds.clientId.isEmpty || creds.clientSecret.isEmpty) return;
-    final key = _instanceKey(_keyOAuthAppsPrefix, instanceUrl);
+    final key = _instanceKey(
+      _keyOAuthAppsPrefix,
+      redirectUri.isEmpty ? instanceUrl : '$instanceUrl|$redirectUri',
+    );
     await _writeSecret(
       key,
       jsonEncode({
@@ -190,8 +198,14 @@ class StorageService {
     );
   }
 
-  Future<void> clearOAuthAppCredentials(String instanceUrl) async {
-    final key = _instanceKey(_keyOAuthAppsPrefix, instanceUrl);
+  Future<void> clearOAuthAppCredentials(
+    String instanceUrl, {
+    String redirectUri = '',
+  }) async {
+    final key = _instanceKey(
+      _keyOAuthAppsPrefix,
+      redirectUri.isEmpty ? instanceUrl : '$instanceUrl|$redirectUri',
+    );
     await _deleteSecret(key);
   }
 

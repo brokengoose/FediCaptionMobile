@@ -23,6 +23,11 @@ class AppConstants {
   static const String oauthClientName = 'FediCaption Mobile';
   static const String oauthCallbackScheme = 'fedicaption';
   static const String oauthRedirectUri = '$oauthCallbackScheme://oauth-callback';
+  static const int desktopLoopbackOAuthPort = 43823;
+  static const String desktopLoopbackOAuthOrigin =
+      'http://127.0.0.1:$desktopLoopbackOAuthPort';
+  static const String desktopLoopbackOAuthRedirectUri =
+      '$desktopLoopbackOAuthOrigin/oauth-callback';
   static const String oauthScopes = 'read write follow push';
   static const String oauthWebsite = repositoryUrl;
 

@@ -309,23 +309,73 @@ class AppController extends ChangeNotifier {
     _safeNotify();
 
     try {
-      // Reuse cached OAuth app credentials per instance to avoid creating
-      // orphaned duplicate rows in Mastodon's oauth_applications table.
-      var appCreds = await storage.loadOAuthAppCredentials(instanceUrl);
-      var usedCachedApp = appCreds != null;
+      // On Windows & Linux, launch the user's default system browser with a
+      // temporary RFC 8252 loopback listener (no Edge WebView2 required).
+      final useSystemBrowserLoopback = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.linux);
+      final redirectUri = useSystemBrowserLoopback
+          ? AppConstants.desktopLoopbackOAuthRedirectUri
+          : AppConstants.oauthRedirectUri;
+      final callbackScheme = useSystemBrowserLoopback
+          ? AppConstants.desktopLoopbackOAuthOrigin
+          : AppConstants.oauthCallbackScheme;
+      final authOptions = useSystemBrowserLoopback
+          ? const FlutterWebAuth2Options(
+              useWebview: false,
+              landingPageHtml: '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FediCaption Sign-In Complete</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #14171f; color: #f8f9fc; }
+    main { max-width: 440px; padding: 32px; border-radius: 14px; background: #1e2330; text-align: center; }
+    h1 { font-size: 1.4rem; margin: 0 0 12px; }
+    p { margin: 0; color: #c7cede; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Signed in to FediCaption</h1>
+    <p>Authorization succeeded. You can close this browser tab and return to FediCaption.</p>
+  </main>
+</body>
+</html>
+''',
+            )
+          : const FlutterWebAuth2Options();
+
+      // Reuse cached OAuth app credentials per instance + redirect URI to avoid
+      // creating orphaned duplicate rows in Mastodon's oauth_applications table.
+      var appCreds = await storage.loadOAuthAppCredentials(
+        instanceUrl,
+        redirectUri: redirectUri,
+      );
+      final usedCachedApp = appCreds != null;
       if (appCreds == null) {
-        appCreds = await mastodon.registerOAuthApp(instanceUrl);
-        await storage.saveOAuthAppCredentials(instanceUrl, appCreds);
+        appCreds = await mastodon.registerOAuthApp(
+          instanceUrl,
+          redirectUri: redirectUri,
+        );
+        await storage.saveOAuthAppCredentials(
+          instanceUrl,
+          appCreds,
+          redirectUri: redirectUri,
+        );
       }
 
       final authUri = mastodon.buildAuthorizeUrl(
         instanceUrl: instanceUrl,
         clientId: appCreds.clientId,
+        redirectUri: redirectUri,
       );
 
       final callbackResult = await FlutterWebAuth2.authenticate(
         url: authUri.toString(),
-        callbackUrlScheme: AppConstants.oauthCallbackScheme,
+        callbackUrlScheme: callbackScheme,
+        options: authOptions,
       );
 
       final callbackUri = Uri.parse(callbackResult);
@@ -344,12 +394,16 @@ class AppController extends ChangeNotifier {
           clientId: appCreds.clientId,
           clientSecret: appCreds.clientSecret,
           code: code,
+          redirectUri: redirectUri,
         );
       } catch (e) {
         // If a cached OAuth app was revoked server-side, clear it so the next
         // attempt registers cleanly.
         if (usedCachedApp) {
-          await storage.clearOAuthAppCredentials(instanceUrl);
+          await storage.clearOAuthAppCredentials(
+            instanceUrl,
+            redirectUri: redirectUri,
+          );
         }
         rethrow;
       }
