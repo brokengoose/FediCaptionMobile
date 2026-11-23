@@ -3,27 +3,59 @@
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_settings.dart';
 
-/// Manages secure storage of tokens/API keys (iOS Keychain / Android Keystore)
+/// Manages secure storage of tokens/API keys (iOS Keychain / Android Keystore;
+/// sandboxed per-app preferences on macOS to avoid ad-hoc Keychain prompt loops)
 /// and non-sensitive user preferences.
 class StorageService {
   StorageService({
     FlutterSecureStorage? secureStorage,
-  }) : _secureStorage = secureStorage ??
+  })  : _hasCustomSecureStorage = secureStorage != null,
+        _secureStorage = secureStorage ??
             const FlutterSecureStorage(
               iOptions: IOSOptions(
                 accessibility: KeychainAccessibility.first_unlock_this_device,
               ),
-              mOptions: MacOsOptions(
-                usesDataProtectionKeychain: false,
-              ),
             );
 
+  final bool _hasCustomSecureStorage;
   final FlutterSecureStorage _secureStorage;
+
+  bool get _useMacOsSandboxedPrefs =>
+      !_hasCustomSecureStorage &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  Future<String?> _readSecret(String key) async {
+    if (_useMacOsSandboxedPrefs) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('macos_secret_$key');
+    }
+    return _secureStorage.read(key: key);
+  }
+
+  Future<void> _writeSecret(String key, String value) async {
+    if (_useMacOsSandboxedPrefs) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('macos_secret_$key', value);
+      return;
+    }
+    await _secureStorage.write(key: key, value: value);
+  }
+
+  Future<void> _deleteSecret(String key) async {
+    if (_useMacOsSandboxedPrefs) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('macos_secret_$key');
+      return;
+    }
+    await _secureStorage.delete(key: key);
+  }
 
   static const String _keySettings = 'fedicaption_settings_v1';
   static const String _keyInstanceUrl = 'mastodon_instance_url';
@@ -57,8 +89,8 @@ class StorageService {
   }
 
   Future<MastodonSession?> loadSession() async {
-    final instanceUrl = await _secureStorage.read(key: _keyInstanceUrl);
-    final accessToken = await _secureStorage.read(key: _keyAccessToken);
+    final instanceUrl = await _readSecret(_keyInstanceUrl);
+    final accessToken = await _readSecret(_keyAccessToken);
     if (instanceUrl == null ||
         instanceUrl.isEmpty ||
         accessToken == null ||
@@ -72,20 +104,20 @@ class StorageService {
   }
 
   Future<void> saveSession(MastodonSession session) async {
-    await _secureStorage.write(key: _keyInstanceUrl, value: session.instanceUrl);
-    await _secureStorage.write(key: _keyAccessToken, value: session.accessToken);
+    await _writeSecret(_keyInstanceUrl, session.instanceUrl);
+    await _writeSecret(_keyAccessToken, session.accessToken);
   }
 
   Future<void> clearSession() async {
-    await _secureStorage.delete(key: _keyInstanceUrl);
-    await _secureStorage.delete(key: _keyAccessToken);
+    await _deleteSecret(_keyInstanceUrl);
+    await _deleteSecret(_keyAccessToken);
   }
 
   Future<AiCredentials> loadAiCredentials() async {
-    final gemini = await _secureStorage.read(key: _keyGeminiKey) ?? '';
-    final openAi = await _secureStorage.read(key: _keyOpenAiKey) ?? '';
-    final anthropic = await _secureStorage.read(key: _keyAnthropicKey) ?? '';
-    final local = await _secureStorage.read(key: _keyLocalKey) ?? '';
+    final gemini = await _readSecret(_keyGeminiKey) ?? '';
+    final openAi = await _readSecret(_keyOpenAiKey) ?? '';
+    final anthropic = await _readSecret(_keyAnthropicKey) ?? '';
+    final local = await _readSecret(_keyLocalKey) ?? '';
     return AiCredentials(
       geminiApiKey: gemini,
       openAiApiKey: openAi,
@@ -95,13 +127,10 @@ class StorageService {
   }
 
   Future<void> saveAiCredentials(AiCredentials creds) async {
-    await _secureStorage.write(key: _keyGeminiKey, value: creds.geminiApiKey);
-    await _secureStorage.write(key: _keyOpenAiKey, value: creds.openAiApiKey);
-    await _secureStorage.write(
-      key: _keyAnthropicKey,
-      value: creds.anthropicApiKey,
-    );
-    await _secureStorage.write(key: _keyLocalKey, value: creds.localApiKey);
+    await _writeSecret(_keyGeminiKey, creds.geminiApiKey);
+    await _writeSecret(_keyOpenAiKey, creds.openAiApiKey);
+    await _writeSecret(_keyAnthropicKey, creds.anthropicApiKey);
+    await _writeSecret(_keyLocalKey, creds.localApiKey);
   }
 
   Future<String?> loadDismissedUpdateVersion() async {
