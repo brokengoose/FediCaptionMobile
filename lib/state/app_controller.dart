@@ -56,8 +56,12 @@ class AppController extends ChangeNotifier {
     _ownsAiProvider = aiProviderService == null;
     aiProvider = aiProviderService ??
         AiProviderService(onDeviceAiService: onDeviceAi);
-    translation =
-        translationService ?? TranslationService(onDeviceAi: onDeviceAi);
+    translation = translationService ??
+        TranslationService(
+          onDeviceAi: onDeviceAi,
+          aiProvider: aiProvider,
+          mastodon: mastodon,
+        );
     quoteCache = QuoteCacheController(mastodon: mastodon);
     timelineCache = TimelineCacheController();
     biasChecker = BiasCheckService(

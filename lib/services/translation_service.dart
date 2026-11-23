@@ -1,10 +1,17 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 
+import '../models/ai_models.dart';
+import '../models/app_settings.dart';
+import '../models/mastodon_models.dart';
+import 'ai_provider_service.dart';
+import 'mastodon_service.dart';
 import 'on_device_ai_service.dart';
 
 /// Result of translating a Mastodon post (including optional Content Warning
@@ -50,13 +57,17 @@ typedef AppleSupportCheckCallback = Future<bool> Function();
 /// Callback type for detecting a text's language via native OS APIs.
 typedef NativeLanguageDetectCallback = Future<String?> Function(String text);
 
-/// On-device post translation service prioritizing built-in OS on-device AI
+/// Post translation service prioritizing built-in OS on-device AI
 /// (Apple Foundation Models / Google Gemini Nano), with automatic fallback to:
 /// - Apple's `Translation` framework on iOS 18+ and macOS 15+
 /// - `google_mlkit_translation` on Android (and iOS fallback when needed)
+/// - The user's configured AI provider (Gemini / OpenAI / Anthropic / Local AI)
+/// - Mastodon's built-in server translation API (`POST /api/v1/statuses/:id/translate`)
 class TranslationService {
   TranslationService({
     required OnDeviceAiService onDeviceAi,
+    AiProviderService? aiProvider,
+    MastodonService? mastodon,
     TargetPlatform? platformOverride,
     bool? isWebOverride,
     String Function()? osLanguageProvider,
@@ -65,6 +76,8 @@ class TranslationService {
     AppleTranslateCallback? appleTranslate,
     MlKitTranslateCallback? mlKitTranslate,
   })  : _onDeviceAi = onDeviceAi,
+        _aiProvider = aiProvider,
+        _mastodon = mastodon,
         _platformOverride = platformOverride,
         _isWebOverride = isWebOverride,
         _osLanguageProvider = osLanguageProvider,
@@ -78,6 +91,8 @@ class TranslationService {
   );
 
   final OnDeviceAiService _onDeviceAi;
+  final AiProviderService? _aiProvider;
+  final MastodonService? _mastodon;
   final TargetPlatform? _platformOverride;
   final bool? _isWebOverride;
   final String Function()? _osLanguageProvider;
@@ -129,28 +144,86 @@ class TranslationService {
     return _languageNames[normalized] ?? normalized.toUpperCase();
   }
 
-  /// Returns `true` when the current platform supports on-device translation
-  /// via on-device AI, Apple's Translation framework, or Google ML Kit.
-  Future<bool> isTranslationSupported() async {
+  /// Returns `true` when [settings] and [credentials] specify an external or
+  /// local-network AI provider ready for text translation.
+  static bool hasConfiguredAiProvider(
+    AppSettings? settings,
+    AiCredentials? credentials,
+  ) {
+    if (settings == null || credentials == null) return false;
+    switch (settings.activeProvider) {
+      case AiProviderType.gemini:
+        return credentials.geminiApiKey.trim().isNotEmpty;
+      case AiProviderType.openai:
+        final base = settings.openAiBaseUrl.trim();
+        return credentials.openAiApiKey.trim().isNotEmpty ||
+            (base.isNotEmpty && !base.contains('api.openai.com'));
+      case AiProviderType.anthropic:
+        return credentials.anthropicApiKey.trim().isNotEmpty;
+      case AiProviderType.local:
+        return settings.localBaseUrl.trim().isNotEmpty &&
+            settings.localModel.trim().isNotEmpty;
+      case AiProviderType.onDevice:
+      case AiProviderType.none:
+        return false;
+    }
+  }
+
+  static String _configuredAiEngineName(AppSettings settings) {
+    switch (settings.activeProvider) {
+      case AiProviderType.gemini:
+        return 'Google Gemini';
+      case AiProviderType.openai:
+        final base = settings.openAiBaseUrl.trim();
+        return (base.isNotEmpty && !base.contains('api.openai.com'))
+            ? 'OpenAI-Compatible'
+            : 'OpenAI';
+      case AiProviderType.anthropic:
+        return 'Anthropic Claude';
+      case AiProviderType.local:
+        return 'Local AI (${settings.localModel.trim()})';
+      case AiProviderType.onDevice:
+      case AiProviderType.none:
+        return settings.activeProvider.displayName;
+    }
+  }
+
+  /// Returns `true` when any translation backend is available (on-device OS AI,
+  /// Apple Translation, Google ML Kit, a configured AI provider, or the
+  /// connected Mastodon server's translation API).
+  Future<bool> isTranslationSupported({
+    AppSettings? settings,
+    AiCredentials? credentials,
+    MastodonSession? session,
+    InstanceLimits? instanceLimits,
+  }) async {
     if (_isWeb) return false;
     if (_isAndroid || _isIos) return true;
 
-    if (_platform == TargetPlatform.macOS) {
-      if (await _isAppleTranslationSupported()) return true;
-      try {
-        final aiStatus = await _onDeviceAi.checkStatus();
-        return aiStatus.isPromptReady || aiStatus.isPromptDownloadable;
-      } catch (_) {
-        return false;
-      }
+    if (_platform == TargetPlatform.macOS &&
+        await _isAppleTranslationSupported()) {
+      return true;
     }
 
     try {
       final aiStatus = await _onDeviceAi.checkStatus();
-      return aiStatus.isPromptReady;
+      final onDeviceReady = _platform == TargetPlatform.macOS
+          ? (aiStatus.isPromptReady || aiStatus.isPromptDownloadable)
+          : aiStatus.isPromptReady;
+      if (onDeviceReady) return true;
     } catch (_) {
-      return false;
+      // Fall through to configured AI / Mastodon server checks.
     }
+
+    if (_aiProvider != null && hasConfiguredAiProvider(settings, credentials)) {
+      return true;
+    }
+    if (_mastodon != null &&
+        session != null &&
+        (instanceLimits?.translationEnabled ?? false)) {
+      return true;
+    }
+    return false;
   }
 
   /// Determines the post's language code from Mastodon's [declaredLanguage]
@@ -190,12 +263,19 @@ class TranslationService {
   /// 1. On-Device AI (`Apple Foundation Models` / `Google Gemini Nano`) when ready
   /// 2. Apple's `Translation` framework on iOS 18+ and macOS 15+
   /// 3. `google_mlkit_translation` on Android (and iOS fallback)
+  /// 4. Configured AI provider (Gemini, OpenAI, Anthropic, or Local AI / Ollama)
+  /// 5. Connected Mastodon server's `POST /api/v1/statuses/:id/translate` API
   Future<PostTranslationResult> translatePost({
     required String text,
     String? spoilerText,
     Map<String, String> altTexts = const {},
     required String sourceLanguage,
     String? targetLanguage,
+    String? statusId,
+    AppSettings? settings,
+    AiCredentials? credentials,
+    MastodonSession? session,
+    InstanceLimits? instanceLimits,
   }) async {
     final src = normalizeLanguageCode(sourceLanguage) ?? sourceLanguage.trim();
     final tgt = normalizeLanguageCode(targetLanguage) ?? currentOsLanguageCode();
@@ -210,135 +290,142 @@ class TranslationService {
       throw StateError('There is no text to translate in this post.');
     }
 
-    // 1. Primary: On-device AI (Apple Foundation Models / Gemini Nano) when ready.
+    // 1. Primary on mobile/Apple: OS On-device AI when ready.
     try {
       final aiStatus = await _onDeviceAi.checkStatus();
       if (aiStatus.isPromptReady) {
-        final translatedBody = trimmedText.isEmpty
-            ? ''
-            : await _translateWithOnDeviceAi(
-                text: trimmedText,
-                sourceLanguage: src,
-                targetLanguage: tgt,
-              );
-        final translatedCw = trimmedSpoiler.isEmpty
-            ? null
-            : await _translateWithOnDeviceAi(
-                text: trimmedSpoiler,
-                sourceLanguage: src,
-                targetLanguage: tgt,
-              );
-        final translatedAlts = <String, String>{};
-        for (final entry in cleanedAlts.entries) {
-          translatedAlts[entry.key] = await _translateWithOnDeviceAi(
-            text: entry.value,
-            sourceLanguage: src,
-            targetLanguage: tgt,
-          );
-        }
-        return PostTranslationResult(
-          translatedText: translatedBody,
-          translatedSpoiler: translatedCw,
-          translatedAltTexts: translatedAlts,
+        return await _translateFieldsWithRunner(
+          text: trimmedText,
+          spoilerText: trimmedSpoiler,
+          altTexts: cleanedAlts,
           sourceLanguage: src,
           targetLanguage: tgt,
           engineName: aiStatus.engineName,
+          translateField: (input) => _translateWithOnDeviceAi(
+            text: input,
+            sourceLanguage: src,
+            targetLanguage: tgt,
+          ),
         );
       }
     } catch (_) {
-      // Fall through to dedicated native on-device translation frameworks.
+      // Fall through to dedicated native translation frameworks or configured backends.
     }
 
     // 2. Fallback on iOS & macOS: Apple's Translation framework.
     Object? appleError;
-    if (_isApplePlatform) {
-      final supported = await _isAppleTranslationSupported();
-      if (supported) {
-        try {
-          final translatedBody = trimmedText.isEmpty
-              ? ''
-              : await _runAppleTranslate(
-                  text: trimmedText,
-                  sourceLanguage: src,
-                  targetLanguage: tgt,
-                );
-          final translatedCw = trimmedSpoiler.isEmpty
-              ? null
-              : await _runAppleTranslate(
-                  text: trimmedSpoiler,
-                  sourceLanguage: src,
-                  targetLanguage: tgt,
-                );
-          final translatedAlts = <String, String>{};
-          for (final entry in cleanedAlts.entries) {
-            translatedAlts[entry.key] = await _runAppleTranslate(
-              text: entry.value,
-              sourceLanguage: src,
-              targetLanguage: tgt,
-            );
-          }
-          return PostTranslationResult(
-            translatedText: translatedBody,
-            translatedSpoiler: translatedCw,
-            translatedAltTexts: translatedAlts,
+    if (_isApplePlatform && await _isAppleTranslationSupported()) {
+      try {
+        return await _translateFieldsWithRunner(
+          text: trimmedText,
+          spoilerText: trimmedSpoiler,
+          altTexts: cleanedAlts,
+          sourceLanguage: src,
+          targetLanguage: tgt,
+          engineName: 'Apple Translation',
+          translateField: (input) => _runAppleTranslate(
+            text: input,
             sourceLanguage: src,
             targetLanguage: tgt,
-            engineName: 'Apple Translation',
-          );
-        } catch (e) {
-          appleError = e;
-          // On macOS there is no ML Kit fallback; on iOS fall through to ML Kit.
-          if (!_isIos) {
-            throw StateError(_formatFriendlyError(e));
-          }
-        }
+          ),
+        );
+      } catch (e) {
+        appleError = e;
       }
     }
 
-    // 3. Fallback on Android (and iOS if Apple Translation was unavailable/unsupported):
+    // 3. Fallback on Android (and iOS if Apple Translation was unavailable/failed):
     //    google_mlkit_translation.
+    Object? mlKitError;
     if (_isAndroid || _isIos) {
       try {
-        final translatedBody = trimmedText.isEmpty
-            ? ''
-            : await _runMlKitTranslate(
-                text: trimmedText,
-                sourceLanguage: src,
-                targetLanguage: tgt,
-              );
-        final translatedCw = trimmedSpoiler.isEmpty
-            ? null
-            : await _runMlKitTranslate(
-                text: trimmedSpoiler,
-                sourceLanguage: src,
-                targetLanguage: tgt,
-              );
-        final translatedAlts = <String, String>{};
-        for (final entry in cleanedAlts.entries) {
-          translatedAlts[entry.key] = await _runMlKitTranslate(
-            text: entry.value,
-            sourceLanguage: src,
-            targetLanguage: tgt,
-          );
-        }
-        return PostTranslationResult(
-          translatedText: translatedBody,
-          translatedSpoiler: translatedCw,
-          translatedAltTexts: translatedAlts,
+        return await _translateFieldsWithRunner(
+          text: trimmedText,
+          spoilerText: trimmedSpoiler,
+          altTexts: cleanedAlts,
           sourceLanguage: src,
           targetLanguage: tgt,
           engineName: 'ML Kit Translation',
+          translateField: (input) => _runMlKitTranslate(
+            text: input,
+            sourceLanguage: src,
+            targetLanguage: tgt,
+          ),
         );
       } catch (e) {
-        throw StateError(_formatFriendlyError(e));
+        mlKitError = e;
       }
     }
 
-    if (appleError != null) {
-      throw StateError(_formatFriendlyError(appleError));
+    // 4. Preferred desktop backend (and extra fallback): user's configured AI provider.
+    Object? configuredAiError;
+    if (_aiProvider != null && hasConfiguredAiProvider(settings, credentials)) {
+      try {
+        return await _translateWithConfiguredAi(
+          settings: settings!,
+          credentials: credentials!,
+          text: trimmedText,
+          spoilerText: trimmedSpoiler,
+          altTexts: cleanedAlts,
+          sourceLanguage: src,
+          targetLanguage: tgt,
+        );
+      } catch (e) {
+        configuredAiError = e;
+      }
+    }
+
+    // 5. Final fallback: Mastodon server POST /api/v1/statuses/:id/translate.
+    Object? mastodonError;
+    final cleanStatusId = (statusId ?? '').trim();
+    if (_mastodon != null &&
+        session != null &&
+        cleanStatusId.isNotEmpty &&
+        (instanceLimits?.translationEnabled ?? false)) {
+      try {
+        return await _translateWithMastodonServer(
+          session: session,
+          statusId: cleanStatusId,
+          sourceLanguage: src,
+          targetLanguage: tgt,
+        );
+      } catch (e) {
+        mastodonError = e;
+      }
+    }
+
+    final failure = configuredAiError ?? mastodonError ?? mlKitError ?? appleError;
+    if (failure != null) {
+      throw StateError(_formatFriendlyError(failure));
     }
     throw StateError(
-      'On-device translation is not supported on this device.',
+      'Translation is not supported on this device. Configure an AI provider in Settings or use a Mastodon server with translation enabled.',
+    );
+  }
+
+  Future<PostTranslationResult> _translateFieldsWithRunner({
+    required String text,
+    required String spoilerText,
+    required Map<String, String> altTexts,
+    required String sourceLanguage,
+    required String targetLanguage,
+    required String engineName,
+    required Future<String> Function(String input) translateField,
+  }) async {
+    final translatedBody = text.isEmpty ? '' : await translateField(text);
+    final translatedCw =
+        spoilerText.isEmpty ? null : await translateField(spoilerText);
+    final translatedAlts = <String, String>{};
+    for (final entry in altTexts.entries) {
+      translatedAlts[entry.key] = await translateField(entry.value);
+    }
+    return PostTranslationResult(
+      translatedText: translatedBody,
+      translatedSpoiler: translatedCw,
+      translatedAltTexts: translatedAlts,
+      sourceLanguage: sourceLanguage,
+      targetLanguage: targetLanguage,
+      engineName: engineName,
     );
   }
 
@@ -359,6 +446,12 @@ class TranslationService {
     }
   }
 
+  String _buildTranslationSystemPrompt(String srcName, String tgtName) {
+    return 'You are a precise translator. Translate the user\'s social media post from $srcName into $tgtName. '
+        'Preserve meaning, tone, @mentions, #hashtags, URLs, and line breaks. '
+        'Return ONLY the translated text with no preamble, notes, or surrounding quotation marks.';
+  }
+
   Future<String> _translateWithOnDeviceAi({
     required String text,
     required String sourceLanguage,
@@ -367,13 +460,166 @@ class TranslationService {
     final srcName = languageDisplayName(sourceLanguage);
     final tgtName = languageDisplayName(targetLanguage);
     final raw = await _onDeviceAi.runPrompt(
-      systemPrompt:
-          'You are a precise translator. Translate the user\'s social media post from $srcName into $tgtName. '
-          'Preserve meaning, tone, @mentions, #hashtags, URLs, and line breaks. '
-          'Return ONLY the translated text with no preamble, notes, or surrounding quotation marks.',
+      systemPrompt: _buildTranslationSystemPrompt(srcName, tgtName),
       userPrompt: text,
     );
     return _stripWrappingQuotes(raw.trim());
+  }
+
+  Future<String> _runConfiguredAiSinglePrompt({
+    required AppSettings settings,
+    required AiCredentials credentials,
+    required String srcName,
+    required String tgtName,
+    required String input,
+  }) async {
+    final raw = await _aiProvider!.runMultimodalPrompt(
+      settings: settings,
+      credentials: credentials,
+      systemPrompt: _buildTranslationSystemPrompt(srcName, tgtName),
+      userPrompt: input,
+    );
+    final cleaned = _stripWrappingQuotes(raw.trim());
+    if (cleaned.isEmpty) {
+      throw StateError('AI provider returned an empty translation.');
+    }
+    return cleaned;
+  }
+
+  Future<PostTranslationResult> _translateWithConfiguredAi({
+    required AppSettings settings,
+    required AiCredentials credentials,
+    required String text,
+    required String spoilerText,
+    required Map<String, String> altTexts,
+    required String sourceLanguage,
+    required String targetLanguage,
+  }) async {
+    final srcName = languageDisplayName(sourceLanguage);
+    final tgtName = languageDisplayName(targetLanguage);
+    final engineName = _configuredAiEngineName(settings);
+
+    final fields = <String, String>{};
+    if (text.isNotEmpty) fields['body'] = text;
+    if (spoilerText.isNotEmpty) fields['spoiler'] = spoilerText;
+    final altKeyToMediaId = <String, String>{};
+    var altIdx = 0;
+    for (final entry in altTexts.entries) {
+      final jsonKey = 'alt_${altIdx++}';
+      fields[jsonKey] = entry.value;
+      altKeyToMediaId[jsonKey] = entry.key;
+    }
+
+    if (fields.length == 1) {
+      return _translateFieldsWithRunner(
+        text: text,
+        spoilerText: spoilerText,
+        altTexts: altTexts,
+        sourceLanguage: sourceLanguage,
+        targetLanguage: targetLanguage,
+        engineName: engineName,
+        translateField: (input) => _runConfiguredAiSinglePrompt(
+          settings: settings,
+          credentials: credentials,
+          srcName: srcName,
+          tgtName: tgtName,
+          input: input,
+        ),
+      );
+    }
+
+    final raw = await _aiProvider!.runMultimodalPrompt(
+      settings: settings,
+      credentials: credentials,
+      systemPrompt:
+          'You are a precise translator. Translate every string value in the provided JSON object from $srcName into $tgtName. '
+          'Preserve meaning, tone, @mentions, #hashtags, URLs, and line breaks. '
+          'Return ONLY a valid JSON object containing the exact same keys (${fields.keys.join(', ')}) with their translated string values.',
+      userPrompt: jsonEncode(fields),
+      expectJson: true,
+    );
+
+    final decoded = _tryDecodeJsonObject(raw) ?? const <String, dynamic>{};
+    final resolved = <String, String>{};
+    for (final entry in fields.entries) {
+      final candidate = decoded[entry.key];
+      if (candidate is String && candidate.trim().isNotEmpty) {
+        resolved[entry.key] = _stripWrappingQuotes(candidate.trim());
+      } else {
+        resolved[entry.key] = await _runConfiguredAiSinglePrompt(
+          settings: settings,
+          credentials: credentials,
+          srcName: srcName,
+          tgtName: tgtName,
+          input: entry.value,
+        );
+      }
+    }
+
+    return PostTranslationResult(
+      translatedText: resolved['body'] ?? '',
+      translatedSpoiler: spoilerText.isEmpty ? null : resolved['spoiler'],
+      translatedAltTexts: {
+        for (final pair in altKeyToMediaId.entries)
+          pair.value: resolved[pair.key] ?? '',
+      },
+      sourceLanguage: sourceLanguage,
+      targetLanguage: targetLanguage,
+      engineName: engineName,
+    );
+  }
+
+  Future<PostTranslationResult> _translateWithMastodonServer({
+    required MastodonSession session,
+    required String statusId,
+    required String sourceLanguage,
+    required String targetLanguage,
+  }) async {
+    final res = await _mastodon!.translateStatus(
+      instanceUrl: session.instanceUrl,
+      accessToken: session.accessToken,
+      statusId: statusId,
+      targetLanguage: targetLanguage,
+    );
+    final translatedBody = res.plainContent;
+    final translatedCw =
+        res.spoilerText.trim().isEmpty ? null : res.spoilerText.trim();
+    final translatedAlts = res.mediaDescriptions;
+    if (translatedBody.isEmpty &&
+        translatedCw == null &&
+        translatedAlts.isEmpty) {
+      throw StateError('Mastodon translation returned an empty response.');
+    }
+    final detectedSrc =
+        normalizeLanguageCode(res.detectedSourceLanguage) ?? sourceLanguage;
+    final provider = res.provider.trim();
+    return PostTranslationResult(
+      translatedText: translatedBody,
+      translatedSpoiler: translatedCw,
+      translatedAltTexts: translatedAlts,
+      sourceLanguage: detectedSrc,
+      targetLanguage: targetLanguage,
+      engineName: provider.isNotEmpty ? 'Mastodon ($provider)' : 'Mastodon',
+    );
+  }
+
+  static Map<String, dynamic>? _tryDecodeJsonObject(String raw) {
+    var trimmed = raw.trim();
+    if (trimmed.startsWith('```')) {
+      trimmed = trimmed
+          .replaceFirst(RegExp(r'^```(?:json)?\s*', caseSensitive: false), '')
+          .replaceFirst(RegExp(r'\s*```$'), '')
+          .trim();
+    }
+    final start = trimmed.indexOf('{');
+    final end = trimmed.lastIndexOf('}');
+    if (start == -1 || end <= start) return null;
+    try {
+      final decoded = jsonDecode(trimmed.substring(start, end + 1));
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<String> _runAppleTranslate({

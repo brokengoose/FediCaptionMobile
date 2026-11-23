@@ -1,7 +1,10 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:convert';
+
 import 'package:fedicaption_mobile/models/app_settings.dart';
+import 'package:fedicaption_mobile/models/mastodon_models.dart';
 import 'package:fedicaption_mobile/services/storage_service.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -101,6 +104,48 @@ void main() {
         // AI credentials remain intact after session clear.
         final credsAfterSessionClear = await storage.loadAiCredentials();
         expect(credsAfterSessionClear.geminiApiKey, 'gem-key');
+      },
+    );
+
+    test(
+      'persists InstanceLimits.translationEnabled and treats legacy cache without key as miss',
+      () async {
+        final storage = StorageService(
+          secureStorage: _FailingSecureStorage(),
+          enableLinuxKeyringFallback: true,
+        );
+
+        const limits = InstanceLimits(
+          maxCharacters: 800,
+          maxMediaAttachments: 4,
+          altTextLimit: 1500,
+          instanceTitle: 'infosec.exchange',
+          translationEnabled: true,
+        );
+        await storage.saveCachedInstanceLimits('https://infosec.exchange', limits);
+
+        final loaded =
+            await storage.loadCachedInstanceLimits('https://infosec.exchange');
+        expect(loaded, isNotNull);
+        expect(loaded!.maxCharacters, 800);
+        expect(loaded.translationEnabled, isTrue);
+
+        // Legacy entry without 'translation_enabled' triggers a fresh fetch.
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'instance_limits_v1_https___mastodon_social',
+          jsonEncode({
+            'fetched_at_ms': DateTime.now().millisecondsSinceEpoch,
+            'max_characters': 500,
+            'max_media_attachments': 4,
+            'alt_text_limit': 1500,
+            'instance_title': 'Mastodon',
+          }),
+        );
+        expect(
+          await storage.loadCachedInstanceLimits('https://mastodon.social'),
+          isNull,
+        );
       },
     );
   });

@@ -138,7 +138,12 @@ class _StatusCardState extends State<StatusCard> {
     if (combinedText.isEmpty) return;
 
     final translation = widget.app.translation;
-    final supported = await translation.isTranslationSupported();
+    final supported = await translation.isTranslationSupported(
+      settings: widget.app.settings,
+      credentials: widget.app.credentials,
+      session: widget.app.session,
+      instanceLimits: widget.app.instanceLimits,
+    );
     if (!mounted || !supported) return;
 
     final detected = await translation.detectPostLanguage(
@@ -182,6 +187,11 @@ class _StatusCardState extends State<StatusCard> {
         altTexts: altTexts,
         sourceLanguage: sourceLang,
         targetLanguage: targetLang,
+        statusId: target.id,
+        settings: widget.app.settings,
+        credentials: widget.app.credentials,
+        session: widget.app.session,
+        instanceLimits: widget.app.instanceLimits,
       );
       if (!mounted) return;
       setState(() {

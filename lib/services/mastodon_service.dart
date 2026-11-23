@@ -695,6 +695,25 @@ class MastodonService {
         errorContext: 'Failed to update bookmark',
       );
 
+  /// Translates a status via the connected Mastodon instance's built-in
+  /// translation API (`POST /api/v1/statuses/:id/translate`).
+  Future<MastodonStatusTranslation> translateStatus({
+    required String instanceUrl,
+    required String accessToken,
+    required String statusId,
+    required String targetLanguage,
+  }) async {
+    final decoded = await _postJsonObject(
+      instanceUrl: instanceUrl,
+      path: '/api/v1/statuses/$statusId/translate',
+      accessToken: accessToken,
+      body: {'lang': targetLanguage},
+      errorContext: 'Failed to translate post via Mastodon server',
+      timeout: const Duration(seconds: 20),
+    );
+    return MastodonStatusTranslation.fromJson(decoded);
+  }
+
   /// Downloads remote image/preview bytes for on-demand timeline AI descriptions
   /// or re-scanning existing media while editing a post, reusing the local disk
   /// cache whenever possible.

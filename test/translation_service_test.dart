@@ -1,16 +1,46 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:convert';
+
 import 'package:edge_gen_ai/edge_gen_ai.dart';
 import 'package:fedicaption_mobile/core/theme/app_theme.dart';
+import 'package:fedicaption_mobile/models/ai_models.dart';
+import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
+import 'package:fedicaption_mobile/services/ai_provider_service.dart';
+import 'package:fedicaption_mobile/services/mastodon_service.dart';
 import 'package:fedicaption_mobile/services/on_device_ai_service.dart';
+import 'package:fedicaption_mobile/services/storage_service.dart';
 import 'package:fedicaption_mobile/services/translation_service.dart';
 import 'package:fedicaption_mobile/state/app_controller.dart';
 import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:material_ui/material_ui.dart';
+
+class _InMemoryStorageService extends StorageService {
+  AppSettings _settings = const AppSettings();
+  AiCredentials _creds = const AiCredentials();
+
+  @override
+  Future<AppSettings> loadSettings() async => _settings;
+
+  @override
+  Future<void> saveSettings(AppSettings settings) async {
+    _settings = settings;
+  }
+
+  @override
+  Future<AiCredentials> loadAiCredentials() async => _creds;
+
+  @override
+  Future<void> saveAiCredentials(AiCredentials creds) async {
+    _creds = creds;
+  }
+}
 
 class _FakeOnDeviceAiService extends OnDeviceAiService {
   _FakeOnDeviceAiService({
@@ -388,6 +418,387 @@ void main() {
 
         expect(find.textContaining('Translate to'), findsNothing);
         expect(find.textContaining('Written in'), findsNothing);
+      },
+    );
+  });
+
+  group('TranslationService Linux/Windows AI + Mastodon backends', () {
+    const linuxUnavailableAi = OnDeviceAiStatus(
+      promptAvailability: EdgeGenAIAvailability.unavailable,
+      imageDescriptionAvailability: EdgeGenAIAvailability.unavailable,
+      engineName: 'Unavailable',
+    );
+    const mastodonSession = MastodonSession(
+      instanceUrl: 'https://infosec.exchange',
+      accessToken: 'tok-1',
+    );
+
+    test(
+      'isTranslationSupported checks configured AI and Mastodon server translation on Linux',
+      () async {
+        final fakeAi = _FakeOnDeviceAiService(status: linuxUnavailableAi);
+        final aiService = AiProviderService(
+          client: MockClient((_) async => http.Response('{}', 200)),
+          onDeviceAiService: fakeAi,
+        );
+        final mastodonService = MastodonService(
+          client: MockClient((_) async => http.Response('{}', 200)),
+        );
+        final translation = TranslationService(
+          onDeviceAi: fakeAi,
+          aiProvider: aiService,
+          mastodon: mastodonService,
+          platformOverride: TargetPlatform.linux,
+          isWebOverride: false,
+        );
+
+        expect(
+          await translation.isTranslationSupported(
+            settings: const AppSettings(activeProvider: AiProviderType.none),
+            credentials: const AiCredentials(),
+            session: mastodonSession,
+            instanceLimits: const InstanceLimits(translationEnabled: false),
+          ),
+          isFalse,
+        );
+
+        expect(
+          await translation.isTranslationSupported(
+            settings: const AppSettings(activeProvider: AiProviderType.gemini),
+            credentials: const AiCredentials(geminiApiKey: 'gem-123'),
+            session: mastodonSession,
+            instanceLimits: const InstanceLimits(translationEnabled: false),
+          ),
+          isTrue,
+        );
+
+        expect(
+          await translation.isTranslationSupported(
+            settings: const AppSettings(activeProvider: AiProviderType.local),
+            credentials: const AiCredentials(),
+            session: null,
+            instanceLimits: const InstanceLimits(translationEnabled: false),
+          ),
+          isTrue,
+        );
+
+        expect(
+          await translation.isTranslationSupported(
+            settings: const AppSettings(activeProvider: AiProviderType.none),
+            credentials: const AiCredentials(),
+            session: mastodonSession,
+            instanceLimits: const InstanceLimits(translationEnabled: true),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'prefers configured AI provider over Mastodon server and translates body, spoiler, and alt-text',
+      () async {
+        final fakeAi = _FakeOnDeviceAiService(status: linuxUnavailableAi);
+        var aiCalls = 0;
+        var mastodonCalls = 0;
+
+        final aiService = AiProviderService(
+          onDeviceAiService: fakeAi,
+          client: MockClient((req) async {
+            aiCalls++;
+            expect(req.url.toString(), contains('generativelanguage.googleapis.com'));
+            return http.Response(
+              jsonEncode({
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {
+                          'text':
+                              '```json\n{"body": "Hello from Berlin", "spoiler": "Transit update", "alt_0": "A yellow subway train"}\n```',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+        final mastodonService = MastodonService(
+          client: MockClient((_) async {
+            mastodonCalls++;
+            return http.Response('{}', 200);
+          }),
+        );
+
+        final translation = TranslationService(
+          onDeviceAi: fakeAi,
+          aiProvider: aiService,
+          mastodon: mastodonService,
+          platformOverride: TargetPlatform.linux,
+          isWebOverride: false,
+          osLanguageProvider: () => 'en',
+        );
+
+        final result = await translation.translatePost(
+          text: 'Hallo aus Berlin',
+          spoilerText: 'Verkehrsupdate',
+          altTexts: {'att-1': 'Eine gelbe U-Bahn'},
+          sourceLanguage: 'de',
+          statusId: 'st-42',
+          settings: const AppSettings(activeProvider: AiProviderType.gemini),
+          credentials: const AiCredentials(geminiApiKey: 'gem-123'),
+          session: mastodonSession,
+          instanceLimits: const InstanceLimits(translationEnabled: true),
+        );
+
+        expect(aiCalls, 1);
+        expect(mastodonCalls, 0);
+        expect(result.engineName, 'Google Gemini');
+        expect(result.translatedText, 'Hello from Berlin');
+        expect(result.translatedSpoiler, 'Transit update');
+        expect(result.translatedAltTexts, {'att-1': 'A yellow subway train'});
+      },
+    );
+
+    test(
+      'falls back to Mastodon /api/v1/statuses/:id/translate when configured AI fails',
+      () async {
+        final fakeAi = _FakeOnDeviceAiService(status: linuxUnavailableAi);
+        var aiCalls = 0;
+        var mastodonCalls = 0;
+
+        final aiService = AiProviderService(
+          onDeviceAiService: fakeAi,
+          client: MockClient((_) async {
+            aiCalls++;
+            return http.Response('Connection refused', 503);
+          }),
+        );
+        final mastodonService = MastodonService(
+          client: MockClient((req) async {
+            mastodonCalls++;
+            expect(
+              req.url.toString(),
+              'https://infosec.exchange/api/v1/statuses/st-99/translate',
+            );
+            expect(jsonDecode(req.body), {'lang': 'en'});
+            return http.Response(
+              jsonEncode({
+                'content': '<p>Good evening everyone</p>',
+                'spoiler_text': 'Food photo',
+                'detected_source_language': 'ja',
+                'provider': 'DeepL.com',
+                'media_attachments': [
+                  {'id': 'm-7', 'description': 'A bowl of ramen'},
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+
+        final translation = TranslationService(
+          onDeviceAi: fakeAi,
+          aiProvider: aiService,
+          mastodon: mastodonService,
+          platformOverride: TargetPlatform.linux,
+          isWebOverride: false,
+          osLanguageProvider: () => 'en',
+        );
+
+        final result = await translation.translatePost(
+          text: 'こんばんは',
+          spoilerText: '飯テロ',
+          altTexts: {'m-7': 'ラーメン'},
+          sourceLanguage: 'ja',
+          statusId: 'st-99',
+          settings: const AppSettings(activeProvider: AiProviderType.local),
+          credentials: const AiCredentials(),
+          session: mastodonSession,
+          instanceLimits: const InstanceLimits(translationEnabled: true),
+        );
+
+        expect(aiCalls, greaterThanOrEqualTo(1));
+        expect(mastodonCalls, 1);
+        expect(result.engineName, 'Mastodon (DeepL.com)');
+        expect(result.translatedText, 'Good evening everyone');
+        expect(result.translatedSpoiler, 'Food photo');
+        expect(result.translatedAltTexts, {'m-7': 'A bowl of ramen'});
+      },
+    );
+
+    test(
+      'translates directly via Mastodon server when no AI provider is configured',
+      () async {
+        final fakeAi = _FakeOnDeviceAiService(status: linuxUnavailableAi);
+        final mastodonService = MastodonService(
+          client: MockClient((req) async {
+            expect(
+              req.url.toString(),
+              'https://infosec.exchange/api/v1/statuses/st-100/translate',
+            );
+            return http.Response(
+              jsonEncode({
+                'content': '<p>Welcome to Mastodon</p>',
+                'spoiler_text': '',
+                'detected_source_language': 'fr',
+                'provider': 'LibreTranslate',
+                'media_attachments': [],
+              }),
+              200,
+            );
+          }),
+        );
+
+        final translation = TranslationService(
+          onDeviceAi: fakeAi,
+          mastodon: mastodonService,
+          platformOverride: TargetPlatform.windows,
+          isWebOverride: false,
+          osLanguageProvider: () => 'en',
+        );
+
+        final result = await translation.translatePost(
+          text: 'Bienvenue sur Mastodon',
+          sourceLanguage: 'fr',
+          statusId: 'st-100',
+          settings: const AppSettings(activeProvider: AiProviderType.none),
+          credentials: const AiCredentials(),
+          session: mastodonSession,
+          instanceLimits: const InstanceLimits(translationEnabled: true),
+        );
+
+        expect(result.engineName, 'Mastodon (LibreTranslate)');
+        expect(result.translatedText, 'Welcome to Mastodon');
+      },
+    );
+
+    testWidgets(
+      'StatusCard shows translation offer on Linux using configured AI provider',
+      (tester) async {
+        final fakeAi = _FakeOnDeviceAiService(status: linuxUnavailableAi);
+        final aiService = AiProviderService(
+          onDeviceAiService: fakeAi,
+          client: MockClient((_) async {
+            return http.Response(
+              jsonEncode({
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [
+                        {
+                          'text':
+                              '{"body": "Hello from Marseille!", "alt_0": "Boats moored in the old port."}',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }),
+        );
+        final mastodonService = MastodonService(
+          client: MockClient((_) async => http.Response('{}', 200)),
+        );
+        final translation = TranslationService(
+          onDeviceAi: fakeAi,
+          aiProvider: aiService,
+          mastodon: mastodonService,
+          platformOverride: TargetPlatform.linux,
+          isWebOverride: false,
+          osLanguageProvider: () => 'en',
+        );
+        final storage = _InMemoryStorageService();
+        final app = AppController(
+          storageService: storage,
+          mastodonService: mastodonService,
+          aiProviderService: aiService,
+          onDeviceAiService: fakeAi,
+          translationService: translation,
+        );
+        addTearDown(app.dispose);
+
+        await app.updateSettings(
+          const AppSettings(activeProvider: AiProviderType.gemini),
+          autoRefreshModels: false,
+        );
+        await app.updateCredentials(
+          const AiCredentials(geminiApiKey: 'test-gemini-key'),
+        );
+
+        final status = MastodonStatus(
+          id: 'st-fr',
+          createdAt: DateTime.now().subtract(const Duration(minutes: 2)),
+          account: const MastodonAccount(
+            id: 'u-1',
+            username: 'jean',
+            acct: 'jean@mamot.fr',
+            displayName: 'Jean',
+            avatar: '',
+          ),
+          contentHtml: '<p>Bonjour de Marseille !</p>',
+          language: 'fr',
+          mediaAttachments: const [
+            MastodonMediaAttachment(
+              id: 'med-1',
+              type: 'image',
+              url: '',
+              previewUrl: '',
+              description: 'Des bateaux dans le vieux port.',
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: StatusCard(
+                  status: status,
+                  app: app,
+                  enableTranslationOffer: true,
+                  onOpenProfile: (_) {},
+                  onOpenThread: (_) {},
+                  onReply: (_) {},
+                  onToggleBoost: (_) async {},
+                  onToggleFavorite: (_) async {},
+                  onToggleBookmark: (_) async {},
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Written in French'), findsOneWidget);
+        expect(find.text('Translate to English'), findsOneWidget);
+
+        await tester.tap(find.text('Translate to English'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Translated from French via Google Gemini'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Hello from Marseille!'), findsOneWidget);
+        expect(
+          find.textContaining('Boats moored in the old port.'),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Show Original'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Bonjour de Marseille !'), findsOneWidget);
+        expect(
+          find.textContaining('Des bateaux dans le vieux port.'),
+          findsOneWidget,
+        );
       },
     );
   });

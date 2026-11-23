@@ -20,12 +20,16 @@ void main() {
           'media_attachments': {
             'description_limit': 2000,
           },
+          'translation': {
+            'enabled': true,
+          },
         },
       });
 
       expect(limits.maxCharacters, 1000);
       expect(limits.maxMediaAttachments, 6);
       expect(limits.altTextLimit, 2000);
+      expect(limits.translationEnabled, isTrue);
     });
 
     test('falls back to Glitch-soc/Pleroma max_toot_chars and defaults', () {
@@ -35,11 +39,32 @@ void main() {
       expect(glitchLimits.maxCharacters, 5000);
       expect(glitchLimits.maxMediaAttachments, 4);
       expect(glitchLimits.altTextLimit, 1500);
+      expect(glitchLimits.translationEnabled, isFalse);
 
       final defaultLimits = InstanceLimits.fromInstanceJson({});
       expect(defaultLimits.maxCharacters, 500);
       expect(defaultLimits.maxMediaAttachments, 4);
       expect(defaultLimits.altTextLimit, 1500);
+      expect(defaultLimits.translationEnabled, isFalse);
+    });
+
+    test('MastodonStatusTranslation parses HTML content, spoiler, provider, and alt-text', () {
+      final translated = MastodonStatusTranslation.fromJson({
+        'content': '<p>Hello <a href="https://example.com">world</a>!</p>',
+        'spoiler_text': 'Translated CW',
+        'detected_source_language': 'es',
+        'provider': 'DeepL.com',
+        'media_attachments': [
+          {'id': 'att-1', 'description': 'A sleeping orange tabby cat'},
+          {'id': '', 'description': 'Ignored empty id'},
+        ],
+      });
+
+      expect(translated.plainContent, 'Hello world!');
+      expect(translated.spoilerText, 'Translated CW');
+      expect(translated.detectedSourceLanguage, 'es');
+      expect(translated.provider, 'DeepL.com');
+      expect(translated.mediaDescriptions, {'att-1': 'A sleeping orange tabby cat'});
     });
   });
 

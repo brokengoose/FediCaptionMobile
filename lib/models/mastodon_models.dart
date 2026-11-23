@@ -48,12 +48,14 @@ class InstanceLimits {
     this.maxMediaAttachments = AppConstants.defaultMaxMediaAttachments,
     this.altTextLimit = AppConstants.defaultAltTextLimit,
     this.instanceTitle = '',
+    this.translationEnabled = false,
   });
 
   final int maxCharacters;
   final int maxMediaAttachments;
   final int altTextLimit;
   final String instanceTitle;
+  final bool translationEnabled;
 
   /// Parses limits from `/api/v2/instance` or `/api/v1/instance` (including Glitch-soc,
   /// Hometown, Pleroma, and Akkoma extensions).
@@ -61,6 +63,7 @@ class InstanceLimits {
     final config = json['configuration'] as Map<String, dynamic>?;
     final statuses = config?['statuses'] as Map<String, dynamic>?;
     final media = config?['media_attachments'] as Map<String, dynamic>?;
+    final translation = config?['translation'] as Map<String, dynamic>?;
 
     final maxChars = _parsePositiveInt(statuses?['max_characters']) ??
         _parsePositiveInt(json['max_toot_chars']) ??
@@ -73,11 +76,14 @@ class InstanceLimits {
     final altLimit = _parsePositiveInt(media?['description_limit']) ??
         AppConstants.defaultAltTextLimit;
 
+    final translationEnabled = translation?['enabled'] == true;
+
     return InstanceLimits(
       maxCharacters: maxChars,
       maxMediaAttachments: maxMedia,
       altTextLimit: altLimit,
       instanceTitle: (json['title'] as String?) ?? '',
+      translationEnabled: translationEnabled,
     );
   }
 
@@ -528,6 +534,47 @@ class MastodonContext {
           .whereType<Map<String, dynamic>>()
           .map(MastodonStatus.fromJson)
           .toList(),
+    );
+  }
+}
+
+/// Result returned by Mastodon's `POST /api/v1/statuses/:id/translate` endpoint.
+class MastodonStatusTranslation {
+  const MastodonStatusTranslation({
+    required this.contentHtml,
+    required this.spoilerText,
+    required this.detectedSourceLanguage,
+    required this.provider,
+    this.mediaDescriptions = const {},
+  });
+
+  final String contentHtml;
+  final String spoilerText;
+  final String detectedSourceLanguage;
+  final String provider;
+  final Map<String, String> mediaDescriptions;
+
+  String get plainContent => HtmlUtils.htmlToPlainText(contentHtml).trim();
+
+  factory MastodonStatusTranslation.fromJson(Map<String, dynamic> json) {
+    final rawMedia = (json['media_attachments'] as List<dynamic>?) ?? const [];
+    final mediaMap = <String, String>{};
+    for (final item in rawMedia) {
+      if (item is Map<String, dynamic>) {
+        final id = (item['id'] ?? '').toString().trim();
+        final desc = (item['description'] as String?)?.trim() ?? '';
+        if (id.isNotEmpty && desc.isNotEmpty) {
+          mediaMap[id] = desc;
+        }
+      }
+    }
+    return MastodonStatusTranslation(
+      contentHtml: (json['content'] as String?) ?? '',
+      spoilerText: (json['spoiler_text'] as String?) ?? '',
+      detectedSourceLanguage:
+          (json['detected_source_language'] as String?) ?? '',
+      provider: (json['provider'] as String?) ?? '',
+      mediaDescriptions: mediaMap,
     );
   }
 }

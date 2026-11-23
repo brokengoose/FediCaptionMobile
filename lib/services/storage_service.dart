@@ -266,12 +266,14 @@ class StorageService {
       final age = DateTime.now()
           .difference(DateTime.fromMillisecondsSinceEpoch(fetchedMs));
       if (age > _instanceLimitsTtl) return null;
+      if (!decoded.containsKey('translation_enabled')) return null;
       return InstanceLimits(
         maxCharacters: (decoded['max_characters'] as num?)?.toInt() ?? 500,
         maxMediaAttachments:
             (decoded['max_media_attachments'] as num?)?.toInt() ?? 4,
         altTextLimit: (decoded['alt_text_limit'] as num?)?.toInt() ?? 1500,
         instanceTitle: (decoded['instance_title'] as String?) ?? '',
+        translationEnabled: decoded['translation_enabled'] == true,
       );
     } catch (_) {
       return null;
@@ -292,6 +294,7 @@ class StorageService {
         'max_media_attachments': limits.maxMediaAttachments,
         'alt_text_limit': limits.altTextLimit,
         'instance_title': limits.instanceTitle,
+        'translation_enabled': limits.translationEnabled,
       }),
     );
   }
