@@ -1,12 +1,15 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/accessibility_announcer.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/update_banner.dart';
 import 'composer_screen.dart';
@@ -54,6 +57,133 @@ class _HomeShellState extends State<HomeShell> {
 
   void _selectTimeline(TimelineType type) {
     setState(() => _selectedTimeline = type);
+    AccessibilityAnnouncer.announce('Switched to ${type.fullTitle}.');
+  }
+
+  void _openComposer() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ComposerScreen(app: widget.app),
+      ),
+    );
+  }
+
+  void _openLocalSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LocalSearchScreen(app: widget.app),
+      ),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SettingsScreen(app: widget.app),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleShellKeyEvent);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleShellKeyEvent);
+    KeyboardNavHelper.cancelGoChord();
+    super.dispose();
+  }
+
+  bool _handleShellKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) return false;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return false;
+    if (KeyboardNavHelper.isTextInputFocused()) return false;
+
+    final key = event.logicalKey;
+
+    // Complete a pending `g <key>` timeline chord first.
+    if (KeyboardNavHelper.isGoChordActive) {
+      KeyboardNavHelper.cancelGoChord();
+      final target = switch (key) {
+        LogicalKeyboardKey.keyH => TimelineType.home,
+        LogicalKeyboardKey.keyL => TimelineType.local,
+        LogicalKeyboardKey.keyP => TimelineType.federated,
+        LogicalKeyboardKey.keyN => TimelineType.notifications,
+        LogicalKeyboardKey.keyB => TimelineType.bookmarks,
+        LogicalKeyboardKey.keyF => TimelineType.favorites,
+        LogicalKeyboardKey.keyU => TimelineType.myPosts,
+        _ => null,
+      };
+      if (target != null) {
+        _selectTimeline(target);
+        return true;
+      }
+      return false;
+    }
+
+    // Platform modifier shortcuts (`⌘N`, `⌘F`, `⌘,`).
+    if (KeyboardNavHelper.isPrimaryModifierPressed()) {
+      if (key == LogicalKeyboardKey.keyN) {
+        _openComposer();
+        return true;
+      }
+      if (key == LogicalKeyboardKey.keyF) {
+        _openLocalSearch();
+        return true;
+      }
+      if (key == LogicalKeyboardKey.comma) {
+        _openSettings();
+        return true;
+      }
+      return false;
+    }
+
+    if (!KeyboardNavHelper.hasNoCommandModifiers()) return false;
+    final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
+
+    // `?` shows the Keyboard Shortcuts reference dialog.
+    if (key == LogicalKeyboardKey.question ||
+        (key == LogicalKeyboardKey.slash && shiftPressed)) {
+      KeyboardShortcutsDialog.show(context);
+      return true;
+    }
+
+    if (shiftPressed) return false;
+
+    if (key == LogicalKeyboardKey.keyG) {
+      KeyboardNavHelper.beginGoChord();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.keyN) {
+      _openComposer();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.slash) {
+      _openLocalSearch();
+      return true;
+    }
+
+    // Number keys 1-7 jump directly to timelines.
+    final quickTimeline = switch (key) {
+      LogicalKeyboardKey.digit1 => TimelineType.home,
+      LogicalKeyboardKey.digit2 => TimelineType.local,
+      LogicalKeyboardKey.digit3 => TimelineType.federated,
+      LogicalKeyboardKey.digit4 => TimelineType.notifications,
+      LogicalKeyboardKey.digit5 => TimelineType.bookmarks,
+      LogicalKeyboardKey.digit6 => TimelineType.favorites,
+      LogicalKeyboardKey.digit7 => TimelineType.myPosts,
+      _ => null,
+    };
+    if (quickTimeline != null) {
+      _selectTimeline(quickTimeline);
+      return true;
+    }
+
+    return false;
   }
 
   @override
@@ -150,22 +280,20 @@ class _HomeShellState extends State<HomeShell> {
                   ),
             actions: [
               IconButton(
-                tooltip: 'Search cached posts (offline)',
+                tooltip: 'Search cached posts (/)',
                 icon: const Icon(Icons.search),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => LocalSearchScreen(app: widget.app),
-                  ),
-                ),
+                onPressed: _openLocalSearch,
               ),
-              IconButton(
-                tooltip: 'Settings',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => SettingsScreen(app: widget.app),
-                  ),
+              if (isWideLayout)
+                IconButton(
+                  tooltip: 'Keyboard shortcuts (?)',
+                  icon: const Icon(Icons.keyboard_outlined),
+                  onPressed: () => KeyboardShortcutsDialog.show(context),
                 ),
+              IconButton(
+                tooltip: 'Settings (⌘,)',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: _openSettings,
               ),
             ],
           ),

@@ -1,11 +1,13 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/status_card.dart';
 
@@ -32,12 +34,109 @@ class _ThreadScreenState extends State<ThreadScreen> {
   bool _isLoading = true;
   String? _error;
 
+  int _selectedIndex = 0;
+  final Map<String, GlobalKey> _itemKeys = {};
+  final Set<String> _expandedCwIds = {};
+
+  List<MastodonStatus> get _allOrderedStatuses => [
+        ..._ancestors,
+        _focalStatus,
+        ..._descendants,
+      ];
+
   @override
   void initState() {
     super.initState();
     _actions = StatusActionHandler(app: widget.app);
     _focalStatus = widget.rootStatus.displayStatus;
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _loadContext();
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    super.dispose();
+  }
+
+  GlobalKey _keyForStatus(String id) =>
+      _itemKeys.putIfAbsent(id, () => GlobalKey());
+
+  MastodonStatus? get _selectedStatus {
+    final all = _allOrderedStatuses;
+    if (all.isEmpty) return null;
+    final idx = _selectedIndex.clamp(0, all.length - 1);
+    return all[idx];
+  }
+
+  void _moveSelection(int delta) {
+    final all = _allOrderedStatuses;
+    if (all.isEmpty) return;
+    final next = (_selectedIndex + delta).clamp(0, all.length - 1);
+    setState(() => _selectedIndex = next);
+    final status = all[next];
+    final key = _itemKeys[status.id];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
+    });
+    AccessibilityAnnouncer.announce(
+      'Post ${next + 1} of ${all.length} by ${status.displayStatus.account.effectiveDisplayName}.',
+    );
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    return KeyboardNavHelper.handleStatusFeedKeyEvent(
+      event,
+      isActive: () => mounted && (ModalRoute.of(context)?.isCurrent ?? false),
+      onNext: () => _moveSelection(1),
+      onPrevious: () => _moveSelection(-1),
+      onOpen: () {
+        final st = _selectedStatus;
+        if (st != null) {
+          _actions.openThread(context, st, skipIfStatusId: _focalStatus.id);
+        }
+      },
+      onReply: () async {
+        final st = _selectedStatus;
+        if (st == null) return;
+        final posted = await _actions.openReply(context, st);
+        if (posted != null && mounted) _loadContext();
+      },
+      onFavorite: () async {
+        final st = _selectedStatus?.displayStatus;
+        if (st == null) return;
+        final updated = await _actions.toggleFavorite(context, st);
+        if (updated != null) _replaceStatus(updated);
+      },
+      onBoost: () async {
+        final st = _selectedStatus?.displayStatus;
+        if (st == null) return;
+        final updated = await _actions.toggleBoost(context, st);
+        if (updated != null) _replaceStatus(updated);
+      },
+      onBookmark: () async {
+        final st = _selectedStatus?.displayStatus;
+        if (st == null) return;
+        final updated = await _actions.toggleBookmark(context, st);
+        if (updated != null) _replaceStatus(updated);
+      },
+      onToggleCw: () {
+        final target = _selectedStatus?.displayStatus;
+        if (target == null || target.spoilerText.trim().isEmpty) return;
+        setState(() {
+          if (!_expandedCwIds.remove(target.id)) {
+            _expandedCwIds.add(target.id);
+          }
+        });
+      },
+      onOpenProfile: () {
+        final st = _selectedStatus;
+        if (st != null) _actions.openProfile(context, st.displayStatus.account);
+      },
+      onRefresh: _loadContext,
+      onShowHelp: () => KeyboardShortcutsDialog.show(context),
+      onEscape: () => Navigator.of(context).maybePop(),
+    );
   }
 
   Future<void> _loadContext() async {
@@ -64,6 +163,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
       setState(() {
         _ancestors = ctx.ancestors;
         _descendants = ctx.descendants;
+        _selectedIndex = ctx.ancestors.length;
         _isLoading = false;
       });
       AccessibilityAnnouncer.announce(
@@ -102,11 +202,28 @@ class _ThreadScreenState extends State<ThreadScreen> {
     });
   }
 
-  Widget _buildCard(MastodonStatus status, {bool highlight = false}) {
+  Widget _buildCard(
+    MastodonStatus status, {
+    required int flatIndex,
+    bool highlight = false,
+  }) {
+    final target = status.displayStatus;
     final card = StatusCard(
+      key: _keyForStatus(status.id),
       status: status,
       app: widget.app,
       enableTranslationOffer: highlight,
+      isKeyboardSelected: _selectedIndex == flatIndex,
+      cwRevealedOverride: target.spoilerText.trim().isNotEmpty
+          ? _expandedCwIds.contains(target.id)
+          : null,
+      onToggleCw: target.spoilerText.trim().isNotEmpty
+          ? () => setState(() {
+                if (!_expandedCwIds.remove(target.id)) {
+                  _expandedCwIds.add(target.id);
+                }
+              })
+          : null,
       onOpenProfile: (acc) => _actions.openProfile(context, acc),
       onOpenThread: (st) => _actions.openThread(
         context,
@@ -161,8 +278,13 @@ class _ThreadScreenState extends State<ThreadScreen> {
         child: ListView(
           padding: const EdgeInsets.only(top: 6, bottom: 48),
           children: [
-            for (final ancestor in _ancestors) _buildCard(ancestor),
-            _buildCard(_focalStatus, highlight: true),
+            for (var i = 0; i < _ancestors.length; i++)
+              _buildCard(_ancestors[i], flatIndex: i),
+            _buildCard(
+              _focalStatus,
+              flatIndex: _ancestors.length,
+              highlight: true,
+            ),
             if (_isLoading)
               const Padding(
                 padding: EdgeInsets.all(20),
@@ -187,7 +309,11 @@ class _ThreadScreenState extends State<ThreadScreen> {
                   ),
                 ),
               ),
-              for (final reply in _descendants) _buildCard(reply),
+              for (var i = 0; i < _descendants.length; i++)
+                _buildCard(
+                  _descendants[i],
+                  flatIndex: _ancestors.length + 1 + i,
+                ),
             ],
           ],
         ),

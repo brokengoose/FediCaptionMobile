@@ -1,11 +1,13 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/status_card.dart';
 
@@ -36,6 +38,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
   String? _error;
   int _lastSeenRefreshNonce = -1;
 
+  int? _selectedIndex;
+  final Map<String, GlobalKey> _itemKeys = {};
+  final Set<String> _expandedCwIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +49,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
     widget.app.addListener(_onAppChanged);
     _scrollController.addListener(_onScroll);
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _loadOrUseCache();
   }
 
@@ -50,8 +57,108 @@ class _TimelineScreenState extends State<TimelineScreen> {
   void didUpdateWidget(covariant TimelineScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.timelineType != widget.timelineType) {
+      _selectedIndex = null;
+      _itemKeys.clear();
       _loadOrUseCache();
     }
+  }
+
+  GlobalKey _keyForStatus(String id) =>
+      _itemKeys.putIfAbsent(id, () => GlobalKey());
+
+  MastodonStatus? get _selectedStatus {
+    final idx = _selectedIndex;
+    if (idx == null || idx < 0 || idx >= _statuses.length) return null;
+    return _statuses[idx];
+  }
+
+  void _moveSelection(int delta) {
+    if (_statuses.isEmpty) return;
+    final int next;
+    if (_selectedIndex == null) {
+      next = delta >= 0 ? 0 : _statuses.length - 1;
+    } else {
+      next = (_selectedIndex! + delta).clamp(0, _statuses.length - 1);
+    }
+    setState(() => _selectedIndex = next);
+
+    final status = _statuses[next];
+    final target = status.displayStatus;
+    final key = _itemKeys[status.id];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (key?.currentContext != null) {
+        KeyboardNavHelper.ensureKeyVisible(key);
+      } else if (_scrollController.hasClients) {
+        final pos = _scrollController.position;
+        final step = delta > 0 ? 340.0 : -340.0;
+        final targetOffset = (pos.pixels + step).clamp(
+          pos.minScrollExtent,
+          pos.maxScrollExtent,
+        );
+        _scrollController.animateTo(
+          targetOffset,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+
+    if (next >= _statuses.length - 3 && !_isLoadingMore && _hasMore) {
+      _loadMore();
+    }
+
+    final snippet = target.plainText.trim();
+    final preview =
+        snippet.length > 90 ? '${snippet.substring(0, 90)}…' : snippet;
+    AccessibilityAnnouncer.announce(
+      'Post ${next + 1} of ${_statuses.length} by ${target.account.effectiveDisplayName}. $preview',
+    );
+  }
+
+  void _toggleSelectedCw() {
+    final target = _selectedStatus?.displayStatus;
+    if (target == null || target.spoilerText.trim().isEmpty) return;
+    setState(() {
+      if (!_expandedCwIds.remove(target.id)) {
+        _expandedCwIds.add(target.id);
+      }
+    });
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    return KeyboardNavHelper.handleStatusFeedKeyEvent(
+      event,
+      isActive: () => mounted && (ModalRoute.of(context)?.isCurrent ?? false),
+      onNext: () => _moveSelection(1),
+      onPrevious: () => _moveSelection(-1),
+      onOpen: () {
+        final st = _selectedStatus;
+        if (st != null) _actions.openThread(context, st);
+      },
+      onReply: () {
+        final st = _selectedStatus;
+        if (st != null) _actions.openReply(context, st);
+      },
+      onFavorite: () {
+        final st = _selectedStatus;
+        if (st != null) _toggleFavorite(st.displayStatus);
+      },
+      onBoost: () {
+        final st = _selectedStatus;
+        if (st != null) _toggleBoost(st.displayStatus);
+      },
+      onBookmark: () {
+        final st = _selectedStatus;
+        if (st != null) _toggleBookmark(st.displayStatus);
+      },
+      onToggleCw: _toggleSelectedCw,
+      onOpenProfile: () {
+        final st = _selectedStatus;
+        if (st != null) _actions.openProfile(context, st.displayStatus.account);
+      },
+      onRefresh: _refreshIncremental,
+    );
   }
 
   void _onAppChanged() {
@@ -256,6 +363,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     widget.app.removeListener(_onAppChanged);
     _scrollController.dispose();
     super.dispose();
@@ -322,13 +430,29 @@ class _TimelineScreenState extends State<TimelineScreen> {
           }
 
           final status = _statuses[index];
+          final target = status.displayStatus;
+          final isSelected = _selectedIndex == index;
           return RepaintBoundary(
-            key: ValueKey(status.id),
+            key: _keyForStatus(status.id),
             child: StatusCard(
               status: status,
               app: widget.app,
+              isKeyboardSelected: isSelected,
+              cwRevealedOverride: target.spoilerText.trim().isNotEmpty
+                  ? _expandedCwIds.contains(target.id)
+                  : null,
+              onToggleCw: target.spoilerText.trim().isNotEmpty
+                  ? () => setState(() {
+                        if (!_expandedCwIds.remove(target.id)) {
+                          _expandedCwIds.add(target.id);
+                        }
+                      })
+                  : null,
               onOpenProfile: (acc) => _actions.openProfile(context, acc),
-              onOpenThread: (st) => _actions.openThread(context, st),
+              onOpenThread: (st) {
+                setState(() => _selectedIndex = index);
+                _actions.openThread(context, st);
+              },
               onReply: (st) => _actions.openReply(context, st),
               onToggleBoost: _toggleBoost,
               onToggleFavorite: _toggleFavorite,

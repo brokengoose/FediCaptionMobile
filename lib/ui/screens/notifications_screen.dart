@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
@@ -8,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/linkified_text.dart';
@@ -36,18 +38,81 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _hasMore = true;
   String? _error;
 
+  int? _selectedIndex;
+  final Map<String, GlobalKey> _itemKeys = {};
+
   @override
   void initState() {
     super.initState();
     _actions = StatusActionHandler(app: widget.app);
     _scrollController.addListener(_onScroll);
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _loadOrUseCache();
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  GlobalKey _keyForNotification(String id) =>
+      _itemKeys.putIfAbsent(id, () => GlobalKey());
+
+  MastodonNotification? get _selectedNotification {
+    final idx = _selectedIndex;
+    if (idx == null || idx < 0 || idx >= _notifications.length) return null;
+    return _notifications[idx];
+  }
+
+  void _moveSelection(int delta) {
+    if (_notifications.isEmpty) return;
+    final int next;
+    if (_selectedIndex == null) {
+      next = delta >= 0 ? 0 : _notifications.length - 1;
+    } else {
+      next = (_selectedIndex! + delta).clamp(0, _notifications.length - 1);
+    }
+    setState(() => _selectedIndex = next);
+    final item = _notifications[next];
+    final key = _itemKeys[item.id];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
+    });
+    if (next >= _notifications.length - 3 && !_isLoadingMore && _hasMore) {
+      _loadMore();
+    }
+    AccessibilityAnnouncer.announce(
+      'Notification ${next + 1} of ${_notifications.length}: ${item.account.effectiveDisplayName} ${item.actionDescription}.',
+    );
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    return KeyboardNavHelper.handleStatusFeedKeyEvent(
+      event,
+      isActive: () => mounted && (ModalRoute.of(context)?.isCurrent ?? false),
+      onNext: () => _moveSelection(1),
+      onPrevious: () => _moveSelection(-1),
+      onOpen: () {
+        final item = _selectedNotification;
+        if (item == null) return;
+        if (item.status != null) {
+          _actions.openThread(context, item.status!);
+        } else {
+          _actions.openProfile(context, item.account);
+        }
+      },
+      onOpenProfile: () {
+        final item = _selectedNotification;
+        if (item != null) _actions.openProfile(context, item.account);
+      },
+      onReply: () {
+        final st = _selectedNotification?.status;
+        if (st != null) _actions.openReply(context, st);
+      },
+      onRefresh: _refreshIncremental,
+    );
   }
 
   void _onScroll() {
@@ -263,8 +328,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           final item = _notifications[index];
           final relTime = TimeUtils.formatRelativeCompact(item.createdAt);
+          final isSelected = _selectedIndex == index;
 
           return Card(
+            key: _keyForNotification(item.id),
+            shape: isSelected
+                ? RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: scheme.primary, width: 2.5),
+                  )
+                : null,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(

@@ -1,12 +1,14 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/linkified_text.dart';
@@ -44,6 +46,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUpdatingFollow = false;
   String? _error;
 
+  int? _selectedIndex;
+  final Map<String, GlobalKey> _itemKeys = {};
+  final Set<String> _expandedCwIds = {};
+
   bool get _isOwnProfile => widget.app.currentAccount?.id == widget.accountId;
 
   @override
@@ -52,13 +58,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _actions = StatusActionHandler(app: widget.app);
     _account = widget.initialAccount;
     _scrollController.addListener(_onScroll);
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _load();
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  GlobalKey _keyForStatus(String id) =>
+      _itemKeys.putIfAbsent(id, () => GlobalKey());
+
+  MastodonStatus? get _selectedStatus {
+    final idx = _selectedIndex;
+    if (idx == null || idx < 0 || idx >= _statuses.length) return null;
+    return _statuses[idx];
+  }
+
+  void _moveSelection(int delta) {
+    if (_statuses.isEmpty) return;
+    final int next;
+    if (_selectedIndex == null) {
+      next = delta >= 0 ? 0 : _statuses.length - 1;
+    } else {
+      next = (_selectedIndex! + delta).clamp(0, _statuses.length - 1);
+    }
+    setState(() => _selectedIndex = next);
+    final status = _statuses[next];
+    final key = _itemKeys[status.id];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
+    });
+    if (next >= _statuses.length - 3 && !_isLoadingMore && _hasMore) {
+      _loadMore();
+    }
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    return KeyboardNavHelper.handleStatusFeedKeyEvent(
+      event,
+      isActive: () => mounted && (ModalRoute.of(context)?.isCurrent ?? false),
+      onNext: () => _moveSelection(1),
+      onPrevious: () => _moveSelection(-1),
+      onOpen: () {
+        final st = _selectedStatus;
+        if (st != null) _actions.openThread(context, st);
+      },
+      onReply: () {
+        final st = _selectedStatus;
+        if (st != null) _actions.openReply(context, st);
+      },
+      onFavorite: () async {
+        final st = _selectedStatus?.displayStatus;
+        if (st == null) return;
+        final updated = await _actions.toggleFavorite(context, st);
+        if (updated != null) _replaceStatus(updated);
+      },
+      onBoost: () async {
+        final st = _selectedStatus?.displayStatus;
+        if (st == null) return;
+        final updated = await _actions.toggleBoost(context, st);
+        if (updated != null) _replaceStatus(updated);
+      },
+      onBookmark: () async {
+        final st = _selectedStatus?.displayStatus;
+        if (st == null) return;
+        final updated = await _actions.toggleBookmark(context, st);
+        if (updated != null) _replaceStatus(updated);
+      },
+      onToggleCw: () {
+        final target = _selectedStatus?.displayStatus;
+        if (target == null || target.spoilerText.trim().isEmpty) return;
+        setState(() {
+          if (!_expandedCwIds.remove(target.id)) {
+            _expandedCwIds.add(target.id);
+          }
+        });
+      },
+      onRefresh: _load,
+      onShowHelp: () => KeyboardShortcutsDialog.show(context),
+      onEscape: () => Navigator.of(context).maybePop(),
+    );
   }
 
   void _onScroll() {
@@ -456,9 +539,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
 
             final status = _statuses[bodyIndex];
+            final target = status.displayStatus;
             return StatusCard(
+              key: _keyForStatus(status.id),
               status: status,
               app: widget.app,
+              isKeyboardSelected: _selectedIndex == bodyIndex,
+              cwRevealedOverride: target.spoilerText.trim().isNotEmpty
+                  ? _expandedCwIds.contains(target.id)
+                  : null,
+              onToggleCw: target.spoilerText.trim().isNotEmpty
+                  ? () => setState(() {
+                        if (!_expandedCwIds.remove(target.id)) {
+                          _expandedCwIds.add(target.id);
+                        }
+                      })
+                  : null,
               onOpenProfile: (acc) => _actions.openProfile(
                 context,
                 acc,

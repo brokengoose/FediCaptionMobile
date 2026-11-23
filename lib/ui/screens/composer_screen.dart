@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -11,6 +12,7 @@ import '../../models/app_settings.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../../state/composer_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../widgets/bias_review_sheet.dart';
 import '../widgets/composer_attachment_tile.dart';
 import '../widgets/missing_alt_text_dialog.dart';
@@ -47,12 +49,35 @@ class _ComposerScreenState extends State<ComposerScreen> {
       editingStatus: widget.editingStatus,
     );
     _controller.loadEditSourceIfNeeded();
+    HardwareKeyboard.instance.addHandler(_handleComposerKeyEvent);
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleComposerKeyEvent);
     _controller.dispose();
     super.dispose();
+  }
+
+  bool _handleComposerKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) return false;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return false;
+
+    final key = event.logicalKey;
+    if (KeyboardNavHelper.isPrimaryModifierPressed() &&
+        (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter)) {
+      if (_controller.canSubmit) {
+        _handleSubmit();
+      }
+      return true;
+    }
+    if (key == LogicalKeyboardKey.escape && !_controller.isPublishing) {
+      Navigator.of(context).maybePop();
+      return true;
+    }
+    return false;
   }
 
   Future<void> _pickPhoto(ImageSource source) async {

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -33,6 +34,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
     super.initState();
     _actions = StatusActionHandler(app: widget.app);
     _queryController.addListener(_onQueryChanged);
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
   }
 
   void _onQueryChanged() {
@@ -41,8 +43,19 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
     });
   }
 
+  bool _handleKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) return false;
+    if (ModalRoute.of(context)?.isCurrent != true) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).maybePop();
+      return true;
+    }
+    return false;
+  }
+
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _queryController.removeListener(_onQueryChanged);
     _queryController.dispose();
     super.dispose();

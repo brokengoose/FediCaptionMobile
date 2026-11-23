@@ -37,6 +37,9 @@ class StatusCard extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.enableTranslationOffer = false,
+    this.isKeyboardSelected = false,
+    this.cwRevealedOverride,
+    this.onToggleCw,
   });
 
   final MastodonStatus status;
@@ -54,6 +57,16 @@ class StatusCard extends StatefulWidget {
   /// language against the user's OS language and offers on-device translation
   /// at the top of the post when they differ.
   final bool enableTranslationOffer;
+
+  /// Highlights this card with a primary focus border when navigated to via
+  /// keyboard shortcuts (`j`/`k` or arrow keys).
+  final bool isKeyboardSelected;
+
+  /// Optional external Content Warning revealed state (allows `x` shortcut).
+  final bool? cwRevealedOverride;
+
+  /// Optional callback invoked when toggling Content Warning.
+  final VoidCallback? onToggleCw;
 
   @override
   State<StatusCard> createState() => _StatusCardState();
@@ -211,8 +224,18 @@ class _StatusCardState extends State<StatusCard> {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
     final hasCw = target.spoilerText.trim().isNotEmpty;
+    final cwRevealed = widget.cwRevealedOverride ?? _cwRevealed;
 
     return Card(
+      shape: widget.isKeyboardSelected
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: scheme.primary,
+                width: 2.5,
+              ),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -285,14 +308,15 @@ class _StatusCardState extends State<StatusCard> {
                         (_translationResult?.translatedSpoiler ?? '').isNotEmpty
                     ? _translationResult!.translatedSpoiler!
                     : target.spoilerText,
-                revealed: _cwRevealed,
-                onToggle: () => setState(() => _cwRevealed = !_cwRevealed),
+                revealed: cwRevealed,
+                onToggle: widget.onToggleCw ??
+                    () => setState(() => _cwRevealed = !_cwRevealed),
               ),
               const SizedBox(height: 8),
             ],
 
             // Embedded Quoted Post (above reply) + Main post body + Media attachments
-            if (!hasCw || _cwRevealed) ...[
+            if (!hasCw || cwRevealed) ...[
               ListenableBuilder(
                 listenable: widget.app.quoteCache,
                 builder: (context, _) {

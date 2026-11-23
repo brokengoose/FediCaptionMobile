@@ -33,6 +33,28 @@ class ImageViewerScreen extends StatefulWidget {
 class _ImageViewerScreenState extends State<ImageViewerScreen> {
   bool _isSharing = false;
 
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (!mounted || event is! KeyDownEvent) return false;
+    if (ModalRoute.of(context)?.isCurrent != true) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      Navigator.of(context).maybePop();
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _handleShare({Offset? globalPosition}) async {
     if (_isSharing) return;
     setState(() => _isSharing = true);
