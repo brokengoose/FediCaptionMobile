@@ -63,7 +63,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 320 &&
+            _scrollController.position.maxScrollExtent - 600 &&
         !_isLoading &&
         !_isLoadingMore &&
         _hasMore &&
@@ -223,6 +223,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
       onRefresh: _loadInitial,
       child: ListView.builder(
         controller: _scrollController,
+        scrollCacheExtent: const ScrollCacheExtent.pixels(1000),
         padding: const EdgeInsets.only(top: 6, bottom: 88),
         itemCount: _statuses.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
@@ -234,17 +235,20 @@ class _TimelineScreenState extends State<TimelineScreen> {
           }
 
           final status = _statuses[index];
-          return StatusCard(
-            status: status,
-            app: widget.app,
-            onOpenProfile: (acc) => _actions.openProfile(context, acc),
-            onOpenThread: (st) => _actions.openThread(context, st),
-            onReply: (st) => _actions.openReply(context, st),
-            onToggleBoost: _toggleBoost,
-            onToggleFavorite: _toggleFavorite,
-            onToggleBookmark: _toggleBookmark,
-            onEdit: (st) => _actions.openEdit(context, st),
-            onDelete: _deleteStatus,
+          return RepaintBoundary(
+            key: ValueKey(status.id),
+            child: StatusCard(
+              status: status,
+              app: widget.app,
+              onOpenProfile: (acc) => _actions.openProfile(context, acc),
+              onOpenThread: (st) => _actions.openThread(context, st),
+              onReply: (st) => _actions.openReply(context, st),
+              onToggleBoost: _toggleBoost,
+              onToggleFavorite: _toggleFavorite,
+              onToggleBookmark: _toggleBookmark,
+              onEdit: (st) => _actions.openEdit(context, st),
+              onDelete: _deleteStatus,
+            ),
           );
         },
       ),

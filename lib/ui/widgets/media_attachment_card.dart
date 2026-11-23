@@ -35,6 +35,15 @@ class MediaAttachmentCard extends StatefulWidget {
 class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
   bool _altExpanded = true;
 
+  /// Computes a deterministic preview height before the image downloads so
+  /// timeline scrolling never jumps as images finish loading.
+  double _previewHeightFor(double? aspectRatio) {
+    if (aspectRatio == null || aspectRatio <= 0) return 240;
+    if (aspectRatio < 0.85) return 280; // Portrait
+    if (aspectRatio > 1.8) return 200; // Wide landscape
+    return 240;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -97,23 +106,27 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               ),
                             );
                           },
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 280),
-                          child: Image.network(
-                            att.bestPreviewUrl,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
                             width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              height: 120,
+                            height: _previewHeightFor(att.aspectRatio),
+                            child: ColoredBox(
                               color: scheme.surfaceContainerHighest,
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.broken_image, size: 40),
+                              child: Image.network(
+                                att.bestPreviewUrl,
+                                width: double.infinity,
+                                height: _previewHeightFor(att.aspectRatio),
+                                fit: BoxFit.cover,
+                                cacheWidth: 1200,
+                                gaplessPlayback: true,
+                                errorBuilder: (_, __, ___) => const Center(
+                                  child: Icon(Icons.broken_image, size: 40),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
                         if (att.isVideo)
                           Container(
                             padding: const EdgeInsets.symmetric(

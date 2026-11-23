@@ -157,6 +157,7 @@ class MastodonMediaAttachment {
     this.previewUrl = '',
     this.description,
     this.remoteUrl,
+    this.aspectRatio,
   });
 
   final String id;
@@ -165,6 +166,7 @@ class MastodonMediaAttachment {
   final String previewUrl;
   final String? description;
   final String? remoteUrl;
+  final double? aspectRatio;
 
   bool get isVideo => type == 'video' || type == 'gifv';
   bool get isImage => type == 'image';
@@ -172,6 +174,14 @@ class MastodonMediaAttachment {
   String get bestPreviewUrl => previewUrl.isNotEmpty ? previewUrl : url;
 
   factory MastodonMediaAttachment.fromJson(Map<String, dynamic> json) {
+    final meta = json['meta'] as Map<String, dynamic>?;
+    final small = meta?['small'] as Map<String, dynamic>?;
+    final original = meta?['original'] as Map<String, dynamic>?;
+    final rawAspect = (small?['aspect'] ?? original?['aspect']) as num?;
+    final aspect =
+        rawAspect != null && rawAspect.isFinite && rawAspect > 0
+            ? rawAspect.toDouble()
+            : null;
     return MastodonMediaAttachment(
       id: (json['id'] ?? '').toString(),
       type: (json['type'] as String?) ?? 'unknown',
@@ -179,6 +189,7 @@ class MastodonMediaAttachment {
       previewUrl: (json['preview_url'] as String?) ?? '',
       description: json['description'] as String?,
       remoteUrl: json['remote_url'] as String?,
+      aspectRatio: aspect,
     );
   }
 }
