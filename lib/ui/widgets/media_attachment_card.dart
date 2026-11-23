@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../screens/image_viewer_screen.dart';
+import '../screens/video_player_screen.dart';
 import 'linkified_text.dart';
 
 /// Displays a timeline media attachment with ALT TEXT PROVIDED / NO ALT TEXT status,
@@ -83,29 +84,39 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (att.bestPreviewUrl.isNotEmpty)
+              if (att.bestPreviewUrl.isNotEmpty || att.isVideo)
                 Semantics(
-                  image: true,
-                  button: !att.isVideo,
+                  image: !att.isVideo,
+                  button: true,
                   label: hasAnyAlt
-                      ? '${att.isVideo ? 'Video' : 'Image'}: $effectiveAlt${att.isVideo ? '' : ' Tap to view full image.'}'
-                      : '${att.isVideo ? 'Video' : 'Image'} with no alt text provided.${att.isVideo ? '' : ' Tap to view full image.'}',
+                      ? '${att.isVideo ? 'Video' : 'Image'}: $effectiveAlt ${att.isVideo ? 'Tap to play video.' : 'Tap to view full image.'}'
+                      : '${att.isVideo ? 'Video' : 'Image'} with no alt text provided. ${att.isVideo ? 'Tap to play video.' : 'Tap to view full image.'}',
                   child: InkWell(
-                    onTap: att.isVideo
-                        ? null
-                        : () {
-                            final fullUrl = att.url.isNotEmpty
-                                ? att.url
-                                : att.bestPreviewUrl;
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => ImageViewerScreen(
-                                  imageUrl: fullUrl,
-                                  altText: effectiveAlt,
-                                ),
-                              ),
-                            );
-                          },
+                    onTap: () {
+                      final fullUrl = att.url.isNotEmpty
+                          ? att.url
+                          : att.bestPreviewUrl;
+                      if (att.isVideo) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => VideoPlayerScreen(
+                              videoUrl: fullUrl,
+                              altText: effectiveAlt,
+                              isGifv: att.type == 'gifv',
+                            ),
+                          ),
+                        );
+                      } else {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ImageViewerScreen(
+                              imageUrl: fullUrl,
+                              altText: effectiveAlt,
+                            ),
+                          ),
+                        );
+                      }
+                    },
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
