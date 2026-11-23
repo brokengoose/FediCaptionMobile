@@ -1,6 +1,6 @@
-# FediCaption Mobile (iOS, Android & macOS)
+# FediCaption Mobile (iOS, Android, macOS & Windows)
 
-**FediCaption Mobile** is an accessible, cross-platform Flutter Mastodon client for **iOS (iPhone/iPad)**, **Android**, and **macOS**, featuring built-in **on-device AI** (Apple Foundation Models & Google Gemini Nano), automatic AI alt-text generation for images and videos, on-demand timeline media descriptions, embedded quoted Mastodon posts, and pre-post racial & gender bias checking.
+**FediCaption Mobile** is an accessible, cross-platform Flutter Mastodon client for **iOS (iPhone/iPad)**, **Android**, **macOS**, and **Windows**, featuring built-in **on-device AI** (Apple Foundation Models & Google Gemini Nano), automatic AI alt-text generation for images and videos, on-demand timeline media descriptions, on-device post & alt-text translation, embedded quoted posts, standard Mastodon keyboard shortcuts, and pre-post racial & gender bias checking.
 
 > This project was generated with **Antigravity**.  
 > Contributor: **brokengoose** (`brokengoose@users.noreply.github.com`)  
@@ -76,9 +76,10 @@
    flutter run -d macos
    ```
    *(On macOS Android Emulator, launch the AVD with `-audio coreaudio` for host TTS audio playback.)*
-4. Build a macOS desktop app:
+4. Build desktop apps (macOS locally, Windows natively or automatically via `.github/workflows/windows-build.yml`):
    ```bash
    flutter build macos --release
+   flutter build windows --release
    ```
 5. Build a release Android APK (includes R8 keep rules for ML Kit GenAI / AICore in `android/app/proguard-rules.pro`):
    ```bash
