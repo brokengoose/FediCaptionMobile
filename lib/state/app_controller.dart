@@ -17,6 +17,7 @@ import '../services/link_preview_fetcher.dart';
 import '../services/mastodon_service.dart';
 import '../services/on_device_ai_service.dart';
 import '../services/storage_service.dart';
+import '../services/translation_service.dart';
 import '../services/tts_service.dart';
 import '../services/update_check_service.dart';
 import 'quote_cache_controller.dart';
@@ -35,6 +36,7 @@ class AppController extends ChangeNotifier {
     MastodonService? mastodonService,
     AiProviderService? aiProviderService,
     OnDeviceAiService? onDeviceAiService,
+    TranslationService? translationService,
     LinkPreviewFetcher? linkPreviewFetcher,
     UpdateCheckService? updateCheckService,
     TtsService? ttsService,
@@ -52,6 +54,8 @@ class AppController extends ChangeNotifier {
     _ownsAiProvider = aiProviderService == null;
     aiProvider = aiProviderService ??
         AiProviderService(onDeviceAiService: onDeviceAi);
+    translation =
+        translationService ?? TranslationService(onDeviceAi: onDeviceAi);
     biasChecker = BiasCheckService(
       aiProviderService: aiProvider,
       linkPreviewFetcher: _linkPreviewFetcher,
@@ -71,6 +75,7 @@ class AppController extends ChangeNotifier {
   final MastodonService mastodon;
   final bool _ownsMastodon;
   final OnDeviceAiService onDeviceAi;
+  late final TranslationService translation;
   final LinkPreviewFetcher _linkPreviewFetcher;
   final bool _ownsLinkPreviewFetcher;
   late final AiProviderService aiProvider;

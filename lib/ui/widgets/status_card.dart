@@ -3,14 +3,17 @@
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/accessibility_announcer.dart';
 import '../../core/constants.dart';
 import '../../core/html_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
+import '../../services/translation_service.dart';
 import '../../state/app_controller.dart';
 import 'linkified_text.dart';
 import 'media_attachment_card.dart';
+import 'post_translation_banner.dart';
 import 'quoted_status_card.dart';
 import 'status_header_parts.dart';
 
@@ -33,6 +36,7 @@ class StatusCard extends StatefulWidget {
     required this.onToggleBookmark,
     this.onEdit,
     this.onDelete,
+    this.enableTranslationOffer = false,
   });
 
   final MastodonStatus status;
@@ -46,6 +50,11 @@ class StatusCard extends StatefulWidget {
   final void Function(MastodonStatus status)? onEdit;
   final Future<void> Function(MastodonStatus status)? onDelete;
 
+  /// When true (e.g. for an opened post in `ThreadScreen`), checks the post's
+  /// language against the user's OS language and offers on-device translation
+  /// at the top of the post when they differ.
+  final bool enableTranslationOffer;
+
   @override
   State<StatusCard> createState() => _StatusCardState();
 }
@@ -54,19 +63,120 @@ class _StatusCardState extends State<StatusCard> {
   bool _cwRevealed = false;
   LeadingQuoteMatch? _leadingQuote;
 
+  String? _detectedLanguage;
+  String? _osLanguage;
+  bool _canOfferTranslation = false;
+  bool _isTranslating = false;
+  bool _showingTranslation = false;
+  PostTranslationResult? _translationResult;
+  String? _translationError;
+
   @override
   void initState() {
     super.initState();
     _syncQuoteResolution();
+    if (widget.enableTranslationOffer) {
+      _checkTranslationOffer();
+    }
   }
 
   @override
   void didUpdateWidget(covariant StatusCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
-        oldWidget.status.displayStatus.contentHtml !=
-            widget.status.displayStatus.contentHtml) {
+    final statusChanged =
+        oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
+            oldWidget.status.displayStatus.contentHtml !=
+                widget.status.displayStatus.contentHtml;
+    if (statusChanged) {
       _syncQuoteResolution();
+    }
+    if (statusChanged ||
+        oldWidget.enableTranslationOffer != widget.enableTranslationOffer) {
+      _detectedLanguage = null;
+      _osLanguage = null;
+      _canOfferTranslation = false;
+      _isTranslating = false;
+      _showingTranslation = false;
+      _translationResult = null;
+      _translationError = null;
+      if (widget.enableTranslationOffer) {
+        _checkTranslationOffer();
+      }
+    }
+  }
+
+  String _translatableBodyPlainText() {
+    final target = widget.status.displayStatus;
+    final bodyHtml =
+        _leadingQuote != null ? _leadingQuote!.remainingHtml : target.contentHtml;
+    return HtmlUtils.htmlToPlainText(bodyHtml).trim();
+  }
+
+  Future<void> _checkTranslationOffer() async {
+    final target = widget.status.displayStatus;
+    final bodyText = _translatableBodyPlainText();
+    final combinedText = [
+      if (target.spoilerText.trim().isNotEmpty) target.spoilerText.trim(),
+      if (bodyText.isNotEmpty) bodyText,
+    ].join('\n');
+    if (combinedText.isEmpty) return;
+
+    final translation = widget.app.translation;
+    final supported = await translation.isTranslationSupported();
+    if (!mounted || !supported) return;
+
+    final detected = await translation.detectPostLanguage(
+      declaredLanguage: target.language,
+      plainText: combinedText,
+    );
+    if (!mounted || detected == null) return;
+
+    final osLang = translation.currentOsLanguageCode();
+    if (detected == osLang) return;
+
+    setState(() {
+      _detectedLanguage = detected;
+      _osLanguage = osLang;
+      _canOfferTranslation = true;
+    });
+  }
+
+  Future<void> _handleTranslate() async {
+    final sourceLang = _detectedLanguage;
+    final targetLang = _osLanguage;
+    if (_isTranslating || sourceLang == null || targetLang == null) return;
+
+    final target = widget.status.displayStatus;
+    final bodyText = _translatableBodyPlainText();
+    final spoiler = target.spoilerText.trim();
+
+    setState(() {
+      _isTranslating = true;
+      _translationError = null;
+    });
+
+    try {
+      final result = await widget.app.translation.translatePost(
+        text: bodyText,
+        spoilerText: spoiler.isEmpty ? null : spoiler,
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang,
+      );
+      if (!mounted) return;
+      setState(() {
+        _translationResult = result;
+        _showingTranslation = true;
+        _isTranslating = false;
+      });
+      AccessibilityAnnouncer.announce(
+        'Post translated to ${TranslationService.languageDisplayName(targetLang)} using ${result.engineName}.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _translationError = e.toString().replaceFirst('Bad state: ', '');
+        _isTranslating = false;
+      });
     }
   }
 
@@ -138,6 +248,23 @@ class _StatusCardState extends State<StatusCard> {
                 ),
               ),
 
+            // On-device translation offer at the top of an opened post
+            if (_canOfferTranslation &&
+                _detectedLanguage != null &&
+                _osLanguage != null)
+              PostTranslationBanner(
+                sourceLanguageCode: _detectedLanguage!,
+                targetLanguageCode: _osLanguage!,
+                isTranslating: _isTranslating,
+                showingTranslation: _showingTranslation,
+                translationResult: _translationResult,
+                errorMessage: _translationError,
+                onTranslate: _handleTranslate,
+                onToggleOriginal: () => setState(
+                  () => _showingTranslation = !_showingTranslation,
+                ),
+              ),
+
             StatusAuthorHeader(
               status: target,
               onOpenProfile: widget.onOpenProfile,
@@ -147,7 +274,10 @@ class _StatusCardState extends State<StatusCard> {
 
             if (hasCw) ...[
               ContentWarningBanner(
-                spoilerText: target.spoilerText,
+                spoilerText: _showingTranslation &&
+                        (_translationResult?.translatedSpoiler ?? '').isNotEmpty
+                    ? _translationResult!.translatedSpoiler!
+                    : target.spoilerText,
                 revealed: _cwRevealed,
                 onToggle: () => setState(() => _cwRevealed = !_cwRevealed),
               ),
@@ -204,13 +334,24 @@ class _StatusCardState extends State<StatusCard> {
                           borderRadius: BorderRadius.circular(6),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: LinkifiedText.html(
-                              bodyHtml,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                              mentions: target.mentions,
-                              onTapMention: (mention) =>
-                                  widget.onOpenProfile(mention.toStubAccount()),
-                            ),
+                            child: _showingTranslation &&
+                                    (_translationResult?.translatedText ?? '')
+                                        .isNotEmpty
+                                ? LinkifiedText.plain(
+                                    _translationResult!.translatedText,
+                                    style:
+                                        Theme.of(context).textTheme.bodyLarge,
+                                  )
+                                : LinkifiedText.html(
+                                    bodyHtml,
+                                    style:
+                                        Theme.of(context).textTheme.bodyLarge,
+                                    mentions: target.mentions,
+                                    onTapMention: (mention) =>
+                                        widget.onOpenProfile(
+                                      mention.toStubAccount(),
+                                    ),
+                                  ),
                           ),
                         ),
                     ],

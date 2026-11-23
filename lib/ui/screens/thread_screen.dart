@@ -101,6 +101,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
     final card = StatusCard(
       status: status,
       app: widget.app,
+      enableTranslationOffer: highlight,
       onOpenProfile: (acc) => _actions.openProfile(context, acc),
       onOpenThread: (st) => _actions.openThread(
         context,
