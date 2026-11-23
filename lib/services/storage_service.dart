@@ -12,12 +12,18 @@ import '../models/mastodon_models.dart';
 import 'mastodon_service.dart';
 
 /// Manages secure storage of tokens/API keys (iOS Keychain / Android Keystore;
-/// sandboxed per-app preferences on macOS to avoid ad-hoc Keychain prompt loops)
+/// sandboxed per-app preferences on macOS to avoid ad-hoc Keychain prompt loops;
+/// `libsecret` with `SharedPreferences` fallback on minimal Linux desktops)
 /// and non-sensitive user preferences.
 class StorageService {
   StorageService({
     FlutterSecureStorage? secureStorage,
+    bool? enableLinuxKeyringFallback,
   })  : _hasCustomSecureStorage = secureStorage != null,
+        _enableLinuxKeyringFallback = enableLinuxKeyringFallback ??
+            (secureStorage == null &&
+                !kIsWeb &&
+                defaultTargetPlatform == TargetPlatform.linux),
         _secureStorage = secureStorage ??
             const FlutterSecureStorage(
               iOptions: IOSOptions(
@@ -26,7 +32,10 @@ class StorageService {
             );
 
   final bool _hasCustomSecureStorage;
+  final bool _enableLinuxKeyringFallback;
   final FlutterSecureStorage _secureStorage;
+
+  static const String _linuxFallbackPrefix = 'linux_secret_';
 
   bool get _useMacOsSandboxedPrefs =>
       !_hasCustomSecureStorage &&
@@ -38,6 +47,18 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('macos_secret_$key');
     }
+    if (_enableLinuxKeyringFallback) {
+      try {
+        final secureValue = await _secureStorage.read(key: key);
+        if (secureValue != null) {
+          return secureValue;
+        }
+      } catch (_) {
+        // Keyring daemon unavailable; fall back to SharedPreferences below.
+      }
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('$_linuxFallbackPrefix$key');
+    }
     return _secureStorage.read(key: key);
   }
 
@@ -47,6 +68,17 @@ class StorageService {
       await prefs.setString('macos_secret_$key', value);
       return;
     }
+    if (_enableLinuxKeyringFallback) {
+      final prefs = await SharedPreferences.getInstance();
+      try {
+        await _secureStorage.write(key: key, value: value);
+        await prefs.remove('$_linuxFallbackPrefix$key');
+        return;
+      } catch (_) {
+        await prefs.setString('$_linuxFallbackPrefix$key', value);
+        return;
+      }
+    }
     await _secureStorage.write(key: key, value: value);
   }
 
@@ -54,6 +86,16 @@ class StorageService {
     if (_useMacOsSandboxedPrefs) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('macos_secret_$key');
+      return;
+    }
+    if (_enableLinuxKeyringFallback) {
+      try {
+        await _secureStorage.delete(key: key);
+      } catch (_) {
+        // Keyring daemon unavailable; clear fallback entry below.
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('$_linuxFallbackPrefix$key');
       return;
     }
     await _secureStorage.delete(key: key);

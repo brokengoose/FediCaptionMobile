@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=FediCaption
+Comment=Accessible Mastodon client with AI alt-text and bias checking
+Exec=fedicaption %u
+Icon=fedicaption
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;Accessibility;
+StartupWMClass=io.github.brokengoose.fedicaption

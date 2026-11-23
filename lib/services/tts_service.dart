@@ -1,16 +1,41 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
-/// Native iOS and Android Text-to-Speech controller for reading alt-text aloud.
+typedef LinuxProcessStarter = Future<Process> Function(
+  String executable,
+  List<String> arguments,
+);
+
+/// Native iOS, macOS, Android, Windows, and Linux Text-to-Speech controller for
+/// reading alt-text aloud.
 class TtsService extends ChangeNotifier {
-  TtsService({FlutterTts? tts}) : _tts = tts ?? FlutterTts() {
-    _configure();
+  TtsService({
+    FlutterTts? tts,
+    bool? isLinuxOverride,
+    LinuxProcessStarter? linuxProcessStarter,
+  })  : _isLinux = isLinuxOverride ??
+            (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux),
+        _linuxProcessStarter = linuxProcessStarter ?? Process.start,
+        _tts = (isLinuxOverride ??
+                    (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux)) &&
+                tts == null
+            ? null
+            : (tts ?? FlutterTts()) {
+    if (_tts != null) {
+      _configure(_tts);
+    }
   }
 
-  final FlutterTts _tts;
+  final FlutterTts? _tts;
+  final bool _isLinux;
+  final LinuxProcessStarter _linuxProcessStarter;
+  Process? _linuxProcess;
+  int _speakGeneration = 0;
   String? _activeKey;
   bool _isSpeaking = false;
   bool _disposed = false;
@@ -26,10 +51,16 @@ class TtsService extends ChangeNotifier {
     }
   }
 
-  void _configure() {
+  void _resetState() {
+    _isSpeaking = false;
+    _activeKey = null;
+    _safeNotify();
+  }
+
+  void _configure(FlutterTts tts) {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-      _tts.setSharedInstance(true);
-      _tts.setIosAudioCategory(
+      tts.setSharedInstance(true);
+      tts.setIosAudioCategory(
         IosTextToSpeechAudioCategory.playback,
         [
           IosTextToSpeechAudioCategoryOptions.allowBluetooth,
@@ -41,19 +72,14 @@ class TtsService extends ChangeNotifier {
       );
     }
 
-    void resetState() {
-      _isSpeaking = false;
-      _activeKey = null;
-      _safeNotify();
-    }
-
-    _tts.setCompletionHandler(resetState);
-    _tts.setCancelHandler(resetState);
-    _tts.setErrorHandler((_) => resetState());
+    tts.setCompletionHandler(_resetState);
+    tts.setCancelHandler(_resetState);
+    tts.setErrorHandler((_) => _resetState());
   }
 
-  /// Speaks [text] (or stops if [key] is already being spoken) using the phone's
-  /// built-in on-device TTS engine (`AVSpeechSynthesizer` on iOS / `TextToSpeech` on Android).
+  /// Speaks [text] (or stops if [key] is already being spoken) using the device's
+  /// native TTS engine (`AVSpeechSynthesizer` on iOS/macOS, `TextToSpeech` on
+  /// Android, SAPI on Windows, or `spd-say` / `espeak-ng` / `espeak` on Linux).
   Future<void> toggleSpeak({
     required String key,
     required String text,
@@ -69,17 +95,30 @@ class TtsService extends ChangeNotifier {
       return;
     }
 
-    await _tts.stop();
+    if (_isLinux && _tts == null) {
+      await _toggleSpeakLinux(
+        key: key,
+        text: trimmed,
+        languageName: languageName,
+        speechRate: speechRate,
+      );
+      return;
+    }
+
+    final tts = _tts;
+    if (tts == null) return;
+
+    await tts.stop();
     try {
-      await _tts.setVolume(1.0);
-      await _tts.setSpeechRate(speechRate.clamp(0.25, 1.0));
+      await tts.setVolume(1.0);
+      await tts.setSpeechRate(speechRate.clamp(0.25, 1.0));
     } catch (_) {
       // Ignore if platform rejects volume/rate call.
     }
     final langCode = _languageCodeFromName(languageName);
     if (langCode != null) {
       try {
-        await _tts.setLanguage(langCode);
+        await tts.setLanguage(langCode);
       } catch (_) {
         // Ignore unsupported TTS locale and fall back to system default.
       }
@@ -90,14 +129,121 @@ class TtsService extends ChangeNotifier {
     _isSpeaking = true;
     _safeNotify();
 
-    await _tts.speak(trimmed);
+    await tts.speak(trimmed);
+  }
+
+  Future<void> _toggleSpeakLinux({
+    required String key,
+    required String text,
+    String? languageName,
+    double speechRate = 0.5,
+  }) async {
+    await _stopLinuxProcess();
+    final gen = ++_speakGeneration;
+
+    final clampedRate = speechRate.clamp(0.25, 1.0);
+    final spdRate = ((clampedRate - 0.5) * 160).round().clamp(-80, 80);
+    final espeakWpm = (100 + clampedRate * 150).round();
+    final primaryLang =
+        _languageCodeFromName(languageName)?.split('-').first.toLowerCase();
+
+    final candidates = <(String, List<String>)>[
+      (
+        'spd-say',
+        [
+          '--wait',
+          '--rate',
+          '$spdRate',
+          if (primaryLang != null) ...['--language', primaryLang],
+          '--',
+          text,
+        ],
+      ),
+      (
+        'espeak-ng',
+        [
+          '-s',
+          '$espeakWpm',
+          if (primaryLang != null) ...['-v', primaryLang],
+          '--',
+          text,
+        ],
+      ),
+      (
+        'espeak',
+        [
+          '-s',
+          '$espeakWpm',
+          if (primaryLang != null) ...['-v', primaryLang],
+          '--',
+          text,
+        ],
+      ),
+    ];
+
+    Process? started;
+    for (final (executable, args) in candidates) {
+      if (_disposed || _speakGeneration != gen) return;
+      try {
+        started = await _linuxProcessStarter(executable, args);
+        break;
+      } on ProcessException {
+        // Binary not installed; try next Linux speech synthesizer.
+      } on OSError {
+        // Unavailable or permission error; try next Linux speech synthesizer.
+      }
+    }
+
+    if (started == null) {
+      if (_speakGeneration == gen) {
+        _resetState();
+      }
+      return;
+    }
+
+    if (_disposed || _speakGeneration != gen) {
+      _killProcessQuietly(started);
+      return;
+    }
+
+    _linuxProcess = started;
+    _activeKey = key;
+    _isSpeaking = true;
+    _safeNotify();
+
+    started.exitCode.catchError((_) => -1).whenComplete(() {
+      if (_speakGeneration == gen && !_disposed) {
+        _linuxProcess = null;
+        _resetState();
+      }
+    });
+  }
+
+  Future<void> _stopLinuxProcess() async {
+    final proc = _linuxProcess;
+    _linuxProcess = null;
+    if (proc != null) {
+      _killProcessQuietly(proc);
+    }
+  }
+
+  void _killProcessQuietly(Process proc) {
+    try {
+      proc.kill(ProcessSignal.sigterm);
+    } catch (_) {
+      // Ignore if the speech process has already exited.
+    }
   }
 
   Future<void> stop() async {
-    await _tts.stop();
-    _isSpeaking = false;
-    _activeKey = null;
-    _safeNotify();
+    if (_isLinux && _tts == null) {
+      _speakGeneration++;
+      await _stopLinuxProcess();
+      _resetState();
+      return;
+    }
+    await _tts?.stop();
+    _resetState();
   }
 
   String? _languageCodeFromName(String? name) {
@@ -136,7 +282,13 @@ class TtsService extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _tts.stop().catchError((_) {});
+    _speakGeneration++;
+    final proc = _linuxProcess;
+    _linuxProcess = null;
+    if (proc != null) {
+      _killProcessQuietly(proc);
+    }
+    _tts?.stop().catchError((_) {});
     super.dispose();
   }
 }

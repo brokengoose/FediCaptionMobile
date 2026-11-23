@@ -10,6 +10,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   url_launcher_windows
   share_plus
   video_player_win
+  media_kit_video
   window_to_front
 )
 

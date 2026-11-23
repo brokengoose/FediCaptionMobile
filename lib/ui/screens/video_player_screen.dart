@@ -9,7 +9,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/accessibility_announcer.dart';
 
 /// Full-screen accessible video player for Mastodon `video` and `gifv` media
-/// attachments across macOS, iOS, and Android.
+/// attachments across Linux, macOS, Windows, iOS, and Android.
 class VideoPlayerScreen extends StatefulWidget {
   const VideoPlayerScreen({
     super.key,
