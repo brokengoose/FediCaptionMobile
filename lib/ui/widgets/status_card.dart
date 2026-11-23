@@ -11,6 +11,7 @@ import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import '../../services/translation_service.dart';
 import '../../state/app_controller.dart';
+import 'accessible_tip.dart';
 import 'linkified_text.dart';
 import 'media_attachment_card.dart';
 import 'post_translation_banner.dart';
@@ -249,8 +250,11 @@ class _StatusCardState extends State<StatusCard> {
                   button: true,
                   label:
                       'Boosted by ${outer.account.effectiveDisplayName}. Tap to view profile.',
-                  child: InkWell(
-                    onTap: () => widget.onOpenProfile(outer.account),
+                  child: AccessibleTip(
+                    message:
+                        'View profile of ${outer.account.effectiveDisplayName} (who boosted this post)',
+                    child: InkWell(
+                      onTap: () => widget.onOpenProfile(outer.account),
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -274,6 +278,7 @@ class _StatusCardState extends State<StatusCard> {
                         ],
                       ),
                     ),
+                  ),
                   ),
                 ),
               ),
@@ -360,29 +365,32 @@ class _StatusCardState extends State<StatusCard> {
                       if (hasQuoteWindow && bodyPlainText.isNotEmpty)
                         const SizedBox(height: 6),
                       if (bodyPlainText.isNotEmpty)
-                        InkWell(
-                          onTap: () => widget.onOpenThread(target),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: _showingTranslation &&
-                                    (_translationResult?.translatedText ?? '')
-                                        .isNotEmpty
-                                ? LinkifiedText.plain(
-                                    _translationResult!.translatedText,
-                                    style:
-                                        Theme.of(context).textTheme.bodyLarge,
-                                  )
-                                : LinkifiedText.html(
-                                    bodyHtml,
-                                    style:
-                                        Theme.of(context).textTheme.bodyLarge,
-                                    mentions: target.mentions,
-                                    onTapMention: (mention) =>
-                                        widget.onOpenProfile(
-                                      mention.toStubAccount(),
+                        AccessibleTip(
+                          message: 'Open post and conversation thread (Enter)',
+                          child: InkWell(
+                            onTap: () => widget.onOpenThread(target),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: _showingTranslation &&
+                                      (_translationResult?.translatedText ?? '')
+                                          .isNotEmpty
+                                  ? LinkifiedText.plain(
+                                      _translationResult!.translatedText,
+                                      style:
+                                          Theme.of(context).textTheme.bodyLarge,
+                                    )
+                                  : LinkifiedText.html(
+                                      bodyHtml,
+                                      style:
+                                          Theme.of(context).textTheme.bodyLarge,
+                                      mentions: target.mentions,
+                                      onTapMention: (mention) =>
+                                          widget.onOpenProfile(
+                                        mention.toStubAccount(),
+                                      ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
                     ],
@@ -519,32 +527,35 @@ class _ActionIcon extends StatelessWidget {
       button: true,
       selected: active,
       label: semanticLabel,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: AppConstants.minTouchTargetSize,
-            minHeight: AppConstants.minTouchTargetSize,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 20, color: color),
-                if (label.isNotEmpty) ...[
-                  const SizedBox(width: 4),
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: color,
-                          fontWeight:
-                              active ? FontWeight.bold : FontWeight.normal,
-                        ),
-                  ),
+      child: AccessibleTip(
+        message: semanticLabel,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: AppConstants.minTouchTargetSize,
+              minHeight: AppConstants.minTouchTargetSize,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  if (label.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: color,
+                            fontWeight:
+                                active ? FontWeight.bold : FontWeight.normal,
+                          ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

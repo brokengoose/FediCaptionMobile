@@ -12,6 +12,7 @@ import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/accessible_tip.dart';
 import '../widgets/linkified_text.dart';
 
 /// Displays Mastodon notifications (`GET /api/v1/notifications`) with clickable
@@ -360,9 +361,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: InkWell(
-                          onTap: () =>
-                              _actions.openProfile(context, item.account),
+                        child: AccessibleTip(
+                          message:
+                              'View profile and posts by ${item.account.effectiveDisplayName}',
+                          child: InkWell(
+                            onTap: () =>
+                                _actions.openProfile(context, item.account),
                           borderRadius: BorderRadius.circular(8),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -387,13 +391,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ),
                           ),
                         ),
+                        ),
                       ),
                     ],
                   ),
                   if (item.status != null) ...[
                     const SizedBox(height: 8),
-                    InkWell(
-                      onTap: () => _actions.openThread(context, item.status!),
+                    AccessibleTip(
+                      message: 'Open conversation thread for this post (Enter)',
+                      child: InkWell(
+                        onTap: () => _actions.openThread(context, item.status!),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         width: double.infinity,
@@ -420,6 +427,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                       ),
+                    ),
                     ),
                   ],
                 ],

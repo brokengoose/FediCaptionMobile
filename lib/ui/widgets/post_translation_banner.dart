@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/translation_service.dart';
+import 'accessible_tip.dart';
 
 /// Compact, accessible banner displayed at the top of an opened post when the
 /// post's language differs from the user's operating system language.
@@ -76,17 +77,26 @@ class PostTranslationBanner extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else if (translationResult != null)
-                TextButton(
-                  onPressed: onToggleOriginal,
-                  child: Text(
-                    showingTranslation ? 'Show Original' : 'Show Translation',
+                AccessibleTip(
+                  message: showingTranslation
+                      ? 'Switch back to the original $srcName post and alt-text'
+                      : 'Show the translated $tgtName post and alt-text',
+                  child: TextButton(
+                    onPressed: onToggleOriginal,
+                    child: Text(
+                      showingTranslation ? 'Show Original' : 'Show Translation',
+                    ),
                   ),
                 )
               else
-                FilledButton.tonalIcon(
-                  onPressed: onTranslate,
-                  icon: const Icon(Icons.translate, size: 16),
-                  label: Text('Translate to $tgtName'),
+                AccessibleTip(
+                  message:
+                      'Translate this $srcName post and its media alt-text into $tgtName on-device',
+                  child: FilledButton.tonalIcon(
+                    onPressed: onTranslate,
+                    icon: const Icon(Icons.translate, size: 16),
+                    label: Text('Translate to $tgtName'),
+                  ),
                 ),
             ],
           ),

@@ -7,7 +7,9 @@ import 'package:fedicaption_mobile/state/app_controller.dart';
 import 'package:fedicaption_mobile/ui/helpers/keyboard_shortcuts.dart';
 import 'package:fedicaption_mobile/ui/screens/home_shell.dart';
 import 'package:fedicaption_mobile/ui/screens/timeline_screen.dart';
+import 'package:fedicaption_mobile/ui/widgets/accessible_tip.dart';
 import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -178,6 +180,54 @@ void main() {
       await tester.pump();
 
       expect(shortcutFired, isFalse);
+    });
+
+    testWidgets('AccessibleTip shows explanatory tip on Tab focus and mouse hover',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AccessibleTip(
+                    message: 'Compose a new Mastodon post',
+                    child: FilledButton(
+                      onPressed: () {},
+                      child: const Text('Compose'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  AccessibleTip(
+                    message: 'Open Settings & AI Configuration',
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      child: const Text('Settings'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tab focuses the first button -> shows its tip immediately.
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.text('Compose a new Mastodon post'), findsOneWidget);
+
+      // Mouse hover over the second button -> shows its tip after waitDuration.
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(gesture.removePointer);
+      await gesture.addPointer(location: Offset.zero);
+      await gesture.moveTo(tester.getCenter(find.text('Settings')));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+      expect(find.text('Open Settings & AI Configuration'), findsOneWidget);
     });
   });
 }

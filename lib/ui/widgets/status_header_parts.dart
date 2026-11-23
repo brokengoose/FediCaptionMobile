@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../models/mastodon_models.dart';
 import 'accessible_avatar.dart';
+import 'accessible_tip.dart';
 
 /// Shared author header row (clickable avatar, display name, handle, and
 /// upper-right clickable relative timestamp permalink) used in both
@@ -55,36 +56,40 @@ class StatusAuthorHeader extends StatelessWidget {
             button: true,
             label:
                 '${status.account.effectiveDisplayName}, ${status.account.handle}. Tap to view posts.',
-            child: InkWell(
-              onTap: () => onOpenProfile(status.account),
-              borderRadius: BorderRadius.circular(8),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: AppConstants.minTouchTargetSize,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      status.account.effectiveDisplayName,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      status.account.handle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: fedi.subtleText),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+            child: AccessibleTip(
+              message:
+                  'View profile and posts by ${status.account.effectiveDisplayName}',
+              child: InkWell(
+                onTap: () => onOpenProfile(status.account),
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: AppConstants.minTouchTargetSize,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        status.account.effectiveDisplayName,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        status.account.handle,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: fedi.subtleText),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -95,38 +100,41 @@ class StatusAuthorHeader extends StatelessWidget {
           label: compact
               ? 'Quoted post from $verboseTime. Open original post in external browser.'
               : 'Posted $verboseTime. Open original post in external browser.',
-          child: InkWell(
-            onTap: status.permalinkUrl.isNotEmpty
-                ? () => _openPermalink(status.permalinkUrl)
-                : null,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: AppConstants.minTouchTargetSize,
-                minHeight: AppConstants.minTouchTargetSize,
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      compactTime,
-                      style: (compact
-                              ? Theme.of(context).textTheme.labelSmall
-                              : Theme.of(context).textTheme.labelMedium)
-                          ?.copyWith(
-                        color: scheme.primary,
-                        decoration: TextDecoration.underline,
+          child: AccessibleTip(
+            message: 'Open original post in web browser ($verboseTime)',
+            child: InkWell(
+              onTap: status.permalinkUrl.isNotEmpty
+                  ? () => _openPermalink(status.permalinkUrl)
+                  : null,
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: AppConstants.minTouchTargetSize,
+                  minHeight: AppConstants.minTouchTargetSize,
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        compactTime,
+                        style: (compact
+                                ? Theme.of(context).textTheme.labelSmall
+                                : Theme.of(context).textTheme.labelMedium)
+                            ?.copyWith(
+                          color: scheme.primary,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.open_in_new,
-                      size: compact ? 13 : 14,
-                      color: scheme.primary,
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.open_in_new,
+                        size: compact ? 13 : 14,
+                        color: scheme.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -186,15 +194,20 @@ class ContentWarningBanner extends StatelessWidget {
             label: revealed
                 ? 'Hide content behind content warning'
                 : 'Show content behind content warning',
-            child: compact
-                ? TextButton(
-                    onPressed: onToggle,
-                    child: Text(revealed ? 'Hide' : 'Show'),
-                  )
-                : OutlinedButton(
-                    onPressed: onToggle,
-                    child: Text(revealed ? 'Hide' : 'Show More'),
-                  ),
+            child: AccessibleTip(
+              message: revealed
+                  ? 'Hide post content behind Content Warning (x)'
+                  : 'Reveal post content behind Content Warning (x)',
+              child: compact
+                  ? TextButton(
+                      onPressed: onToggle,
+                      child: Text(revealed ? 'Hide' : 'Show'),
+                    )
+                  : OutlinedButton(
+                      onPressed: onToggle,
+                      child: Text(revealed ? 'Hide' : 'Show More'),
+                    ),
+            ),
           ),
         ],
       ),

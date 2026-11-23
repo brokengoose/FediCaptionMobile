@@ -8,6 +8,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../screens/image_viewer_screen.dart';
 import '../screens/video_player_screen.dart';
+import 'accessible_tip.dart';
 import 'cached_network_image_provider.dart';
 import 'linkified_text.dart';
 
@@ -92,8 +93,12 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                   label: hasAnyAlt
                       ? '${att.isVideo ? 'Video' : 'Image'}: $effectiveAlt ${att.isVideo ? 'Tap to play video.' : 'Tap to view full image.'}'
                       : '${att.isVideo ? 'Video' : 'Image'} with no alt text provided. ${att.isVideo ? 'Tap to play video.' : 'Tap to view full image.'}',
-                  child: InkWell(
-                    onTap: () {
+                  child: AccessibleTip(
+                    message: att.isVideo
+                        ? 'Play embedded video in full-screen player'
+                        : 'View full-size image with zoom and share options',
+                    child: InkWell(
+                      onTap: () {
                       final fullUrl = att.url.isNotEmpty
                           ? att.url
                           : att.bestPreviewUrl;
@@ -169,6 +174,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           ),
                       ],
                     ),
+                  ),
                   ),
                 ),
 
@@ -296,28 +302,32 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               : (aiAlt != null || att.hasAltText
                                   ? 'Re-describe media with AI'
                                   : 'Describe media with AI'),
-                          child: OutlinedButton.icon(
-                            onPressed: isDescribing
-                                ? null
-                                : () => widget.app.describeTimelineMedia(
-                                      att,
-                                      postContext: widget.postContext,
-                                    ),
-                            icon: isDescribing
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.auto_awesome, size: 18),
-                            label: Text(
-                              isDescribing
-                                  ? 'Describing…'
-                                  : (aiAlt != null || att.hasAltText
-                                      ? 'Re-Describe with AI'
-                                      : 'Describe with AI'),
+                          child: AccessibleTip(
+                            message:
+                                'Generate an AI alt-text description for this media attachment',
+                            child: OutlinedButton.icon(
+                              onPressed: isDescribing
+                                  ? null
+                                  : () => widget.app.describeTimelineMedia(
+                                        att,
+                                        postContext: widget.postContext,
+                                      ),
+                              icon: isDescribing
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.auto_awesome, size: 18),
+                              label: Text(
+                                isDescribing
+                                    ? 'Describing…'
+                                    : (aiAlt != null || att.hasAltText
+                                        ? 'Re-Describe with AI'
+                                        : 'Describe with AI'),
+                              ),
                             ),
                           ),
                         ),
@@ -328,19 +338,24 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           label: isSpeaking
                               ? 'Stop reading alt text aloud'
                               : 'Read alt text aloud',
-                          child: OutlinedButton.icon(
-                            onPressed: () => widget.app.tts.toggleSpeak(
-                              key: ttsKey,
-                              text: effectiveAlt,
-                              languageName: widget.app.settings.language,
-                              speechRate: widget.app.settings.ttsSpeechRate,
-                            ),
-                            icon: Icon(
-                              isSpeaking ? Icons.stop : Icons.volume_up,
-                              size: 18,
-                            ),
-                            label: Text(
-                              isSpeaking ? 'Stop Reading' : 'Read Aloud',
+                          child: AccessibleTip(
+                            message: isSpeaking
+                                ? 'Stop reading alt-text aloud'
+                                : 'Read this alt-text description aloud using text-to-speech',
+                            child: OutlinedButton.icon(
+                              onPressed: () => widget.app.tts.toggleSpeak(
+                                key: ttsKey,
+                                text: effectiveAlt,
+                                languageName: widget.app.settings.language,
+                                speechRate: widget.app.settings.ttsSpeechRate,
+                              ),
+                              icon: Icon(
+                                isSpeaking ? Icons.stop : Icons.volume_up,
+                                size: 18,
+                              ),
+                              label: Text(
+                                isSpeaking ? 'Stop Reading' : 'Read Aloud',
+                              ),
                             ),
                           ),
                         ),

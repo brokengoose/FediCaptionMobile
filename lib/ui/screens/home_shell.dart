@@ -11,6 +11,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/accessible_tip.dart';
 import '../widgets/update_banner.dart';
 import 'composer_screen.dart';
 import 'local_search_screen.dart';
@@ -232,8 +233,11 @@ class _HomeShellState extends State<HomeShell> {
                     button: true,
                     label:
                         '${account.effectiveDisplayName}, ${account.handle}. Tap to view your own published posts.',
-                    child: InkWell(
-                      onTap: () => _selectTimeline(TimelineType.myPosts),
+                    child: AccessibleTip(
+                      message:
+                          'View your own published posts as ${account.handle} (g u)',
+                      child: InkWell(
+                        onTap: () => _selectTimeline(TimelineType.myPosts),
                       borderRadius: BorderRadius.circular(10),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(
@@ -278,22 +282,29 @@ class _HomeShellState extends State<HomeShell> {
                       ),
                     ),
                   ),
+                ),
             actions: [
-              IconButton(
-                tooltip: 'Search cached posts (/)',
-                icon: const Icon(Icons.search),
-                onPressed: _openLocalSearch,
+              AccessibleTip(
+                message: 'Search cached posts and alt-text offline (/)',
+                child: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _openLocalSearch,
+                ),
               ),
               if (isWideLayout)
-                IconButton(
-                  tooltip: 'Keyboard shortcuts (?)',
-                  icon: const Icon(Icons.keyboard_outlined),
-                  onPressed: () => KeyboardShortcutsDialog.show(context),
+                AccessibleTip(
+                  message: 'View keyboard navigation shortcuts (?)',
+                  child: IconButton(
+                    icon: const Icon(Icons.keyboard_outlined),
+                    onPressed: () => KeyboardShortcutsDialog.show(context),
+                  ),
                 ),
-              IconButton(
-                tooltip: 'Settings (⌘,)',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: _openSettings,
+              AccessibleTip(
+                message: 'Open Settings & AI Configuration (⌘,)',
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: _openSettings,
+                ),
               ),
             ],
           ),
@@ -406,38 +417,92 @@ class _HomeShellState extends State<HomeShell> {
                           _selectTimeline(_desktopDestinations[idx]),
                       destinations: const [
                         NavigationRailDestination(
-                          icon: Icon(Icons.home_outlined),
-                          selectedIcon: Icon(Icons.home),
+                          icon: AccessibleTip(
+                            message:
+                                'Home timeline — posts from people you follow (g h)',
+                            child: Icon(Icons.home_outlined),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message:
+                                'Home timeline — posts from people you follow (g h)',
+                            child: Icon(Icons.home),
+                          ),
                           label: Text('Home'),
                         ),
                         NavigationRailDestination(
-                          icon: Icon(Icons.groups_outlined),
-                          selectedIcon: Icon(Icons.groups),
+                          icon: AccessibleTip(
+                            message:
+                                'Local timeline — public posts from your server (g l)',
+                            child: Icon(Icons.groups_outlined),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message:
+                                'Local timeline — public posts from your server (g l)',
+                            child: Icon(Icons.groups),
+                          ),
                           label: Text('Local'),
                         ),
                         NavigationRailDestination(
-                          icon: Icon(Icons.public_outlined),
-                          selectedIcon: Icon(Icons.public),
+                          icon: AccessibleTip(
+                            message:
+                                'Federated timeline — public posts across the Fediverse (g p)',
+                            child: Icon(Icons.public_outlined),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message:
+                                'Federated timeline — public posts across the Fediverse (g p)',
+                            child: Icon(Icons.public),
+                          ),
                           label: Text('Federated'),
                         ),
                         NavigationRailDestination(
-                          icon: Icon(Icons.notifications_outlined),
-                          selectedIcon: Icon(Icons.notifications),
+                          icon: AccessibleTip(
+                            message:
+                                'Notifications — replies, mentions, boosts, and follows (g n)',
+                            child: Icon(Icons.notifications_outlined),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message:
+                                'Notifications — replies, mentions, boosts, and follows (g n)',
+                            child: Icon(Icons.notifications),
+                          ),
                           label: Text('Alerts'),
                         ),
                         NavigationRailDestination(
-                          icon: Icon(Icons.bookmark_outline),
-                          selectedIcon: Icon(Icons.bookmark),
+                          icon: AccessibleTip(
+                            message:
+                                'Bookmarks — posts you saved privately (g b)',
+                            child: Icon(Icons.bookmark_outline),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message:
+                                'Bookmarks — posts you saved privately (g b)',
+                            child: Icon(Icons.bookmark),
+                          ),
                           label: Text('Bookmarks'),
                         ),
                         NavigationRailDestination(
-                          icon: Icon(Icons.star_outline),
-                          selectedIcon: Icon(Icons.star),
+                          icon: AccessibleTip(
+                            message: 'Favorites — posts you liked (g f)',
+                            child: Icon(Icons.star_outline),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message: 'Favorites — posts you liked (g f)',
+                            child: Icon(Icons.star),
+                          ),
                           label: Text('Favorites'),
                         ),
                         NavigationRailDestination(
-                          icon: Icon(Icons.article_outlined),
-                          selectedIcon: Icon(Icons.article),
+                          icon: AccessibleTip(
+                            message:
+                                'My Published Posts — your own Mastodon posts (g u)',
+                            child: Icon(Icons.article_outlined),
+                          ),
+                          selectedIcon: AccessibleTip(
+                            message:
+                                'My Published Posts — your own Mastodon posts (g u)',
+                            child: Icon(Icons.article),
+                          ),
                           label: Text('My Posts'),
                         ),
                       ],
@@ -454,15 +519,14 @@ class _HomeShellState extends State<HomeShell> {
                   ],
                 )
               : contentColumn,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ComposerScreen(app: widget.app),
-              ),
+          floatingActionButton: AccessibleTip(
+            message: 'Compose a new Mastodon post (n or ⌘N)',
+            preferBelow: false,
+            child: FloatingActionButton.extended(
+              onPressed: _openComposer,
+              icon: const Icon(Icons.edit),
+              label: const Text('Post'),
             ),
-            icon: const Icon(Icons.edit),
-            label: const Text('Post'),
-            tooltip: 'Compose a new Mastodon post',
           ),
           bottomNavigationBar: isWideLayout
               ? null

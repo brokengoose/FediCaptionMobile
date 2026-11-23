@@ -13,6 +13,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../../state/composer_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
+import '../widgets/accessible_tip.dart';
 import '../widgets/bias_review_sheet.dart';
 import '../widgets/composer_attachment_tile.dart';
 import '../widgets/missing_alt_text_dialog.dart';
@@ -232,9 +233,14 @@ class _ComposerScreenState extends State<ComposerScreen> {
             actions: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: FilledButton(
-                  onPressed: _controller.canSubmit ? _handleSubmit : null,
-                  child: Text(submitLabel),
+                child: AccessibleTip(
+                  message: _controller.isEditing
+                      ? 'Save your edited post and alt-text (⌘Enter)'
+                      : 'Check accessibility and bias rules, then publish post (⌘Enter)',
+                  child: FilledButton(
+                    onPressed: _controller.canSubmit ? _handleSubmit : null,
+                    child: Text(submitLabel),
+                  ),
                 ),
               ),
             ],
@@ -405,32 +411,49 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   children: [
                     if (Theme.of(context).platform == TargetPlatform.iOS ||
                         Theme.of(context).platform == TargetPlatform.android)
-                      OutlinedButton.icon(
-                        onPressed: _controller.canAddMoreMedia
-                            ? () => _pickPhoto(ImageSource.camera)
-                            : null,
-                        icon: const Icon(Icons.photo_camera),
-                        label: const Text('Camera'),
+                      AccessibleTip(
+                        message:
+                            'Take a photo with your camera and auto-generate alt-text',
+                        child: OutlinedButton.icon(
+                          onPressed: _controller.canAddMoreMedia
+                              ? () => _pickPhoto(ImageSource.camera)
+                              : null,
+                          icon: const Icon(Icons.photo_camera),
+                          label: const Text('Camera'),
+                        ),
                       ),
-                    OutlinedButton.icon(
-                      onPressed: _controller.canAddMoreMedia
-                          ? () => _pickPhoto(ImageSource.gallery)
-                          : null,
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Photo Library'),
+                    AccessibleTip(
+                      message:
+                          'Choose a photo from your library (EXIF stripped & resized automatically)',
+                      child: OutlinedButton.icon(
+                        onPressed: _controller.canAddMoreMedia
+                            ? () => _pickPhoto(ImageSource.gallery)
+                            : null,
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Photo Library'),
+                      ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: _controller.canAddMoreMedia
-                          ? () => _pickVideo(ImageSource.gallery)
-                          : null,
-                      icon: const Icon(Icons.video_library),
-                      label: const Text('Video'),
+                    AccessibleTip(
+                      message:
+                          'Choose a video to attach and auto-generate alt-text',
+                      child: OutlinedButton.icon(
+                        onPressed: _controller.canAddMoreMedia
+                            ? () => _pickVideo(ImageSource.gallery)
+                            : null,
+                        icon: const Icon(Icons.video_library),
+                        label: const Text('Video'),
+                      ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed:
-                          _controller.canAddMoreMedia ? _pickFromFiles : null,
-                      icon: const Icon(Icons.attach_file),
-                      label: const Text('File Picker'),
+                    AccessibleTip(
+                      message:
+                          'Pick an image or video file from disk (EXIF stripped & resized automatically)',
+                      child: OutlinedButton.icon(
+                        onPressed: _controller.canAddMoreMedia
+                            ? _pickFromFiles
+                            : null,
+                        icon: const Icon(Icons.attach_file),
+                        label: const Text('File Picker'),
+                      ),
                     ),
                   ],
                 ),

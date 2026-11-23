@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
+import 'accessible_tip.dart';
 import 'cached_network_image_provider.dart';
 
 /// Accessible user avatar with >= 48x48dp touch target when interactive.
@@ -54,18 +55,22 @@ class AccessibleAvatar extends StatelessWidget {
       return ExcludeSemantics(child: avatar);
     }
 
+    final tipText = semanticLabel ?? 'View profile and posts by $displayName';
     return Semantics(
       button: true,
-      label: semanticLabel ?? 'View posts by $displayName',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.minTouchTargetSize / 2),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: AppConstants.minTouchTargetSize,
-            minHeight: AppConstants.minTouchTargetSize,
+      label: tipText,
+      child: AccessibleTip(
+        message: tipText,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppConstants.minTouchTargetSize / 2),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: AppConstants.minTouchTargetSize,
+              minHeight: AppConstants.minTouchTargetSize,
+            ),
+            child: Center(child: avatar),
           ),
-          child: Center(child: avatar),
         ),
       ),
     );

@@ -279,6 +279,28 @@ class AppTheme {
         color: extraColors.cardBorder,
         thickness: borderWidth,
       ),
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 350),
+        showDuration: const Duration(seconds: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        textStyle: TextStyle(
+          color: extraColors.isHighContrast
+              ? Colors.black
+              : scheme.onInverseSurface,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: BoxDecoration(
+          color: extraColors.isHighContrast
+              ? const Color(0xFFFFFF00)
+              : scheme.inverseSurface,
+          borderRadius: BorderRadius.circular(8),
+          border: extraColors.isHighContrast
+              ? Border.all(color: Colors.white, width: 2)
+              : null,
+        ),
+      ),
     );
   }
 }
