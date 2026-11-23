@@ -1,6 +1,6 @@
-# FediCaption Mobile (iOS & Android)
+# FediCaption Mobile (iOS, Android & macOS)
 
-**FediCaption Mobile** is an accessible, cross-platform Flutter Mastodon client for **iOS (iPhone)** and **Android**, featuring built-in **on-device AI** (Apple Foundation Models & Google Gemini Nano), automatic AI alt-text generation for images and videos, on-demand timeline media descriptions, embedded quoted Mastodon posts, and pre-post racial & gender bias checking.
+**FediCaption Mobile** is an accessible, cross-platform Flutter Mastodon client for **iOS (iPhone/iPad)**, **Android**, and **macOS**, featuring built-in **on-device AI** (Apple Foundation Models & Google Gemini Nano), automatic AI alt-text generation for images and videos, on-demand timeline media descriptions, embedded quoted Mastodon posts, and pre-post racial & gender bias checking.
 
 > This project was generated with **Antigravity**.  
 > Contributor: **brokengoose** (`brokengoose@users.noreply.github.com`)  
@@ -70,16 +70,21 @@
    flutter analyze
    flutter test
    ```
-3. Launch on iOS Simulator, Android Emulator, or a connected physical phone:
+3. Launch on iOS Simulator, Android Emulator, macOS desktop, or a connected physical phone:
    ```bash
    flutter run
+   flutter run -d macos
    ```
    *(On macOS Android Emulator, launch the AVD with `-audio coreaudio` for host TTS audio playback.)*
-4. Build a release Android APK (includes R8 keep rules for ML Kit GenAI / AICore in `android/app/proguard-rules.pro`):
+4. Build a macOS desktop app:
+   ```bash
+   flutter build macos --release
+   ```
+5. Build a release Android APK (includes R8 keep rules for ML Kit GenAI / AICore in `android/app/proguard-rules.pro`):
    ```bash
    flutter build apk --release
    ```
-5. Rebuild, boot the Android emulator (with CoreAudio for TTS), install, and launch in one step:
+6. Rebuild, boot the Android emulator (with CoreAudio for TTS), install, and launch in one step:
    ```bash
    ./scripts/run_android_emulator.sh
    ```

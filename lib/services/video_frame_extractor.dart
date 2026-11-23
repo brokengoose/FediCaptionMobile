@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:get_thumbnail_video/index.dart';
 import 'package:get_thumbnail_video/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
@@ -35,12 +35,20 @@ class VideoFrameExtractor {
   }
 
   /// Extracts [frameCount] (3, 4, or 6) evenly spaced JPEG keyframes from [videoPath].
+  ///
+  /// Returns an empty list on desktop platforms where `get_thumbnail_video`
+  /// does not provide a native plugin implementation.
   Future<List<MediaBinaryPayload>> extractKeyframes(
     String videoPath, {
     int frameCount = 4,
     int maxWidth = 1024,
     int quality = 75,
   }) async {
+    if (!kIsWeb &&
+        (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+      return const [];
+    }
+
     int durationMs = 0;
     VideoPlayerController? controller;
     try {

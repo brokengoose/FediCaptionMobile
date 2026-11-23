@@ -378,13 +378,15 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: _controller.canAddMoreMedia
-                          ? () => _pickPhoto(ImageSource.camera)
-                          : null,
-                      icon: const Icon(Icons.photo_camera),
-                      label: const Text('Camera'),
-                    ),
+                    if (Theme.of(context).platform == TargetPlatform.iOS ||
+                        Theme.of(context).platform == TargetPlatform.android)
+                      OutlinedButton.icon(
+                        onPressed: _controller.canAddMoreMedia
+                            ? () => _pickPhoto(ImageSource.camera)
+                            : null,
+                        icon: const Icon(Icons.photo_camera),
+                        label: const Text('Camera'),
+                      ),
                     OutlinedButton.icon(
                       onPressed: _controller.canAddMoreMedia
                           ? () => _pickPhoto(ImageSource.gallery)

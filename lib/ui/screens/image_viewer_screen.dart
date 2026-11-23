@@ -162,6 +162,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                     onLongPressStart: (details) => _handleShare(
                       globalPosition: details.globalPosition,
                     ),
+                    onSecondaryTapUp: (details) => _handleShare(
+                      globalPosition: details.globalPosition,
+                    ),
                     child: SizedBox.expand(
                       child: Image.network(
                         widget.imageUrl,

@@ -41,6 +41,16 @@ class _HomeShellState extends State<HomeShell> {
     TimelineType.notifications,
   ];
 
+  static const List<TimelineType> _desktopDestinations = [
+    TimelineType.home,
+    TimelineType.local,
+    TimelineType.federated,
+    TimelineType.notifications,
+    TimelineType.bookmarks,
+    TimelineType.favorites,
+    TimelineType.myPosts,
+  ];
+
   void _selectTimeline(TimelineType type) {
     setState(() => _selectedTimeline = type);
   }
@@ -53,13 +63,37 @@ class _HomeShellState extends State<HomeShell> {
         final account = widget.app.currentAccount;
         final update = widget.app.visibleUpdate;
         final fedi = context.fediColors;
+        final screenWidth = MediaQuery.sizeOf(context).width;
+        final isWideLayout = screenWidth >= 840;
+        final isExtendedRail = screenWidth >= 1100;
 
         final primaryIndex = _primaryTabs.indexOf(_selectedTimeline);
+        final desktopIndex = _desktopDestinations.indexOf(_selectedTimeline);
+
+        final contentColumn = Column(
+          children: [
+            // Dismissible GitHub Update Available banner
+            if (update != null)
+              UpdateBanner(
+                update: update,
+                onDismiss: widget.app.dismissUpdateBanner,
+              ),
+            Expanded(
+              child: _selectedTimeline == TimelineType.notifications
+                  ? NotificationsScreen(app: widget.app)
+                  : TimelineScreen(
+                      app: widget.app,
+                      timelineType: _selectedTimeline,
+                    ),
+            ),
+          ],
+        );
 
         return Scaffold(
           appBar: AppBar(
-            leadingWidth: 56,
-            titleSpacing: 4,
+            leadingWidth: isWideLayout ? null : 56,
+            automaticallyImplyLeading: !isWideLayout,
+            titleSpacing: isWideLayout ? 16 : 4,
             // Upper-left logged-in profile header: tapping immediately shows My Published Posts
             title: account == null
                 ? Text(_selectedTimeline.fullTitle)
@@ -125,8 +159,10 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ],
           ),
-          drawer: Drawer(
-            child: SafeArea(
+          drawer: isWideLayout
+              ? null
+              : Drawer(
+                  child: SafeArea(
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
@@ -222,24 +258,64 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ),
           ),
-          body: Column(
-            children: [
-              // Dismissible GitHub Update Available banner
-              if (update != null)
-                UpdateBanner(
-                  update: update,
-                  onDismiss: widget.app.dismissUpdateBanner,
-                ),
-              Expanded(
-                child: _selectedTimeline == TimelineType.notifications
-                    ? NotificationsScreen(app: widget.app)
-                    : TimelineScreen(
-                        app: widget.app,
-                        timelineType: _selectedTimeline,
+          body: isWideLayout
+              ? Row(
+                  children: [
+                    NavigationRail(
+                      extended: isExtendedRail,
+                      selectedIndex: desktopIndex >= 0 ? desktopIndex : 0,
+                      onDestinationSelected: (idx) =>
+                          _selectTimeline(_desktopDestinations[idx]),
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home_outlined),
+                          selectedIcon: Icon(Icons.home),
+                          label: Text('Home'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.groups_outlined),
+                          selectedIcon: Icon(Icons.groups),
+                          label: Text('Local'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.public_outlined),
+                          selectedIcon: Icon(Icons.public),
+                          label: Text('Federated'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.notifications_outlined),
+                          selectedIcon: Icon(Icons.notifications),
+                          label: Text('Alerts'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.bookmark_outline),
+                          selectedIcon: Icon(Icons.bookmark),
+                          label: Text('Bookmarks'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.star_outline),
+                          selectedIcon: Icon(Icons.star),
+                          label: Text('Favorites'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.article_outlined),
+                          selectedIcon: Icon(Icons.article),
+                          label: Text('My Posts'),
+                        ),
+                      ],
+                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: contentColumn,
+                        ),
                       ),
-              ),
-            ],
-          ),
+                    ),
+                  ],
+                )
+              : contentColumn,
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -250,32 +326,35 @@ class _HomeShellState extends State<HomeShell> {
             label: const Text('Post'),
             tooltip: 'Compose a new Mastodon post',
           ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: primaryIndex >= 0 ? primaryIndex : 0,
-            onDestinationSelected: (idx) => _selectTimeline(_primaryTabs[idx]),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.groups_outlined),
-                selectedIcon: Icon(Icons.groups),
-                label: 'Local',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.public_outlined),
-                selectedIcon: Icon(Icons.public),
-                label: 'Federated',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.notifications_outlined),
-                selectedIcon: Icon(Icons.notifications),
-                label: 'Alerts',
-              ),
-            ],
-          ),
+          bottomNavigationBar: isWideLayout
+              ? null
+              : NavigationBar(
+                  selectedIndex: primaryIndex >= 0 ? primaryIndex : 0,
+                  onDestinationSelected: (idx) =>
+                      _selectTimeline(_primaryTabs[idx]),
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: 'Home',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.groups_outlined),
+                      selectedIcon: Icon(Icons.groups),
+                      label: 'Local',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.public_outlined),
+                      selectedIcon: Icon(Icons.public),
+                      label: 'Federated',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.notifications_outlined),
+                      selectedIcon: Icon(Icons.notifications),
+                      label: 'Alerts',
+                    ),
+                  ],
+                ),
         );
       },
     );
