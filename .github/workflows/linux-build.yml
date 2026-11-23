@@ -19,8 +19,16 @@ permissions:
 
 jobs:
   build-linux:
-    name: Linux x64 Release Build
-    runs-on: ubuntu-latest
+    name: Linux ${{ matrix.arch }} Release Build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository
@@ -36,11 +44,22 @@ jobs:
             libwebkit2gtk-4.1-dev libsoup-3.0-dev \
             libmpv-dev mpv libepoxy-dev
 
-      - name: Set up Flutter (stable)
+      - name: Set up Flutter (stable, x64)
+        if: matrix.arch == 'x64'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Set up Flutter (stable, ARM64)
+        if: matrix.arch == 'arm64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone -b stable --depth 1 https://github.com/flutter/flutter.git "${HOME}/flutter"
+          echo "${HOME}/flutter/bin" >> "${GITHUB_PATH}"
+          "${HOME}/flutter/bin/flutter" --version
+          "${HOME}/flutter/bin/flutter" config --enable-linux-desktop
 
       - name: Install dependencies
         run: flutter pub get
@@ -54,11 +73,12 @@ jobs:
       - name: Build Linux release bundle
         run: flutter build linux --release
 
-      - name: Package portable Linux x64 .tar.gz and SHA-256 checksum
+      - name: Package portable Linux ${{ matrix.arch }} .tar.gz and SHA-256 checksum
         shell: bash
         run: |
           set -euo pipefail
-          BUNDLE_DIR="build/linux/x64/release/bundle"
+          ARCH="${{ matrix.arch }}"
+          BUNDLE_DIR="build/linux/${ARCH}/release/bundle"
           if [[ ! -x "${BUNDLE_DIR}/fedicaption" ]]; then
             echo "Expected ${BUNDLE_DIR}/fedicaption executable not found" >&2
             exit 1
@@ -80,10 +100,10 @@ jobs:
           cp "linux/packaging/fedicaption.desktop" "${STAGE_DIR}/"
           install -m 755 "linux/packaging/install-desktop-entry.sh" "${STAGE_DIR}/install-desktop-entry.sh"
 
-          cat > "${STAGE_DIR}/README-LINUX.txt" <<'EOF'
-          FediCaption for Linux (x64 Portable Bundle)
-          ===========================================
-
+          {
+            printf 'FediCaption for Linux (%s Portable Bundle)\n' "${ARCH}"
+            printf '============================================\n\n'
+            sed 's/^          //' <<'EOF'
           Quick Start
           -----------
           1. Extract the FediCaption folder anywhere you like.
@@ -107,21 +127,23 @@ jobs:
               Fedora:        webkit2gtk4.1
               Arch:          webkit2gtk-4.1
           EOF
+          } > "${STAGE_DIR}/README-LINUX.txt"
 
-          TAR_NAME="FediCaption-${TAG}-linux-x64.tar.gz"
+          TAR_NAME="FediCaption-${TAG}-linux-${ARCH}.tar.gz"
           TAR_PATH="${OUT_DIR}/${TAR_NAME}"
+          SUM_FILE="SHA256SUMS-linux-${ARCH}.txt"
           tar -czf "${TAR_PATH}" -C "${OUT_DIR}" FediCaption
 
-          (cd "${OUT_DIR}" && sha256sum "${TAR_NAME}" > SHA256SUMS-linux.txt)
+          (cd "${OUT_DIR}" && sha256sum "${TAR_NAME}" > "${SUM_FILE}")
 
           echo "TAR_PATH=${TAR_PATH}" >> "${GITHUB_ENV}"
-          echo "SUM_PATH=${OUT_DIR}/SHA256SUMS-linux.txt" >> "${GITHUB_ENV}"
+          echo "SUM_PATH=${OUT_DIR}/${SUM_FILE}" >> "${GITHUB_ENV}"
           ls -lh "${OUT_DIR}"
 
       - name: Upload Linux build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FediCaption-linux-x64
+          name: FediCaption-linux-${{ matrix.arch }}
           path: |
             ${{ env.TAR_PATH }}
             ${{ env.SUM_PATH }}
