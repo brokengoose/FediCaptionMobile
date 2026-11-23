@@ -4,8 +4,10 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'app.dart';
+import 'services/windows_tls_trust.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await WindowsTlsTrust.initialize();
   runApp(const FediCaptionApp());
 }
