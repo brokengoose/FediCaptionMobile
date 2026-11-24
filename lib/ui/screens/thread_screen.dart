@@ -221,6 +221,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
       status: status,
       app: widget.app,
       enableTranslationOffer: highlight,
+      enableReadAloud: highlight,
       isKeyboardSelected: _selectedIndex == flatIndex,
       cwRevealedOverride: target.spoilerText.trim().isNotEmpty
           ? _expandedCwIds.contains(target.id)

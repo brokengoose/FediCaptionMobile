@@ -1554,6 +1554,66 @@ abstract class AppLocalizations {
   /// **'Post translated to {language} using {engineName}.'**
   String statusAnnounceTranslated(String language, String engineName);
 
+  /// No description provided for @statusReadAloudPostSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Read post and all alt text aloud'**
+  String get statusReadAloudPostSemantics;
+
+  /// No description provided for @statusStopReadingPostSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop reading post aloud'**
+  String get statusStopReadingPostSemantics;
+
+  /// No description provided for @statusReadAloudPostTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Read this post and all its alt-text aloud using text-to-speech'**
+  String get statusReadAloudPostTip;
+
+  /// No description provided for @statusStopReadingPostTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop reading this post aloud'**
+  String get statusStopReadingPostTip;
+
+  /// No description provided for @statusReadAloudContentWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Content warning: {spoilerText}'**
+  String statusReadAloudContentWarning(String spoilerText);
+
+  /// No description provided for @statusReadAloudImageAlt.
+  ///
+  /// In en, this message translates to:
+  /// **'Image description: {altText}'**
+  String statusReadAloudImageAlt(String altText);
+
+  /// No description provided for @statusReadAloudVideoAlt.
+  ///
+  /// In en, this message translates to:
+  /// **'Video description: {altText}'**
+  String statusReadAloudVideoAlt(String altText);
+
+  /// No description provided for @statusReadAloudImageAltNumbered.
+  ///
+  /// In en, this message translates to:
+  /// **'Image {index} description: {altText}'**
+  String statusReadAloudImageAltNumbered(int index, String altText);
+
+  /// No description provided for @statusReadAloudVideoAltNumbered.
+  ///
+  /// In en, this message translates to:
+  /// **'Video {index} description: {altText}'**
+  String statusReadAloudVideoAltNumbered(int index, String altText);
+
+  /// No description provided for @statusReadAloudQuotedPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Quoted post by {author}'**
+  String statusReadAloudQuotedPost(String author);
+
   /// No description provided for @statusHeaderSemantics.
   ///
   /// In en, this message translates to:

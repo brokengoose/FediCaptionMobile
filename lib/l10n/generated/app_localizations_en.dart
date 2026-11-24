@@ -1015,6 +1015,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get statusReadAloudPostSemantics => 'Read post and all alt text aloud';
+
+  @override
+  String get statusStopReadingPostSemantics => 'Stop reading post aloud';
+
+  @override
+  String get statusReadAloudPostTip =>
+      'Read this post and all its alt-text aloud using text-to-speech';
+
+  @override
+  String get statusStopReadingPostTip => 'Stop reading this post aloud';
+
+  @override
+  String statusReadAloudContentWarning(String spoilerText) {
+    return 'Content warning: $spoilerText';
+  }
+
+  @override
+  String statusReadAloudImageAlt(String altText) {
+    return 'Image description: $altText';
+  }
+
+  @override
+  String statusReadAloudVideoAlt(String altText) {
+    return 'Video description: $altText';
+  }
+
+  @override
+  String statusReadAloudImageAltNumbered(int index, String altText) {
+    return 'Image $index description: $altText';
+  }
+
+  @override
+  String statusReadAloudVideoAltNumbered(int index, String altText) {
+    return 'Video $index description: $altText';
+  }
+
+  @override
+  String statusReadAloudQuotedPost(String author) {
+    return 'Quoted post by $author';
+  }
+
+  @override
   String statusHeaderSemantics(String displayName, String handle) {
     return '$displayName, $handle. Tap to view posts.';
   }

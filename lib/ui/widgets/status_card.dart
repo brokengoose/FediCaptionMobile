@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/accessibility_announcer.dart';
 import '../../core/constants.dart';
 import '../../core/html_utils.dart';
+import '../../core/language/language_registry.dart';
+import '../../core/post_read_aloud_builder.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
 import '../../l10n/l10n.dart';
@@ -39,6 +41,7 @@ class StatusCard extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.enableTranslationOffer = false,
+    this.enableReadAloud = false,
     this.isKeyboardSelected = false,
     this.cwRevealedOverride,
     this.onToggleCw,
@@ -59,6 +62,11 @@ class StatusCard extends StatefulWidget {
   /// language against the user's OS language and offers on-device translation
   /// at the top of the post when they differ.
   final bool enableTranslationOffer;
+
+  /// When true (e.g. for an opened post in `ThreadScreen`), renders a
+  /// "Read Aloud" button at the top of the post that reads the post and all
+  /// of its alt-text via TTS.
+  final bool enableReadAloud;
 
   /// Highlights this card with a primary focus border when navigated to via
   /// keyboard shortcuts (`j`/`k` or arrow keys).
@@ -86,6 +94,8 @@ class _StatusCardState extends State<StatusCard> {
   PostTranslationResult? _translationResult;
   String? _translationError;
 
+  String get _postTtsKey => 'post_full_${widget.status.displayStatus.id}';
+
   @override
   void initState() {
     super.initState();
@@ -96,12 +106,27 @@ class _StatusCardState extends State<StatusCard> {
   }
 
   @override
+  void dispose() {
+    if (widget.enableReadAloud && widget.app.tts.isSpeakingKey(_postTtsKey)) {
+      widget.app.tts.stop().catchError((_) {});
+    }
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(covariant StatusCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     final statusChanged =
         oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
             oldWidget.status.displayStatus.contentHtml !=
                 widget.status.displayStatus.contentHtml;
+    if (oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
+        (oldWidget.enableReadAloud && !widget.enableReadAloud)) {
+      final oldKey = 'post_full_${oldWidget.status.displayStatus.id}';
+      if (widget.app.tts.isSpeakingKey(oldKey)) {
+        widget.app.tts.stop().catchError((_) {});
+      }
+    }
     if (statusChanged) {
       _syncQuoteResolution();
     }
@@ -196,6 +221,7 @@ class _StatusCardState extends State<StatusCard> {
         instanceLimits: widget.app.instanceLimits,
       );
       if (!mounted) return;
+      _stopReadAloudIfActive();
       setState(() {
         _translationResult = result;
         _showingTranslation = true;
@@ -214,6 +240,43 @@ class _StatusCardState extends State<StatusCard> {
         _isTranslating = false;
       });
     }
+  }
+
+  void _stopReadAloudIfActive() {
+    if (widget.app.tts.isSpeakingKey(_postTtsKey)) {
+      widget.app.tts.stop().catchError((_) {});
+    }
+  }
+
+  String _buildPostReadAloudText(AppLocalizations l10n) {
+    final target = widget.status.displayStatus;
+    final quoteUrl = _leadingQuote?.quoteUrl;
+    final embeddedQuote = target.quotedStatus ??
+        (quoteUrl != null ? widget.app.cachedQuotedStatus(quoteUrl) : null);
+    final translation = _showingTranslation ? _translationResult : null;
+
+    return PostReadAloudBuilder.build(
+      status: target,
+      l10n: l10n,
+      bodyOverride: (translation?.translatedText ?? '').trim().isNotEmpty
+          ? translation!.translatedText
+          : null,
+      spoilerOverride: (translation?.translatedSpoiler ?? '').trim().isNotEmpty
+          ? translation!.translatedSpoiler
+          : null,
+      translatedAltTexts: translation?.translatedAltTexts ?? const {},
+      aiAltTextLookup: widget.app.aiDescriptionForMedia,
+      embeddedQuote: embeddedQuote,
+    );
+  }
+
+  String _resolveReadAloudLanguage() {
+    if (_showingTranslation && _translationResult != null) {
+      return _translationResult!.targetLanguage;
+    }
+    return LanguageRegistry.resolveCode(_detectedLanguage) ??
+        LanguageRegistry.resolveCode(widget.status.displayStatus.language) ??
+        widget.app.settings.language;
   }
 
   void _syncQuoteResolution() {
@@ -315,9 +378,61 @@ class _StatusCardState extends State<StatusCard> {
                 translationResult: _translationResult,
                 errorMessage: _translationError,
                 onTranslate: _handleTranslate,
-                onToggleOriginal: () => setState(
-                  () => _showingTranslation = !_showingTranslation,
-                ),
+                onToggleOriginal: () {
+                  _stopReadAloudIfActive();
+                  setState(() => _showingTranslation = !_showingTranslation);
+                },
+              ),
+
+            // Top-of-post Read Aloud button for an opened post page
+            if (widget.enableReadAloud)
+              ListenableBuilder(
+                listenable: Listenable.merge([
+                  widget.app.tts,
+                  widget.app.mediaAi,
+                  widget.app.quoteCache,
+                  widget.app,
+                ]),
+                builder: (context, _) {
+                  final speechText = _buildPostReadAloudText(l10n);
+                  if (speechText.isEmpty) return const SizedBox.shrink();
+                  final isSpeaking = widget.app.tts.isSpeakingKey(_postTtsKey);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Semantics(
+                        button: true,
+                        toggled: isSpeaking,
+                        label: isSpeaking
+                            ? l10n.statusStopReadingPostSemantics
+                            : l10n.statusReadAloudPostSemantics,
+                        child: AccessibleTip(
+                          message: isSpeaking
+                              ? l10n.statusStopReadingPostTip
+                              : l10n.statusReadAloudPostTip,
+                          child: FilledButton.tonalIcon(
+                            onPressed: () => widget.app.tts.toggleSpeak(
+                              key: _postTtsKey,
+                              text: speechText,
+                              languageName: _resolveReadAloudLanguage(),
+                              speechRate: widget.app.settings.ttsSpeechRate,
+                            ),
+                            icon: Icon(
+                              isSpeaking ? Icons.stop : Icons.volume_up,
+                              size: 18,
+                            ),
+                            label: Text(
+                              isSpeaking
+                                  ? l10n.mediaStopReadingButton
+                                  : l10n.mediaReadAloudButton,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
 
             StatusAuthorHeader(

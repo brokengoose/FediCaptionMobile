@@ -657,6 +657,48 @@
       "engineName": {"type": "String"}
     }
   },
+  "statusReadAloudPostSemantics": "Read post and all alt text aloud",
+  "statusStopReadingPostSemantics": "Stop reading post aloud",
+  "statusReadAloudPostTip": "Read this post and all its alt-text aloud using text-to-speech",
+  "statusStopReadingPostTip": "Stop reading this post aloud",
+  "statusReadAloudContentWarning": "Content warning: {spoilerText}",
+  "@statusReadAloudContentWarning": {
+    "placeholders": {
+      "spoilerText": {"type": "String"}
+    }
+  },
+  "statusReadAloudImageAlt": "Image description: {altText}",
+  "@statusReadAloudImageAlt": {
+    "placeholders": {
+      "altText": {"type": "String"}
+    }
+  },
+  "statusReadAloudVideoAlt": "Video description: {altText}",
+  "@statusReadAloudVideoAlt": {
+    "placeholders": {
+      "altText": {"type": "String"}
+    }
+  },
+  "statusReadAloudImageAltNumbered": "Image {index} description: {altText}",
+  "@statusReadAloudImageAltNumbered": {
+    "placeholders": {
+      "index": {"type": "int"},
+      "altText": {"type": "String"}
+    }
+  },
+  "statusReadAloudVideoAltNumbered": "Video {index} description: {altText}",
+  "@statusReadAloudVideoAltNumbered": {
+    "placeholders": {
+      "index": {"type": "int"},
+      "altText": {"type": "String"}
+    }
+  },
+  "statusReadAloudQuotedPost": "Quoted post by {author}",
+  "@statusReadAloudQuotedPost": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
 
   "statusHeaderSemantics": "{displayName}, {handle}. Tap to view posts.",
   "@statusHeaderSemantics": {
