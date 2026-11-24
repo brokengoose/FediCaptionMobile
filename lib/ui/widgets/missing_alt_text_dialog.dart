@@ -3,6 +3,7 @@
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../l10n/l10n.dart';
 import '../../models/app_settings.dart';
 
 enum MissingAltTextAction {
@@ -27,20 +28,22 @@ class MissingAltTextDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final allowPostAnyway = policy == PolicyMode.warn;
-    final plural = missingCount == 1 ? 'attachment is' : 'attachments are';
+    final body = allowPostAnyway
+        ? (aiEnabled
+            ? l10n.missingAltTextBodyWarnAi(missingCount)
+            : l10n.missingAltTextBodyWarnManual(missingCount))
+        : l10n.missingAltTextBodyRequire(missingCount);
 
     return AlertDialog(
       icon: const Icon(Icons.closed_caption_disabled_outlined, size: 32),
       title: Text(
         policy == PolicyMode.require
-            ? 'Alt-Text Required Before Posting'
-            : 'Missing Media Alt-Text',
+            ? l10n.missingAltTextTitleRequire
+            : l10n.missingAltTextTitleWarn,
       ),
-      content: Text(
-        '$missingCount media $plural missing an alt-text description for blind and low-vision readers. '
-        '${allowPostAnyway ? (aiEnabled ? 'Would you like to auto-generate descriptions with AI before posting?' : 'Would you like to add alt-text in the composer before posting?') : 'Your Accessibility Rules policy requires alt-text on all attached media before posting.'}',
-      ),
+      content: Text(body),
       actionsAlignment: MainAxisAlignment.end,
       actions: [
         if (aiEnabled)
@@ -48,18 +51,18 @@ class MissingAltTextDialog extends StatelessWidget {
             onPressed: () =>
                 Navigator.of(context).pop(MissingAltTextAction.autoGenerateWithAi),
             icon: const Icon(Icons.auto_awesome),
-            label: const Text('Auto-Generate Missing Alt-Text with AI'),
+            label: Text(l10n.missingAltTextAutoGenerateButton),
           ),
         OutlinedButton(
           onPressed: () =>
               Navigator.of(context).pop(MissingAltTextAction.returnToComposer),
-          child: const Text('Edit in Composer'),
+          child: Text(l10n.missingAltTextEditButton),
         ),
         if (allowPostAnyway)
           TextButton(
             onPressed: () =>
                 Navigator.of(context).pop(MissingAltTextAction.postAnyway),
-            child: const Text('Post Anyway'),
+            child: Text(l10n.missingAltTextPostAnywayButton),
           ),
       ],
     );

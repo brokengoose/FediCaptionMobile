@@ -7,6 +7,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
 import '../../services/ai_provider_service.dart';
@@ -24,10 +26,9 @@ class AiProviderConfigSection extends StatefulWidget {
   const AiProviderConfigSection({
     super.key,
     required this.app,
-    this.providerLabel = 'Active AI Provider',
-    this.modelHelperText = 'Sorted alphabetically. Select a vision-capable model.',
-    this.noAiNoticeText =
-        'AI is disabled ("No AI"). Alt-text can be entered manually, Read Aloud remains available, and pre-post bias checks use offline local heuristics.',
+    this.providerLabel,
+    this.modelHelperText,
+    this.noAiNoticeText,
     this.showNoAiTitle = false,
     this.enabled = true,
     this.skipInitialRefresh = false,
@@ -35,9 +36,9 @@ class AiProviderConfigSection extends StatefulWidget {
   });
 
   final AppController app;
-  final String providerLabel;
-  final String modelHelperText;
-  final String noAiNoticeText;
+  final String? providerLabel;
+  final String? modelHelperText;
+  final String? noAiNoticeText;
   final bool showNoAiTitle;
   final bool enabled;
 
@@ -159,6 +160,13 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
+    final effectiveProviderLabel =
+        widget.providerLabel ?? l10n.aiConfigActiveProviderLabel;
+    final effectiveModelHelper =
+        widget.modelHelperText ?? l10n.aiConfigModelHelper;
+    final effectiveNoAiNotice =
+        widget.noAiNoticeText ?? l10n.aiConfigNoAiNotice;
 
     return ListenableBuilder(
       listenable: widget.app,
@@ -195,12 +203,12 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
               key: ValueKey('ai_provider_${activeProvider.id}'),
               initialValue: activeProvider,
               isExpanded: true,
-              decoration: InputDecoration(labelText: widget.providerLabel),
+              decoration: InputDecoration(labelText: effectiveProviderLabel),
               items: AiProviderType.values
                   .map(
                     (p) => DropdownMenuItem(
                       value: p,
-                      child: Text(p.displayName),
+                      child: Text(p.localizedDisplayName(l10n)),
                     ),
                   )
                   .toList(),
@@ -219,8 +227,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
             if (activeProvider == AiProviderType.gemini)
               _buildApiKeyField(
                 controller: _geminiKeyCtrl,
-                label: 'Google Gemini API Key',
-                hint: 'AIza…',
+                label: l10n.aiConfigGeminiApiKeyLabel,
+                hint: l10n.aiConfigGeminiApiKeyHint,
+                l10n: l10n,
                 onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.gemini),
               ),
 
@@ -231,19 +240,19 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 keyboardType: TextInputType.url,
                 autocorrect: false,
                 onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
-                decoration: const InputDecoration(
-                  labelText: 'OpenAI-Compatible Base URL',
+                decoration: InputDecoration(
+                  labelText: l10n.aiConfigOpenAiBaseUrlLabel,
                   hintText: AppConstants.openAiDefaultBaseUrl,
-                  helperText:
-                      'Supports OpenAI, OpenRouter, LM Studio, vLLM, or llama.cpp.',
+                  helperText: l10n.aiConfigOpenAiBaseUrlHelper,
                   helperMaxLines: 4,
                 ),
               ),
               const SizedBox(height: 12),
               _buildApiKeyField(
                 controller: _openAiKeyCtrl,
-                label: 'API Key (Optional for local servers)',
-                hint: 'sk-…',
+                label: l10n.aiConfigOpenAiApiKeyLabel,
+                hint: l10n.aiConfigOpenAiApiKeyHint,
+                l10n: l10n,
                 onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
               ),
             ],
@@ -251,8 +260,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
             if (activeProvider == AiProviderType.anthropic)
               _buildApiKeyField(
                 controller: _anthropicKeyCtrl,
-                label: 'Anthropic API Key',
-                hint: 'sk-ant-…',
+                label: l10n.aiConfigAnthropicApiKeyLabel,
+                hint: l10n.aiConfigAnthropicApiKeyHint,
+                l10n: l10n,
                 onChanged: (_) =>
                     _scheduleSyncAndRefresh(AiProviderType.anthropic),
               ),
@@ -264,19 +274,21 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 keyboardType: TextInputType.url,
                 autocorrect: false,
                 onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.local),
-                decoration: const InputDecoration(
-                  labelText: 'Local AI Server URL (Ollama / LM Studio LAN)',
+                decoration: InputDecoration(
+                  labelText: l10n.aiConfigLocalBaseUrlLabel,
                   hintText: AppConstants.localDefaultBaseUrl,
-                  helperText:
-                      'Default: ${AppConstants.localDefaultBaseUrl}. Use your computer\'s LAN IP for Ollama (port 11434/v1) or LM Studio (port 1234/v1).',
+                  helperText: l10n.aiConfigLocalBaseUrlHelper(
+                    AppConstants.localDefaultBaseUrl,
+                  ),
                   helperMaxLines: 5,
                 ),
               ),
               const SizedBox(height: 12),
               _buildApiKeyField(
                 controller: _localKeyCtrl,
-                label: 'Optional LAN Server Token / Key',
-                hint: 'Leave blank if not required',
+                label: l10n.aiConfigLocalApiKeyLabel,
+                hint: l10n.aiConfigLocalApiKeyHint,
+                l10n: l10n,
                 onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.local),
               ),
             ],
@@ -296,7 +308,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                   children: [
                     if (widget.showNoAiTitle) ...[
                       Text(
-                        'No AI Selected',
+                        l10n.aiConfigNoAiSelectedTitle,
                         style: Theme.of(context)
                             .textTheme
                             .titleSmall
@@ -305,7 +317,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                       const SizedBox(height: 6),
                     ],
                     Text(
-                      widget.noAiNoticeText,
+                      effectiveNoAiNotice,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -323,10 +335,10 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                       initialValue: effectiveModel,
                       isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: 'AI Model (A–Z)',
+                        labelText: l10n.aiConfigModelDropdownLabel,
                         helperText: isLoadingModels
-                            ? 'Fetching available models from provider…'
-                            : widget.modelHelperText,
+                            ? l10n.aiConfigFetchingModelsHelper
+                            : effectiveModelHelper,
                         helperMaxLines: 4,
                       ),
                       items: sortedModels
@@ -334,7 +346,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                             (m) => DropdownMenuItem(
                               value: m.id,
                               child: Text(
-                                m.displayName,
+                                m.localizedDisplayName(l10n),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -359,7 +371,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: IconButton.filledTonal(
-                      tooltip: 'Refresh Models',
+                      tooltip: l10n.aiConfigRefreshModelsTooltip,
                       onPressed: (!widget.enabled || isLoadingModels)
                           ? null
                           : () {
@@ -387,6 +399,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
     required TextEditingController controller,
     required String label,
     required String hint,
+    required AppLocalizations l10n,
     required ValueChanged<String> onChanged,
   }) {
     return TextField(
@@ -399,7 +412,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
         labelText: label,
         hintText: hint,
         suffixIcon: IconButton(
-          tooltip: _obscureApiKey ? 'Show API key' : 'Hide API key',
+          tooltip: _obscureApiKey
+              ? l10n.aiConfigShowApiKey
+              : l10n.aiConfigHideApiKey,
           icon: Icon(
             _obscureApiKey ? Icons.visibility : Icons.visibility_off,
           ),

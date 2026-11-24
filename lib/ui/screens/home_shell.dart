@@ -7,6 +7,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/accessibility_announcer.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
@@ -58,7 +60,10 @@ class _HomeShellState extends State<HomeShell> {
 
   void _selectTimeline(TimelineType type) {
     setState(() => _selectedTimeline = type);
-    AccessibilityAnnouncer.announce('Switched to ${type.fullTitle}.');
+    final l10n = context.l10n;
+    AccessibilityAnnouncer.announce(
+      l10n.homeAnnounceSwitchedTimeline(type.localizedFullTitle(l10n)),
+    );
   }
 
   void _openComposer() {
@@ -189,6 +194,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return ListenableBuilder(
       listenable: widget.app,
       builder: (context, _) {
@@ -201,6 +207,7 @@ class _HomeShellState extends State<HomeShell> {
 
         final primaryIndex = _primaryTabs.indexOf(_selectedTimeline);
         final desktopIndex = _desktopDestinations.indexOf(_selectedTimeline);
+        final selectedFullTitle = _selectedTimeline.localizedFullTitle(l10n);
 
         final contentColumn = Column(
           children: [
@@ -228,14 +235,15 @@ class _HomeShellState extends State<HomeShell> {
             titleSpacing: isWideLayout ? 16 : 4,
             // Upper-left logged-in profile header: tapping immediately shows My Published Posts
             title: account == null
-                ? Text(_selectedTimeline.fullTitle)
+                ? Text(selectedFullTitle)
                 : Semantics(
                     button: true,
-                    label:
-                        '${account.effectiveDisplayName}, ${account.handle}. Tap to view your own published posts.',
+                    label: l10n.homeProfileHeaderSemantics(
+                      account.effectiveDisplayName,
+                      account.handle,
+                    ),
                     child: AccessibleTip(
-                      message:
-                          'View your own published posts as ${account.handle} (g u)',
+                      message: l10n.homeProfileHeaderTip(account.handle),
                       child: InkWell(
                         onTap: () => _selectTimeline(TimelineType.myPosts),
                       borderRadius: BorderRadius.circular(10),
@@ -257,7 +265,7 @@ class _HomeShellState extends State<HomeShell> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    _selectedTimeline.fullTitle,
+                                    selectedFullTitle,
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
@@ -285,7 +293,7 @@ class _HomeShellState extends State<HomeShell> {
                 ),
             actions: [
               AccessibleTip(
-                message: 'Search cached posts and alt-text offline (/)',
+                message: l10n.homeSearchTooltip,
                 child: IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: _openLocalSearch,
@@ -293,14 +301,14 @@ class _HomeShellState extends State<HomeShell> {
               ),
               if (isWideLayout)
                 AccessibleTip(
-                  message: 'View keyboard navigation shortcuts (?)',
+                  message: l10n.homeShortcutsTooltip,
                   child: IconButton(
                     icon: const Icon(Icons.keyboard_outlined),
                     onPressed: () => KeyboardShortcutsDialog.show(context),
                   ),
                 ),
               AccessibleTip(
-                message: 'Open Settings & AI Configuration (⌘,)',
+                message: l10n.homeSettingsTooltip,
                 child: IconButton(
                   icon: const Icon(Icons.settings_outlined),
                   onPressed: _openSettings,
@@ -393,7 +401,7 @@ class _HomeShellState extends State<HomeShell> {
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
-                    title: const Text('Settings & AI Configuration'),
+                    title: Text(l10n.homeDrawerSettings),
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
@@ -415,95 +423,97 @@ class _HomeShellState extends State<HomeShell> {
                       selectedIndex: desktopIndex >= 0 ? desktopIndex : 0,
                       onDestinationSelected: (idx) =>
                           _selectTimeline(_desktopDestinations[idx]),
-                      destinations: const [
+                      destinations: [
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message:
-                                'Home timeline — posts from people you follow (g h)',
-                            child: Icon(Icons.home_outlined),
+                            message: l10n.homeNavHomeTip,
+                            child: const Icon(Icons.home_outlined),
                           ),
                           selectedIcon: AccessibleTip(
-                            message:
-                                'Home timeline — posts from people you follow (g h)',
-                            child: Icon(Icons.home),
+                            message: l10n.homeNavHomeTip,
+                            child: const Icon(Icons.home),
                           ),
-                          label: Text('Home'),
+                          label: Text(
+                            TimelineType.home.localizedShortLabel(l10n),
+                          ),
                         ),
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message:
-                                'Local timeline — public posts from your server (g l)',
-                            child: Icon(Icons.groups_outlined),
+                            message: l10n.homeNavLocalTip,
+                            child: const Icon(Icons.groups_outlined),
                           ),
                           selectedIcon: AccessibleTip(
-                            message:
-                                'Local timeline — public posts from your server (g l)',
-                            child: Icon(Icons.groups),
+                            message: l10n.homeNavLocalTip,
+                            child: const Icon(Icons.groups),
                           ),
-                          label: Text('Local'),
+                          label: Text(
+                            TimelineType.local.localizedShortLabel(l10n),
+                          ),
                         ),
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message:
-                                'Federated timeline — public posts across the Fediverse (g p)',
-                            child: Icon(Icons.public_outlined),
+                            message: l10n.homeNavFederatedTip,
+                            child: const Icon(Icons.public_outlined),
                           ),
                           selectedIcon: AccessibleTip(
-                            message:
-                                'Federated timeline — public posts across the Fediverse (g p)',
-                            child: Icon(Icons.public),
+                            message: l10n.homeNavFederatedTip,
+                            child: const Icon(Icons.public),
                           ),
-                          label: Text('Federated'),
+                          label: Text(
+                            TimelineType.federated.localizedShortLabel(l10n),
+                          ),
                         ),
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message:
-                                'Notifications — replies, mentions, boosts, and follows (g n)',
-                            child: Icon(Icons.notifications_outlined),
+                            message: l10n.homeNavNotificationsTip,
+                            child: const Icon(Icons.notifications_outlined),
                           ),
                           selectedIcon: AccessibleTip(
-                            message:
-                                'Notifications — replies, mentions, boosts, and follows (g n)',
-                            child: Icon(Icons.notifications),
+                            message: l10n.homeNavNotificationsTip,
+                            child: const Icon(Icons.notifications),
                           ),
-                          label: Text('Alerts'),
+                          label: Text(
+                            TimelineType.notifications.localizedShortLabel(l10n),
+                          ),
                         ),
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message:
-                                'Bookmarks — posts you saved privately (g b)',
-                            child: Icon(Icons.bookmark_outline),
+                            message: l10n.homeNavBookmarksTip,
+                            child: const Icon(Icons.bookmark_outline),
                           ),
                           selectedIcon: AccessibleTip(
-                            message:
-                                'Bookmarks — posts you saved privately (g b)',
-                            child: Icon(Icons.bookmark),
+                            message: l10n.homeNavBookmarksTip,
+                            child: const Icon(Icons.bookmark),
                           ),
-                          label: Text('Bookmarks'),
+                          label: Text(
+                            TimelineType.bookmarks.localizedShortLabel(l10n),
+                          ),
                         ),
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message: 'Favorites — posts you liked (g f)',
-                            child: Icon(Icons.star_outline),
+                            message: l10n.homeNavFavoritesTip,
+                            child: const Icon(Icons.star_outline),
                           ),
                           selectedIcon: AccessibleTip(
-                            message: 'Favorites — posts you liked (g f)',
-                            child: Icon(Icons.star),
+                            message: l10n.homeNavFavoritesTip,
+                            child: const Icon(Icons.star),
                           ),
-                          label: Text('Favorites'),
+                          label: Text(
+                            TimelineType.favorites.localizedShortLabel(l10n),
+                          ),
                         ),
                         NavigationRailDestination(
                           icon: AccessibleTip(
-                            message:
-                                'My Published Posts — your own Mastodon posts (g u)',
-                            child: Icon(Icons.article_outlined),
+                            message: l10n.homeNavMyPostsTip,
+                            child: const Icon(Icons.article_outlined),
                           ),
                           selectedIcon: AccessibleTip(
-                            message:
-                                'My Published Posts — your own Mastodon posts (g u)',
-                            child: Icon(Icons.article),
+                            message: l10n.homeNavMyPostsTip,
+                            child: const Icon(Icons.article),
                           ),
-                          label: Text('My Posts'),
+                          label: Text(
+                            TimelineType.myPosts.localizedShortLabel(l10n),
+                          ),
                         ),
                       ],
                     ),
@@ -520,12 +530,12 @@ class _HomeShellState extends State<HomeShell> {
                 )
               : contentColumn,
           floatingActionButton: AccessibleTip(
-            message: 'Compose a new Mastodon post (n or ⌘N)',
+            message: l10n.homeComposeTip,
             preferBelow: false,
             child: FloatingActionButton.extended(
               onPressed: _openComposer,
               icon: const Icon(Icons.edit),
-              label: const Text('Post'),
+              label: Text(l10n.homeComposeLabel),
             ),
           ),
           bottomNavigationBar: isWideLayout
@@ -534,26 +544,26 @@ class _HomeShellState extends State<HomeShell> {
                   selectedIndex: primaryIndex >= 0 ? primaryIndex : 0,
                   onDestinationSelected: (idx) =>
                       _selectTimeline(_primaryTabs[idx]),
-                  destinations: const [
+                  destinations: [
                     NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home),
-                      label: 'Home',
+                      icon: const Icon(Icons.home_outlined),
+                      selectedIcon: const Icon(Icons.home),
+                      label: TimelineType.home.localizedShortLabel(l10n),
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.groups_outlined),
-                      selectedIcon: Icon(Icons.groups),
-                      label: 'Local',
+                      icon: const Icon(Icons.groups_outlined),
+                      selectedIcon: const Icon(Icons.groups),
+                      label: TimelineType.local.localizedShortLabel(l10n),
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.public_outlined),
-                      selectedIcon: Icon(Icons.public),
-                      label: 'Federated',
+                      icon: const Icon(Icons.public_outlined),
+                      selectedIcon: const Icon(Icons.public),
+                      label: TimelineType.federated.localizedShortLabel(l10n),
                     ),
                     NavigationDestination(
-                      icon: Icon(Icons.notifications_outlined),
-                      selectedIcon: Icon(Icons.notifications),
-                      label: 'Alerts',
+                      icon: const Icon(Icons.notifications_outlined),
+                      selectedIcon: const Icon(Icons.notifications),
+                      label: TimelineType.notifications.localizedShortLabel(l10n),
                     ),
                   ],
                 ),
@@ -568,9 +578,10 @@ class _HomeShellState extends State<HomeShell> {
     required TimelineType type,
   }) {
     final selected = _selectedTimeline == type;
+    final l10n = context.l10n;
     return ListTile(
       leading: Icon(selected ? selectedIcon : icon),
-      title: Text(type.fullTitle),
+      title: Text(type.localizedFullTitle(l10n)),
       selected: selected,
       onTap: () {
         Navigator.of(context).pop();

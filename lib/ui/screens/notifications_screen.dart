@@ -7,6 +7,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/accessibility_announcer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
@@ -84,8 +86,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (next >= _notifications.length - 3 && !_isLoadingMore && _hasMore) {
       _loadMore();
     }
+    final l10n = context.l10n;
     AccessibilityAnnouncer.announce(
-      'Notification ${next + 1} of ${_notifications.length}: ${item.account.effectiveDisplayName} ${item.actionDescription}.',
+      l10n.notificationsAnnounceSelection(
+        next + 1,
+        _notifications.length,
+        item.localizedSummary(l10n),
+      ),
     );
   }
 
@@ -167,10 +174,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _isLoading = false;
       });
       if (!silentAnnouncement) {
+        final l10n = context.l10n;
         AccessibilityAnnouncer.announce(
           newer.isEmpty
-              ? 'Notifications are up to date.'
-              : 'Loaded ${newer.length} new notifications.',
+              ? l10n.notificationsAnnounceUpToDate
+              : l10n.notificationsAnnounceLoadedNew(newer.length),
         );
       }
     } catch (_) {
@@ -212,7 +220,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _hasMore = hasMore;
       });
       AccessibilityAnnouncer.announce(
-        'Loaded ${items.length} notifications.',
+        context.l10n.notificationsAnnounceLoadedInitial(items.length),
       );
     } catch (e) {
       if (!mounted) return;
@@ -275,6 +283,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -290,7 +299,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               FilledButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(l10n.commonRetry),
               ),
             ],
           ),
@@ -301,9 +310,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          children: const [
-            SizedBox(height: 96),
-            Center(child: Text('No notifications yet.')),
+          children: [
+            const SizedBox(height: 96),
+            Center(child: Text(l10n.notificationsEmpty)),
           ],
         ),
       );
@@ -328,7 +337,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
 
           final item = _notifications[index];
-          final relTime = TimeUtils.formatRelativeCompact(item.createdAt);
+          final relTime = TimeUtils.formatRelativeCompact(
+            item.createdAt,
+            l10n: l10n,
+          );
           final isSelected = _selectedIndex == index;
 
           return Card(
@@ -362,8 +374,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: AccessibleTip(
-                          message:
-                              'View profile and posts by ${item.account.effectiveDisplayName}',
+                          message: l10n.avatarViewProfileSemantics(
+                            item.account.effectiveDisplayName,
+                          ),
                           child: InkWell(
                             onTap: () =>
                                 _actions.openProfile(context, item.account),
@@ -374,7 +387,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${item.account.effectiveDisplayName} ${item.actionDescription}',
+                                  item.localizedSummary(l10n),
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -398,7 +411,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (item.status != null) ...[
                     const SizedBox(height: 8),
                     AccessibleTip(
-                      message: 'Open conversation thread for this post (Enter)',
+                      message: l10n.notificationsOpenThreadTip,
                       child: InkWell(
                         onTap: () => _actions.openThread(context, item.status!),
                       borderRadius: BorderRadius.circular(8),
@@ -423,7 +436,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 ),
                               )
                             : Text(
-                                '(Media post)',
+                                l10n.notificationsMediaPostPlaceholder,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                       ),

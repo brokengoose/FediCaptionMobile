@@ -8,6 +8,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/media_utils.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../models/app_settings.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
@@ -209,6 +211,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
 
     return ListenableBuilder(
       listenable: _controller,
@@ -218,25 +221,31 @@ class _ComposerScreenState extends State<ComposerScreen> {
         final limits = _controller.limits;
 
         final submitLabel = _controller.isCheckingBias
-            ? 'Checking Bias…'
+            ? l10n.composerCheckingBias
             : _controller.isPublishing
-                ? (_controller.isEditing ? 'Saving…' : 'Publishing…')
-                : (_controller.isEditing ? 'Save Changes' : 'Publish');
+                ? (_controller.isEditing
+                    ? l10n.composerSaving
+                    : l10n.composerPublishing)
+                : (_controller.isEditing
+                    ? l10n.composerSaveChanges
+                    : l10n.composerPublish);
 
         return Scaffold(
           appBar: AppBar(
             title: Text(
               _controller.isEditing
-                  ? 'Edit Post'
-                  : (_controller.isReply ? 'Reply' : 'Compose Post'),
+                  ? l10n.composerTitleEdit
+                  : (_controller.isReply
+                      ? l10n.composerTitleReply
+                      : l10n.composerTitleNew),
             ),
             actions: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: AccessibleTip(
                   message: _controller.isEditing
-                      ? 'Save your edited post and alt-text (⌘Enter)'
-                      : 'Check accessibility and bias rules, then publish post (⌘Enter)',
+                      ? l10n.composerEditSubmitTip
+                      : l10n.composerPublishSubmitTip,
                   child: FilledButton(
                     onPressed: _controller.canSubmit ? _handleSubmit : null,
                     child: Text(submitLabel),
@@ -268,7 +277,9 @@ class _ComposerScreenState extends State<ComposerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Replying to ${widget.replyToStatus!.displayStatus.account.handle}',
+                          l10n.composerReplyingTo(
+                            widget.replyToStatus!.displayStatus.account.handle,
+                          ),
                           style: Theme.of(context)
                               .textTheme
                               .labelMedium
@@ -308,19 +319,17 @@ class _ComposerScreenState extends State<ComposerScreen> {
                 // Content Warning toggle & input
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Content Warning / Spoiler'),
-                  subtitle: const Text(
-                    'Included in character counter and pre-post bias check.',
-                  ),
+                  title: Text(l10n.composerCwSwitchTitle),
+                  subtitle: Text(l10n.composerCwSwitchSubtitle),
                   value: _controller.showContentWarning,
                   onChanged: _controller.toggleContentWarning,
                 ),
                 if (_controller.showContentWarning) ...[
                   TextField(
                     controller: _controller.spoilerController,
-                    decoration: const InputDecoration(
-                      labelText: 'Content Warning',
-                      hintText: 'Brief summary or topic warning',
+                    decoration: InputDecoration(
+                      labelText: l10n.composerCwLabel,
+                      hintText: l10n.composerCwHint,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -331,9 +340,9 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   controller: _controller.textController,
                   maxLines: 8,
                   minLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'What is on your mind?',
-                    hintText: 'Write your Mastodon post…',
+                  decoration: InputDecoration(
+                    labelText: l10n.composerBodyLabel,
+                    hintText: l10n.composerBodyHint,
                     alignLabelWithHint: true,
                   ),
                 ),
@@ -345,10 +354,16 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   children: [
                     Semantics(
                       liveRegion: overLimit,
-                      label:
-                          '$remaining characters remaining out of ${limits.maxCharacters} maximum.',
+                      label: l10n.composerCharsRemainingSemantics(
+                        remaining,
+                        limits.maxCharacters,
+                      ),
                       child: Text(
-                        '${_controller.usedCharacters} / ${limits.maxCharacters} chars ($remaining remaining)',
+                        l10n.composerCharsCounter(
+                          _controller.usedCharacters,
+                          limits.maxCharacters,
+                          remaining,
+                        ),
                         style: Theme.of(context).textTheme.labelMedium?.copyWith(
                               color: overLimit ? scheme.error : fedi.subtleText,
                               fontWeight: overLimit
@@ -374,14 +389,19 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   DropdownButtonFormField<PostVisibility>(
                     key: ValueKey(_controller.visibility),
                     initialValue: _controller.visibility,
-                    decoration: const InputDecoration(
-                      labelText: 'Post Visibility',
+                    decoration: InputDecoration(
+                      labelText: l10n.composerVisibilityLabel,
                     ),
                     items: PostVisibility.values
                         .map(
                           (v) => DropdownMenuItem(
                             value: v,
-                            child: Text('${v.label} — ${v.description}'),
+                            child: Text(
+                              l10n.composerVisibilityItem(
+                                v.localizedLabel(l10n),
+                                v.localizedDescription(l10n),
+                              ),
+                            ),
                           ),
                         )
                         .toList(),
@@ -397,7 +417,10 @@ class _ComposerScreenState extends State<ComposerScreen> {
                 Semantics(
                   header: true,
                   child: Text(
-                    'Media Attachments (${_controller.attachments.length} / ${limits.maxMediaAttachments})',
+                    l10n.composerAttachmentsHeader(
+                      _controller.attachments.length,
+                      limits.maxMediaAttachments,
+                    ),
                     style: Theme.of(context)
                         .textTheme
                         .titleSmall
@@ -412,47 +435,43 @@ class _ComposerScreenState extends State<ComposerScreen> {
                     if (Theme.of(context).platform == TargetPlatform.iOS ||
                         Theme.of(context).platform == TargetPlatform.android)
                       AccessibleTip(
-                        message:
-                            'Take a photo with your camera and auto-generate alt-text',
+                        message: l10n.composerCameraTip,
                         child: OutlinedButton.icon(
                           onPressed: _controller.canAddMoreMedia
                               ? () => _pickPhoto(ImageSource.camera)
                               : null,
                           icon: const Icon(Icons.photo_camera),
-                          label: const Text('Camera'),
+                          label: Text(l10n.composerCameraLabel),
                         ),
                       ),
                     AccessibleTip(
-                      message:
-                          'Choose a photo from your library (EXIF stripped & resized automatically)',
+                      message: l10n.composerPhotoLibraryTip,
                       child: OutlinedButton.icon(
                         onPressed: _controller.canAddMoreMedia
                             ? () => _pickPhoto(ImageSource.gallery)
                             : null,
                         icon: const Icon(Icons.photo_library),
-                        label: const Text('Photo Library'),
+                        label: Text(l10n.composerPhotoLibraryLabel),
                       ),
                     ),
                     AccessibleTip(
-                      message:
-                          'Choose a video to attach and auto-generate alt-text',
+                      message: l10n.composerVideoTip,
                       child: OutlinedButton.icon(
                         onPressed: _controller.canAddMoreMedia
                             ? () => _pickVideo(ImageSource.gallery)
                             : null,
                         icon: const Icon(Icons.video_library),
-                        label: const Text('Video'),
+                        label: Text(l10n.composerVideoLabel),
                       ),
                     ),
                     AccessibleTip(
-                      message:
-                          'Pick an image or video file from disk (EXIF stripped & resized automatically)',
+                      message: l10n.composerFilePickerTip,
                       child: OutlinedButton.icon(
                         onPressed: _controller.canAddMoreMedia
                             ? _pickFromFiles
                             : null,
                         icon: const Icon(Icons.attach_file),
-                        label: const Text('File Picker'),
+                        label: Text(l10n.composerFilePickerLabel),
                       ),
                     ),
                   ],

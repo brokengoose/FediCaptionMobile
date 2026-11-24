@@ -7,7 +7,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
+import '../../core/language/language_registry.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
 import '../../state/app_controller.dart';
@@ -72,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return ListenableBuilder(
       listenable: Listenable.merge([widget.app, widget.app.themeController]),
       builder: (context, _) {
@@ -79,15 +83,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final fedi = context.fediColors;
         final limits = widget.app.instanceLimits;
         final displayedSpeechRate = _draggingSpeechRate ?? s.ttsSpeechRate;
+        final formattedSpeed = (displayedSpeechRate * 2).toStringAsFixed(2);
+        const supportedLocales = AppLocalizations.supportedLocales;
+        final supportedTags =
+            supportedLocales.map((loc) => loc.toLanguageTag()).toSet();
+        final selectedAppLocale = s.resolvedAppLocale != null
+            ? resolveSupportedLocale(s.resolvedAppLocale).toLanguageTag()
+            : null;
+        final effectiveSelectedLocale =
+            (selectedAppLocale != null && supportedTags.contains(selectedAppLocale))
+                ? selectedAppLocale
+                : null;
+        final systemLanguageCode =
+            WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+        final osModeLabel = widget.app.themeController.platformHighContrast
+            ? l10n.settingsOsModeHighContrast
+            : (widget.app.themeController.platformBrightness == Brightness.dark
+                ? l10n.settingsOsModeDark
+                : l10n.settingsOsModeLight);
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Settings')),
+          appBar: AppBar(title: Text(l10n.settingsTitle)),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               // === 1. AI Provider, API Keys & Dynamic Model Picker ===
-              const _SectionHeader(
-                title: 'AI Provider & API Keys',
+              _SectionHeader(
+                title: l10n.settingsSectionAi,
                 icon: Icons.auto_awesome,
               ),
               const SizedBox(height: 8),
@@ -98,8 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 2. AI Captioning Preferences ===
-              const _SectionHeader(
-                title: 'AI Alt-Text Captioning',
+              _SectionHeader(
+                title: l10n.settingsSectionCaptioning,
                 icon: Icons.closed_caption,
               ),
               const SizedBox(height: 8),
@@ -108,14 +130,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 key: ValueKey('detail_${s.defaultDetailLevel.id}'),
                 initialValue: s.defaultDetailLevel,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Default Detail Level',
+                decoration: InputDecoration(
+                  labelText: l10n.settingsDefaultDetailLevel,
                 ),
                 items: CaptionDetailLevel.values
                     .map(
                       (lvl) => DropdownMenuItem(
                         value: lvl,
-                        child: Text('${lvl.label} — ${lvl.guidance}'),
+                        child: Text(
+                          l10n.settingsDetailLevelItem(
+                            lvl.localizedLabel(l10n),
+                            lvl.localizedGuidance(l10n),
+                          ),
+                        ),
                       ),
                     )
                     .toList(),
@@ -134,18 +161,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               DropdownButtonFormField<int>(
                 key: ValueKey('keyframes_${s.videoKeyframeCount}'),
                 initialValue: s.videoKeyframeCount,
-                decoration: const InputDecoration(
-                  labelText: 'Video Keyframes to Extract',
-                  helperText:
-                      'Used for frame-based models or videos exceeding Gemini inline limits.',
+                decoration: InputDecoration(
+                  labelText: l10n.settingsVideoKeyframesLabel,
+                  helperText: l10n.settingsVideoKeyframesHelper,
                 ),
-                items: const [
-                  DropdownMenuItem(value: 3, child: Text('3 keyframes')),
+                items: [
+                  DropdownMenuItem(
+                    value: 3,
+                    child: Text(l10n.settingsVideoKeyframesOption(3)),
+                  ),
                   DropdownMenuItem(
                     value: 4,
-                    child: Text('4 keyframes (Default)'),
+                    child: Text(l10n.settingsVideoKeyframesDefaultOption(4)),
                   ),
-                  DropdownMenuItem(value: 6, child: Text('6 keyframes')),
+                  DropdownMenuItem(
+                    value: 6,
+                    child: Text(l10n.settingsVideoKeyframesOption(6)),
+                  ),
                 ],
                 onChanged: (count) {
                   if (count != null) {
@@ -161,10 +193,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Auto-Generate Alt-Text on Attach'),
-                subtitle: const Text(
-                  'Automatically scan images and videos as soon as they are attached.',
-                ),
+                title: Text(l10n.settingsAutoGenerateTitle),
+                subtitle: Text(l10n.settingsAutoGenerateSubtitle),
                 value: s.autoGenerate,
                 onChanged: (v) => widget.app.updateSettings(
                   s.copyWith(autoGenerate: v),
@@ -174,10 +204,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Include Draft Post Text as Context'),
-                subtitle: const Text(
-                  'Helps the AI identify names, events, or subjects mentioned in your draft.',
-                ),
+                title: Text(l10n.settingsIncludePostContextTitle),
+                subtitle: Text(l10n.settingsIncludePostContextSubtitle),
                 value: s.includePostContext,
                 onChanged: (v) => widget.app.updateSettings(
                   s.copyWith(includePostContext: v),
@@ -189,9 +217,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               TextField(
                 controller: _languageCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Caption Output Language',
-                  hintText: 'English',
+                decoration: InputDecoration(
+                  labelText: l10n.settingsCaptionLanguageLabel,
+                  hintText: l10n.settingsCaptionLanguageHint,
                 ),
                 onChanged: (_) => _scheduleTextPrefsSave(),
               ),
@@ -202,10 +230,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 controller: _customInstructionsCtrl,
                 maxLines: 3,
                 minLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Custom Instructions (Optional)',
-                  hintText:
-                      'e.g. Our orange tabby cat is named Marmalade; prefer plain objective tone.',
+                decoration: InputDecoration(
+                  labelText: l10n.settingsCustomInstructionsLabel,
+                  hintText: l10n.settingsCustomInstructionsHint,
                 ),
                 onChanged: (_) => _scheduleTextPrefsSave(),
               ),
@@ -214,17 +241,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 3. Accessibility Rules ===
-              const _SectionHeader(
-                title: 'Accessibility Rules',
+              _SectionHeader(
+                title: l10n.settingsSectionAccessibility,
                 icon: Icons.accessibility_new,
               ),
               const SizedBox(height: 8),
               Text(
-                'Built-in On-Device Read Aloud Speed (${(displayedSpeechRate * 2).toStringAsFixed(2)}x)',
+                l10n.settingsTtsSpeedTitle(formattedSpeed),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               Text(
-                'Uses your phone\'s built-in on-device TTS engine (AVSpeechSynthesizer on iPhone, Google/Samsung TTS on Android).',
+                l10n.settingsTtsSpeedSubtitle,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -235,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 min: 0.25,
                 max: 1.0,
                 divisions: 15,
-                label: '${(displayedSpeechRate * 2).toStringAsFixed(2)}x',
+                label: l10n.settingsTtsSpeedLabel(formattedSpeed),
                 onChanged: (next) =>
                     setState(() => _draggingSpeechRate = next),
                 onChangeEnd: (next) {
@@ -248,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Pre-Post Alt-Text Policy',
+                l10n.settingsAltPolicyLabel,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -271,8 +298,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         (mode) => RadioListTile<PolicyMode>(
                           contentPadding: EdgeInsets.zero,
                           value: mode,
-                          title: Text(mode.label),
-                          subtitle: Text(_altPolicySubtitle(mode)),
+                          title: Text(mode.localizedLabel(l10n)),
+                          subtitle: Text(mode.localizedAltPolicySubtitle(l10n)),
                         ),
                       )
                       .toList(),
@@ -283,13 +310,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 4. Bias Rules ===
-              const _SectionHeader(
-                title: 'Bias Rules',
+              _SectionHeader(
+                title: l10n.settingsSectionBias,
                 icon: Icons.balance,
               ),
               const SizedBox(height: 4),
               Text(
-                'Pre-Post Racial & Gender Bias Policy',
+                l10n.settingsBiasPolicyLabel,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -312,8 +339,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         (mode) => RadioListTile<PolicyMode>(
                           contentPadding: EdgeInsets.zero,
                           value: mode,
-                          title: Text(mode.label),
-                          subtitle: Text(_biasPolicySubtitle(mode)),
+                          title: Text(mode.localizedLabel(l10n)),
+                          subtitle: Text(mode.localizedBiasPolicySubtitle(l10n)),
                         ),
                       )
                       .toList(),
@@ -324,13 +351,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // === 5. Theme & Appearance ===
-              const _SectionHeader(
-                title: 'Appearance & Theme',
+              _SectionHeader(
+                title: l10n.settingsSectionAppearance,
                 icon: Icons.contrast,
               ),
               const SizedBox(height: 4),
               Text(
-                'Detected OS mode: ${widget.app.themeController.platformHighContrast ? 'High Contrast' : (widget.app.themeController.platformBrightness == Brightness.dark ? 'Dark' : 'Light')}',
+                l10n.settingsDetectedOsMode(osModeLabel),
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -353,19 +380,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         (pref) => RadioListTile<ThemePreference>(
                           contentPadding: EdgeInsets.zero,
                           value: pref,
-                          title: Text(pref.label),
+                          title: Text(pref.localizedLabel(l10n)),
                         ),
                       )
                       .toList(),
                 ),
               ),
+              if (supportedLocales.length > 1) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  key: ValueKey('app_locale_${effectiveSelectedLocale ?? 'sys'}'),
+                  initialValue: effectiveSelectedLocale,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: l10n.settingsAppLanguageLabel,
+                    helperText: l10n.settingsAppLanguageHelper,
+                  ),
+                  items: [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(
+                        l10n.settingsAppLanguageSystemDefault(
+                          LanguageRegistry.nativeNameFor(systemLanguageCode),
+                        ),
+                      ),
+                    ),
+                    for (final locale in supportedLocales)
+                      DropdownMenuItem<String?>(
+                        value: locale.toLanguageTag(),
+                        child: Text(
+                          LanguageRegistry.nativeNameFor(locale.languageCode),
+                        ),
+                      ),
+                  ],
+                  onChanged: (next) {
+                    widget.app.updateSettings(
+                      s.copyWith(
+                        appLocale: next,
+                        clearAppLocale: next == null,
+                      ),
+                      autoRefreshModels: false,
+                    );
+                  },
+                ),
+              ],
 
               const SizedBox(height: 16),
               const Divider(),
 
               // === 6. Connected Server & About ===
-              const _SectionHeader(
-                title: 'Account & Server Info',
+              _SectionHeader(
+                title: l10n.settingsSectionAccount,
                 icon: Icons.info_outline,
               ),
               const SizedBox(height: 8),
@@ -373,13 +438,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    '${widget.app.currentAccount!.effectiveDisplayName} (${widget.app.currentAccount!.handle})',
+                    l10n.settingsAccountTitle(
+                      widget.app.currentAccount!.effectiveDisplayName,
+                      widget.app.currentAccount!.handle,
+                    ),
                   ),
                   subtitle: Text(
-                    'Server: ${widget.app.session!.instanceUrl}\n'
-                    'Max post length: ${limits.maxCharacters} chars · '
-                    'Max media: ${limits.maxMediaAttachments} · '
-                    'Alt-text limit: ${limits.altTextLimit} chars',
+                    l10n.settingsAccountSubtitle(
+                      widget.app.session!.instanceUrl,
+                      limits.maxCharacters,
+                      limits.maxMediaAttachments,
+                      limits.altTextLimit,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -391,17 +461,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }
                   },
                   icon: const Icon(Icons.logout),
-                  label: const Text('Sign Out'),
+                  label: Text(l10n.settingsSignOut),
                 ),
                 const SizedBox(height: 12),
               ],
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  '${AppConstants.appName} v${AppConstants.appVersion}',
+                title: Text(
+                  l10n.settingsAboutTitle(
+                    AppConstants.appName,
+                    AppConstants.appVersion,
+                  ),
                 ),
-                subtitle: const Text(
-                  'Contributor: ${AppConstants.contributorName} · Generated with Antigravity',
+                subtitle: Text(
+                  l10n.settingsAboutSubtitle(AppConstants.contributorName),
                 ),
                 trailing: const Icon(Icons.open_in_new),
                 onTap: () => launchUrl(
@@ -415,28 +488,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
-  }
-
-  String _altPolicySubtitle(PolicyMode mode) {
-    switch (mode) {
-      case PolicyMode.warn:
-        return 'Warn before posting uncaptioned media, with options to auto-generate with AI or post anyway.';
-      case PolicyMode.require:
-        return 'Strictly require alt-text on all attached media before posting.';
-      case PolicyMode.off:
-        return 'Do not warn about missing alt-text.';
-    }
-  }
-
-  String _biasPolicySubtitle(PolicyMode mode) {
-    switch (mode) {
-      case PolicyMode.warn:
-        return 'Warn about racial or gender bias before posting; allow editing, suggested wording, or "Publish Anyway".';
-      case PolicyMode.require:
-        return 'Require detected racial or gender bias to be resolved before posting (hides "Publish Anyway").';
-      case PolicyMode.off:
-        return 'Skip pre-post racial & gender bias checking and publish immediately.';
-    }
   }
 }
 

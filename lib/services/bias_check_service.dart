@@ -4,6 +4,9 @@
 import 'dart:convert';
 
 import '../core/html_utils.dart';
+import '../core/language/bias_language_pack.dart';
+import '../core/language/language_pack_registry.dart';
+import '../core/language/language_registry.dart';
 import '../models/ai_models.dart';
 import '../models/app_settings.dart';
 import '../models/bias_models.dart';
@@ -43,6 +46,9 @@ class BiasCheckService {
     required AppSettings settings,
     required AiCredentials credentials,
     MastodonSession? session,
+    String? contentLanguageCode,
+    String? responseLanguageCode,
+    BiasComponentLabels labels = const BiasComponentLabels.english(),
   }) async {
     // 1. Extract URLs from post text + spoiler text and separate Mastodon status links vs external links.
     final urls = HtmlUtils.extractUrls('${input.postText}\n${input.spoilerText}');
@@ -86,10 +92,23 @@ class BiasCheckService {
       referencedStatuses: referencedStatuses,
     );
 
+    final effectiveContentLang =
+        LanguageRegistry.resolveCode(contentLanguageCode) ??
+            LanguageRegistry.detectScriptLanguage(
+              '${enrichedInput.postText}\n${enrichedInput.spoilerText}',
+            );
+    final biasPack = LanguagePackRegistry.biasPackFor(
+      effectiveContentLang,
+      fallbackToEnglish: false,
+    );
+
     // Always compute local deterministic check so it can act as offline fallback or safety backstop.
     final localResult = LocalBiasHeuristics.evaluate(
       input: enrichedInput,
       links: externalLinks,
+      languageCode: effectiveContentLang,
+      pack: biasPack,
+      labels: labels,
     );
 
     // If user selected "No AI", return deterministic offline heuristics directly.
@@ -100,9 +119,15 @@ class BiasCheckService {
     final checkedComponents = _buildCheckedComponentsList(
       enrichedInput,
       externalLinks,
+      labels: labels,
     );
     if (checkedComponents.isEmpty) {
-      return BiasCheckResult.clean;
+      return BiasCheckResult(
+        hasBias: false,
+        summary: labels.cleanSummary,
+        checkedComponents: const [],
+        findings: const [],
+      );
     }
 
     // Collect visual frames from attachments for multimodal bias inspection.
@@ -115,13 +140,17 @@ class BiasCheckService {
       final prompt = _buildBiasPrompt(
         input: enrichedInput,
         links: externalLinks,
+        labels: labels,
+        responseLanguageCode: responseLanguageCode,
       );
 
       final rawJson = await _aiProviderService.runMultimodalPrompt(
         settings: settings,
         credentials: credentials,
-        systemPrompt:
-            'You are an objective, fair racial and gender bias reviewer for social media posts. Analyze all provided components (post text, content warning, attached images/video keyframes and their alt-text, linked webpage excerpts, and referenced/replied-to messages) for explicit or implicit racial bias or gender bias — INCLUDING gendered profanity, slurs, or pejoratives (such as "bitch", "bitching", "bitchy", "cunt", "slut", "whore", "man up", "like a girl"), male-default terminology, gendered stereotypes, racial slurs, and racially loaded idioms (such as "gypped", "uppity", "whitelist/blacklist"). Avoid false positives on neutral discussions or anti-bias advocacy. Respond ONLY with valid JSON.',
+        systemPrompt: _buildSystemPrompt(
+          biasPack: biasPack,
+          responseLanguageCode: responseLanguageCode,
+        ),
         userPrompt: prompt,
         media: visualMedia,
         expectJson: true,
@@ -130,6 +159,7 @@ class BiasCheckService {
       final aiResult = _parseAiResponse(
         rawJson: rawJson,
         checkedComponents: checkedComponents,
+        labels: labels,
       );
 
       // Merge any deterministic local heuristic findings not already caught by AI.
@@ -140,42 +170,74 @@ class BiasCheckService {
     }
   }
 
+  String _buildSystemPrompt({
+    required BiasLanguagePack? biasPack,
+    String? responseLanguageCode,
+  }) {
+    final examples = biasPack?.promptBiasExamples ?? const [];
+    final examplesPhrase = examples.isNotEmpty
+        ? ' (such as ${examples.map((e) => '"$e"').join(', ')})'
+        : '';
+    final normalizedResp = LanguageRegistry.resolveCode(responseLanguageCode);
+    final languageInstruction =
+        (normalizedResp != null && normalizedResp != 'en')
+            ? ' Write "summary", "bias_type", and "explanation" in ${LanguageRegistry.englishNameFor(normalizedResp)}, while keeping "suggested_alternate_wording" in the draft\'s original language.'
+            : '';
+
+    return 'You are an objective, fair racial and gender bias reviewer for social media posts. '
+        'Analyze all provided components (post text, content warning, attached images/video keyframes and their alt-text, linked webpage excerpts, and referenced/replied-to messages) '
+        'for explicit or implicit racial bias or gender bias — INCLUDING gendered profanity, slurs, or pejoratives, '
+        'male-default terminology, gendered stereotypes, racial slurs, and racially loaded idioms$examplesPhrase. '
+        'Avoid false positives on neutral discussions or anti-bias advocacy.$languageInstruction Respond ONLY with valid JSON.';
+  }
+
   List<String> _buildCheckedComponentsList(
     BiasCheckInput input,
-    List<LinkedPageExcerpt> links,
-  ) {
+    List<LinkedPageExcerpt> links, {
+    required BiasComponentLabels labels,
+  }) {
     return [
-      if (input.postText.trim().isNotEmpty) 'Post Text',
-      if (input.spoilerText.trim().isNotEmpty) 'Content Warning',
-      for (final a in input.attachments) 'Attachment ${a.index}',
-      for (final l in links) 'Link (${l.url})',
-      for (final r in input.referencedStatuses) r.locationLabel,
+      if (input.postText.trim().isNotEmpty) labels.postText,
+      if (input.spoilerText.trim().isNotEmpty) labels.contentWarning,
+      for (final a in input.attachments) labels.attachmentLabel(a.index),
+      for (final l in links) labels.linkLabel(l.url),
+      for (final r in input.referencedStatuses)
+        labels.referencedMessageLabel(r.authorHandle),
     ];
   }
 
   String _buildBiasPrompt({
     required BiasCheckInput input,
     required List<LinkedPageExcerpt> links,
+    required BiasComponentLabels labels,
+    String? responseLanguageCode,
   }) {
     final buffer = StringBuffer();
     buffer.writeln(
       'Review the following Mastodon draft and its associated context for explicit or implicit racial bias or gender bias.',
     );
+    final normalizedResp = LanguageRegistry.resolveCode(responseLanguageCode);
+    if (normalizedResp != null && normalizedResp != 'en') {
+      final respName = LanguageRegistry.englishNameFor(normalizedResp);
+      buffer.writeln(
+        'Write the "summary", "bias_type", and "explanation" fields in $respName, and keep "suggested_alternate_wording" in the same language as the post text.',
+      );
+    }
     buffer.writeln();
 
-    buffer.writeln('=== Post Text ===');
+    buffer.writeln('=== ${labels.postText} ===');
     buffer.writeln(input.postText.trim().isEmpty ? '(empty)' : input.postText.trim());
     buffer.writeln();
 
     if (input.spoilerText.trim().isNotEmpty) {
-      buffer.writeln('=== Content Warning ===');
+      buffer.writeln('=== ${labels.contentWarning} ===');
       buffer.writeln(input.spoilerText.trim());
       buffer.writeln();
     }
 
     for (final att in input.attachments) {
       buffer.writeln(
-        '=== Attachment ${att.index} (${att.isVideo ? 'Video' : 'Image'}) ===',
+        '=== ${labels.attachmentLabel(att.index)} (${att.isVideo ? 'Video' : 'Image'}) ===',
       );
       buffer.writeln(
         'Alt-text: ${att.altText.trim().isEmpty ? '(no alt-text)' : att.altText.trim()}',
@@ -189,15 +251,15 @@ class BiasCheckService {
     }
 
     for (final link in links) {
-      buffer.writeln('=== Link (${link.url}) ===');
+      buffer.writeln('=== ${labels.linkLabel(link.url)} ===');
       buffer.writeln(link.toPromptText());
       buffer.writeln();
     }
 
     for (final ref in input.referencedStatuses) {
-      buffer.writeln('=== ${ref.locationLabel} ===');
+      buffer.writeln('=== ${labels.referencedMessageLabel(ref.authorHandle)} ===');
       if (ref.spoilerText.trim().isNotEmpty) {
-        buffer.writeln('Content Warning: ${ref.spoilerText.trim()}');
+        buffer.writeln('${labels.contentWarning}: ${ref.spoilerText.trim()}');
       }
       buffer.writeln('Text: ${ref.contentText.trim()}');
       if (ref.mediaAltTexts.isNotEmpty) {
@@ -206,6 +268,9 @@ class BiasCheckService {
       buffer.writeln();
     }
 
+    final exampleAtt = labels.attachmentLabel(1);
+    final exampleLink = labels.linkLabel('https://...');
+    final exampleRef = labels.referencedMessageLabel('user');
     buffer.writeln('Respond ONLY with a JSON object matching this exact schema:');
     buffer.writeln('''
 {
@@ -213,7 +278,7 @@ class BiasCheckService {
   "summary": "Brief 1-2 sentence summary of what was checked and what was found.",
   "findings": [
     {
-      "location": "Exact location: 'Post Text', 'Content Warning', 'Attachment 1', 'Link (https://...)', or 'Referenced Message (@user)'",
+      "location": "Exact location: '${labels.postText}', '${labels.contentWarning}', '$exampleAtt', '$exampleLink', or '$exampleRef'",
       "bias_type": "e.g. 'Implicit Racial Bias', 'Explicit Racial Bias', 'Implicit Gender Bias', 'Explicit Gender Bias'",
       "explanation": "Concise explanation of the bias found.",
       "excerpt": "Short relevant snippet if applicable"
@@ -229,6 +294,7 @@ class BiasCheckService {
   BiasCheckResult _parseAiResponse({
     required String rawJson,
     required List<String> checkedComponents,
+    required BiasComponentLabels labels,
   }) {
     final cleaned = _extractJsonObject(rawJson);
     final decoded = jsonDecode(cleaned) as Map<String, dynamic>;
@@ -249,8 +315,8 @@ class BiasCheckService {
       summary: (summary != null && summary.isNotEmpty)
           ? summary
           : (hasBias
-              ? 'Checked ${checkedComponents.join(', ')} and detected potential racial or gender bias.'
-              : 'No racial or gender bias detected.'),
+              ? labels.aiFallbackBiasSummary(checkedComponents.join(', '))
+              : labels.aiFallbackCleanSummary),
       checkedComponents: checkedComponents,
       findings: findings,
       suggestedAlternateWording:

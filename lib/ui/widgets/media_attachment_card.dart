@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../screens/image_viewer_screen.dart';
@@ -59,6 +60,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
         final att = widget.attachment;
         final fedi = context.fediColors;
         final scheme = Theme.of(context).colorScheme;
+        final l10n = context.l10n;
 
         final authorAlt = (att.description ?? '').trim();
         final translatedAlt = (widget.translatedAltText ?? '').trim();
@@ -91,12 +93,16 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                   image: !att.isVideo,
                   button: true,
                   label: hasAnyAlt
-                      ? '${att.isVideo ? 'Video' : 'Image'}: $effectiveAlt ${att.isVideo ? 'Tap to play video.' : 'Tap to view full image.'}'
-                      : '${att.isVideo ? 'Video' : 'Image'} with no alt text provided. ${att.isVideo ? 'Tap to play video.' : 'Tap to view full image.'}',
+                      ? (att.isVideo
+                          ? l10n.mediaVideoWithAltSemantics(effectiveAlt)
+                          : l10n.mediaImageWithAltSemantics(effectiveAlt))
+                      : (att.isVideo
+                          ? l10n.mediaVideoNoAltSemantics
+                          : l10n.mediaImageNoAltSemantics),
                   child: AccessibleTip(
                     message: att.isVideo
-                        ? 'Play embedded video in full-screen player'
-                        : 'View full-size image with zoom and share options',
+                        ? l10n.mediaVideoOpenTip
+                        : l10n.mediaImageOpenTip,
                     child: InkWell(
                       onTap: () {
                       final fullUrl = att.url.isNotEmpty
@@ -157,14 +163,14 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               color: Colors.black87,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.play_arrow, color: Colors.white),
-                                SizedBox(width: 4),
+                                const Icon(Icons.play_arrow, color: Colors.white),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'VIDEO',
-                                  style: TextStyle(
+                                  l10n.mediaVideoBadge,
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -195,7 +201,9 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        att.hasAltText ? 'ALT TEXT PROVIDED' : 'NO ALT TEXT',
+                        att.hasAltText
+                            ? l10n.mediaAltProvidedBadge
+                            : l10n.mediaNoAltBadge,
                         style: Theme.of(context).textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: att.hasAltText
@@ -209,8 +217,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                         button: true,
                         toggled: _altExpanded,
                         label: _altExpanded
-                            ? 'Collapse alt text box'
-                            : 'Expand alt text box',
+                            ? l10n.mediaCollapseAltSemantics
+                            : l10n.mediaExpandAltSemantics,
                         child: TextButton.icon(
                           onPressed: () {
                             setState(() => _altExpanded = !_altExpanded);
@@ -223,7 +231,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           icon: Icon(
                             _altExpanded ? Icons.expand_less : Icons.expand_more,
                           ),
-                          label: Text(_altExpanded ? 'Hide' : 'Show'),
+                          label: Text(_altExpanded ? l10n.commonHide : l10n.commonShow),
                         ),
                       ),
                   ],
@@ -241,8 +249,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                       if (displayedAuthorAlt.isNotEmpty) ...[
                         Text(
                           translatedAlt.isNotEmpty
-                              ? 'Author Alt-Text (Translated):'
-                              : 'Author Alt-Text:',
+                              ? l10n.mediaAuthorAltTranslatedHeading
+                              : l10n.mediaAuthorAltHeading,
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: fedi.subtleText,
@@ -257,7 +265,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                       if (aiAlt != null && aiAlt.isNotEmpty) ...[
                         if (authorAlt.isNotEmpty) const Divider(height: 16),
                         Text(
-                          'On-Demand AI Description:',
+                          l10n.mediaOnDemandAiHeading,
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: scheme.primary,
@@ -298,13 +306,12 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           button: true,
                           enabled: !isDescribing,
                           label: isDescribing
-                              ? 'Generating AI description'
+                              ? l10n.mediaDescribingSemantics
                               : (aiAlt != null || att.hasAltText
-                                  ? 'Re-describe media with AI'
-                                  : 'Describe media with AI'),
+                                  ? l10n.mediaRedescribeSemantics
+                                  : l10n.mediaDescribeSemantics),
                           child: AccessibleTip(
-                            message:
-                                'Generate an AI alt-text description for this media attachment',
+                            message: l10n.mediaDescribeTip,
                             child: OutlinedButton.icon(
                               onPressed: isDescribing
                                   ? null
@@ -323,10 +330,10 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                                   : const Icon(Icons.auto_awesome, size: 18),
                               label: Text(
                                 isDescribing
-                                    ? 'Describing…'
+                                    ? l10n.mediaDescribingButton
                                     : (aiAlt != null || att.hasAltText
-                                        ? 'Re-Describe with AI'
-                                        : 'Describe with AI'),
+                                        ? l10n.mediaRedescribeButton
+                                        : l10n.mediaDescribeButton),
                               ),
                             ),
                           ),
@@ -336,12 +343,12 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           button: true,
                           toggled: isSpeaking,
                           label: isSpeaking
-                              ? 'Stop reading alt text aloud'
-                              : 'Read alt text aloud',
+                              ? l10n.mediaStopReadingSemantics
+                              : l10n.mediaReadAloudSemantics,
                           child: AccessibleTip(
                             message: isSpeaking
-                                ? 'Stop reading alt-text aloud'
-                                : 'Read this alt-text description aloud using text-to-speech',
+                                ? l10n.mediaStopReadingTip
+                                : l10n.mediaReadAloudTip,
                             child: OutlinedButton.icon(
                               onPressed: () => widget.app.tts.toggleSpeak(
                                 key: ttsKey,
@@ -354,7 +361,9 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                                 size: 18,
                               ),
                               label: Text(
-                                isSpeaking ? 'Stop Reading' : 'Read Aloud',
+                                isSpeaking
+                                    ? l10n.mediaStopReadingButton
+                                    : l10n.mediaReadAloudButton,
                               ),
                             ),
                           ),

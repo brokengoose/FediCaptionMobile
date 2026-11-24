@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
@@ -197,7 +198,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _hasMore = statuses.length >= 15;
       });
       AccessibilityAnnouncer.announce(
-        'Loaded profile for ${account.effectiveDisplayName} with ${statuses.length} posts.',
+        context.l10n.profileAnnounceLoaded(
+          account.effectiveDisplayName,
+          statuses.length,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -238,6 +242,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (session == null || _isUpdatingFollow) return;
 
     setState(() => _isUpdatingFollow = true);
+    final l10n = context.l10n;
+    final targetName = _account?.effectiveDisplayName ?? l10n.commonUserFallback;
     try {
       final MastodonRelationship updated;
       if (rel?.following == true || rel?.requested == true) {
@@ -247,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           accountId: widget.accountId,
         );
         AccessibilityAnnouncer.announce(
-          'Unsubscribed from ${_account?.effectiveDisplayName ?? 'user'}.',
+          l10n.profileAnnounceUnsubscribed(targetName),
         );
       } else {
         updated = await widget.app.mastodon.followAccount(
@@ -256,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           accountId: widget.accountId,
         );
         AccessibilityAnnouncer.announce(
-          'Subscribed to ${_account?.effectiveDisplayName ?? 'user'}.',
+          l10n.profileAnnounceSubscribed(targetName),
         );
       }
       if (!mounted) return;
@@ -264,7 +270,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update subscription: $e')),
+        SnackBar(
+          content: Text(l10n.profileErrorSubscription(e.toString())),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isUpdatingFollow = false);
@@ -277,6 +285,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (session == null || rel == null || _isUpdatingFollow) return;
 
     setState(() => _isUpdatingFollow = true);
+    final l10n = context.l10n;
+    final targetName = _account?.effectiveDisplayName ?? l10n.commonUserFallback;
     try {
       final nextNotify = !rel.notifying;
       final updated = await widget.app.mastodon.followAccount(
@@ -289,13 +299,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _relationship = updated);
       AccessibilityAnnouncer.announce(
         nextNotify
-            ? 'Notifications enabled for ${_account?.effectiveDisplayName ?? 'user'}.'
-            : 'Notifications disabled for ${_account?.effectiveDisplayName ?? 'user'}.',
+            ? l10n.profileAnnounceNotifyEnabled(targetName)
+            : l10n.profileAnnounceNotifyDisabled(targetName),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update notifications: $e')),
+        SnackBar(
+          content: Text(l10n.profileErrorNotifications(e.toString())),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isUpdatingFollow = false);
@@ -325,6 +337,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     final fedi = context.fediColors;
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -366,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Follows you',
+                          l10n.profileFollowsYou,
                           style: Theme.of(context)
                               .textTheme
                               .labelSmall
@@ -392,16 +405,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     button: true,
                     toggled: rel?.following == true,
                     label: rel?.following == true
-                        ? 'Unsubscribe from ${account.effectiveDisplayName}'
+                        ? l10n.profileUnsubscribeSemantics(
+                            account.effectiveDisplayName,
+                          )
                         : (rel?.requested == true
-                            ? 'Follow request pending'
-                            : 'Subscribe to ${account.effectiveDisplayName}'),
+                            ? l10n.profileRequestedSemantics
+                            : l10n.profileSubscribeSemantics(
+                                account.effectiveDisplayName,
+                              )),
                     child: rel?.following == true
                         ? OutlinedButton.icon(
                             onPressed:
                                 _isUpdatingFollow ? null : _toggleSubscribe,
                             icon: const Icon(Icons.person_remove),
-                            label: const Text('Unsubscribe'),
+                            label: Text(l10n.profileUnsubscribe),
                           )
                         : FilledButton.icon(
                             onPressed:
@@ -409,8 +426,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: const Icon(Icons.person_add),
                             label: Text(
                               rel?.requested == true
-                                  ? 'Requested'
-                                  : 'Subscribe',
+                                  ? l10n.profileRequested
+                                  : l10n.profileSubscribe,
                             ),
                           ),
                   ),
@@ -420,15 +437,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   button: true,
                   toggled: rel?.notifying == true,
                   label: rel?.notifying == true
-                      ? 'Disable post notifications for ${account.effectiveDisplayName}'
-                      : 'Enable post notifications for ${account.effectiveDisplayName}',
+                      ? l10n.profileDisableNotifySemantics(
+                          account.effectiveDisplayName,
+                        )
+                      : l10n.profileEnableNotifySemantics(
+                          account.effectiveDisplayName,
+                        ),
                   child: IconButton.filledTonal(
                     onPressed: (_isUpdatingFollow || rel?.following != true)
                         ? null
                         : _toggleNotifyBell,
                     tooltip: rel?.notifying == true
-                        ? 'Notifications On (tap to disable)'
-                        : 'Notifications Off (tap to enable)',
+                        ? l10n.profileNotifyOnTooltip
+                        : l10n.profileNotifyOffTooltip,
                     icon: Icon(
                       rel?.notifying == true
                           ? Icons.notifications_active
@@ -454,15 +475,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             runSpacing: 6,
             children: [
               Text(
-                '${account.statusesCount} Posts',
+                l10n.profilePostsCount(account.statusesCount),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(
-                '${account.followingCount} Following',
+                l10n.profileFollowingCount(account.followingCount),
                 style: TextStyle(color: fedi.subtleText),
               ),
               Text(
-                '${account.followersCount} Followers',
+                l10n.profileFollowersCount(account.followersCount),
                 style: TextStyle(color: fedi.subtleText),
               ),
             ],
@@ -474,6 +495,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final account = _account;
     final rel = _relationship;
     final hasHeader = account != null;
@@ -488,8 +510,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: Text(
           _isOwnProfile
-              ? 'My Published Posts'
-              : (account?.effectiveDisplayName ?? 'Profile'),
+              ? l10n.timelineMyPostsFull
+              : (account?.effectiveDisplayName ?? l10n.profileTitle),
         ),
       ),
       body: RefreshIndicator(
@@ -519,16 +541,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: _load,
-                      child: const Text('Retry'),
+                      child: Text(l10n.commonRetry),
                     ),
                   ],
                 ),
               );
             }
             if (_statuses.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: Text('No posts published yet.')),
+              return Padding(
+                padding: const EdgeInsets.all(32),
+                child: Center(child: Text(l10n.profileEmptyPosts)),
               );
             }
             if (bodyIndex >= _statuses.length) {

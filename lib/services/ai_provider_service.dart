@@ -157,6 +157,7 @@ class AiProviderService {
         return CaptionFormatter.format(
           rawOnDevice,
           maxLength: maxAltTextLength,
+          language: settings.language,
         );
       } catch (e) {
         throw AiProviderException('On-device AI error: $e');
@@ -174,6 +175,7 @@ class AiProviderService {
     return CaptionFormatter.format(
       rawResponse,
       maxLength: maxAltTextLength,
+      language: settings.language,
     );
   }
 

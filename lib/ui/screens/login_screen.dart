@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/app_controller.dart';
 import 'settings_screen.dart';
 
@@ -40,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
 
     return ListenableBuilder(
       listenable: widget.app,
@@ -52,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
             title: const Text(AppConstants.appName),
             actions: [
               IconButton(
-                tooltip: 'Settings and Appearance',
+                tooltip: l10n.loginSettingsTooltip,
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -79,8 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             'assets/icon/app_icon.png',
                             width: 84,
                             height: 84,
-                            semanticLabel:
-                                'FediCaption cartoon elephant wearing dark sunglasses',
+                            semanticLabel: l10n.loginElephantSemanticLabel,
                           ),
                         ),
                       ),
@@ -88,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Semantics(
                         header: true,
                         child: Text(
-                          'Welcome to FediCaption',
+                          l10n.loginWelcomeTitle,
                           textAlign: TextAlign.center,
                           style: Theme.of(context)
                               .textTheme
@@ -98,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'An accessible Mastodon client with automatic AI alt-text generation and pre-post racial & gender bias checking.',
+                        l10n.loginTagline,
                         textAlign: TextAlign.center,
                         style: Theme.of(context)
                             .textTheme
@@ -113,12 +114,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.url,
                         autocorrect: false,
                         textInputAction: TextInputAction.done,
-                        decoration: const InputDecoration(
-                          labelText: 'Mastodon Server Domain',
-                          hintText: 'mastodon.social',
-                          prefixIcon: Icon(Icons.public),
-                          helperText:
-                              'Enter your Mastodon, Glitch-soc, Hometown, Pleroma, or Akkoma server.',
+                        decoration: InputDecoration(
+                          labelText: l10n.loginServerDomainLabel,
+                          hintText: l10n.loginServerDomainHint,
+                          prefixIcon: const Icon(Icons.public),
+                          helperText: l10n.loginServerDomainHelper,
                         ),
                       ),
 
@@ -137,9 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : const Icon(Icons.login),
                         label: Text(
-                          busy
-                              ? 'Signing in…'
-                              : 'Sign in with Mastodon (OAuth 2.0)',
+                          busy ? l10n.loginSigningIn : l10n.loginSignInOAuth,
                         ),
                       ),
 
@@ -167,10 +165,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Manual Direct Access Token Fallback
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Direct Access Token Fallback'),
-                        subtitle: const Text(
-                          'Sign in with a personal access token from your Mastodon Development settings.',
-                        ),
+                        title: Text(l10n.loginTokenFallbackTitle),
+                        subtitle: Text(l10n.loginTokenFallbackSubtitle),
                         trailing: Icon(
                           _showTokenFallback
                               ? Icons.expand_less
@@ -189,12 +185,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           obscureText: _obscureToken,
                           autocorrect: false,
                           decoration: InputDecoration(
-                            labelText: 'Access Token',
-                            hintText: 'Paste Mastodon access token',
+                            labelText: l10n.loginTokenLabel,
+                            hintText: l10n.loginTokenHint,
                             prefixIcon: const Icon(Icons.vpn_key_outlined),
                             suffixIcon: IconButton(
-                              tooltip:
-                                  _obscureToken ? 'Show token' : 'Hide token',
+                              tooltip: _obscureToken
+                                  ? l10n.loginShowToken
+                                  : l10n.loginHideToken,
                               icon: Icon(
                                 _obscureToken
                                     ? Icons.visibility
@@ -215,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     accessToken: _tokenController.text,
                                   ),
                           icon: const Icon(Icons.key),
-                          label: const Text('Sign in with Access Token'),
+                          label: Text(l10n.loginSignInToken),
                         ),
                       ],
                     ],

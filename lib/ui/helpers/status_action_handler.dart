@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../screens/composer_screen.dart';
@@ -104,6 +105,7 @@ class StatusActionHandler {
   ) async {
     final session = app.session;
     if (session == null) return null;
+    final l10n = context.l10n;
     try {
       final updated = await app.mastodon.toggleReblog(
         instanceUrl: session.instanceUrl,
@@ -113,12 +115,14 @@ class StatusActionHandler {
       );
       final display = updated.displayStatus;
       AccessibilityAnnouncer.announce(
-        display.reblogged ? 'Post boosted.' : 'Boost removed.',
+        display.reblogged
+            ? l10n.actionAnnounceBoosted
+            : l10n.actionAnnounceUnboosted,
       );
       return display;
     } catch (e) {
       if (context.mounted) {
-        _showSnack(context, 'Could not update boost: $e');
+        _showSnack(context, l10n.actionErrorBoost(e.toString()));
       }
       return null;
     }
@@ -131,6 +135,7 @@ class StatusActionHandler {
   ) async {
     final session = app.session;
     if (session == null) return null;
+    final l10n = context.l10n;
     try {
       final updated = await app.mastodon.toggleFavourite(
         instanceUrl: session.instanceUrl,
@@ -140,12 +145,14 @@ class StatusActionHandler {
       );
       final display = updated.displayStatus;
       AccessibilityAnnouncer.announce(
-        display.favourited ? 'Post favorited.' : 'Removed from favorites.',
+        display.favourited
+            ? l10n.actionAnnounceFavorited
+            : l10n.actionAnnounceUnfavorited,
       );
       return display;
     } catch (e) {
       if (context.mounted) {
-        _showSnack(context, 'Could not update favorite: $e');
+        _showSnack(context, l10n.actionErrorFavorite(e.toString()));
       }
       return null;
     }
@@ -158,6 +165,7 @@ class StatusActionHandler {
   ) async {
     final session = app.session;
     if (session == null) return null;
+    final l10n = context.l10n;
     try {
       final updated = await app.mastodon.toggleBookmark(
         instanceUrl: session.instanceUrl,
@@ -167,12 +175,14 @@ class StatusActionHandler {
       );
       final display = updated.displayStatus;
       AccessibilityAnnouncer.announce(
-        display.bookmarked ? 'Post bookmarked.' : 'Bookmark removed.',
+        display.bookmarked
+            ? l10n.actionAnnounceBookmarked
+            : l10n.actionAnnounceUnbookmarked,
       );
       return display;
     } catch (e) {
       if (context.mounted) {
-        _showSnack(context, 'Could not update bookmark: $e');
+        _showSnack(context, l10n.actionErrorBookmark(e.toString()));
       }
       return null;
     }
@@ -184,21 +194,20 @@ class StatusActionHandler {
     BuildContext context,
     MastodonStatus target,
   ) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Post?'),
-        content: const Text(
-          'This will permanently delete your post from your Mastodon server.',
-        ),
+        title: Text(l10n.actionDeleteTitle),
+        content: Text(l10n.actionDeleteConfirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -214,11 +223,11 @@ class StatusActionHandler {
         accessToken: session.accessToken,
         statusId: target.id,
       );
-      AccessibilityAnnouncer.announce('Post deleted.');
+      AccessibilityAnnouncer.announce(l10n.actionAnnounceDeleted);
       return true;
     } catch (e) {
       if (context.mounted) {
-        _showSnack(context, 'Failed to delete post: $e');
+        _showSnack(context, l10n.actionErrorDelete(e.toString()));
       }
       return false;
     }

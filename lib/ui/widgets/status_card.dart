@@ -8,6 +8,7 @@ import '../../core/constants.dart';
 import '../../core/html_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../services/translation_service.dart';
 import '../../state/app_controller.dart';
@@ -175,6 +176,7 @@ class _StatusCardState extends State<StatusCard> {
         if (media.hasAltText) media.id: media.description!.trim(),
     };
 
+    final l10n = context.l10n;
     setState(() {
       _isTranslating = true;
       _translationError = null;
@@ -200,7 +202,10 @@ class _StatusCardState extends State<StatusCard> {
         _isTranslating = false;
       });
       AccessibilityAnnouncer.announce(
-        'Post translated to ${TranslationService.languageDisplayName(targetLang)} using ${result.engineName}.',
+        l10n.statusAnnounceTranslated(
+          TranslationService.languageDisplayName(targetLang),
+          result.engineName,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -234,6 +239,7 @@ class _StatusCardState extends State<StatusCard> {
     final isOwnPost = widget.app.currentAccount?.id == target.account.id;
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final hasCw = target.spoilerText.trim().isNotEmpty;
     final cwRevealed = widget.cwRevealedOverride ?? _cwRevealed;
 
@@ -258,11 +264,13 @@ class _StatusCardState extends State<StatusCard> {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Semantics(
                   button: true,
-                  label:
-                      'Boosted by ${outer.account.effectiveDisplayName}. Tap to view profile.',
+                  label: l10n.statusBoostedSemantics(
+                    outer.account.effectiveDisplayName,
+                  ),
                   child: AccessibleTip(
-                    message:
-                        'View profile of ${outer.account.effectiveDisplayName} (who boosted this post)',
+                    message: l10n.statusBoostedTip(
+                      outer.account.effectiveDisplayName,
+                    ),
                     child: InkWell(
                       onTap: () => widget.onOpenProfile(outer.account),
                     borderRadius: BorderRadius.circular(8),
@@ -277,7 +285,9 @@ class _StatusCardState extends State<StatusCard> {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              '${outer.account.effectiveDisplayName} boosted',
+                              l10n.statusBoostedLabel(
+                                outer.account.effectiveDisplayName,
+                              ),
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium
@@ -376,7 +386,7 @@ class _StatusCardState extends State<StatusCard> {
                         const SizedBox(height: 6),
                       if (bodyPlainText.isNotEmpty)
                         AccessibleTip(
-                          message: 'Open post and conversation thread (Enter)',
+                          message: l10n.statusOpenThreadTip,
                           child: InkWell(
                             onTap: () => widget.onOpenThread(target),
                             borderRadius: BorderRadius.circular(6),
@@ -411,7 +421,12 @@ class _StatusCardState extends State<StatusCard> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    'Edited ${TimeUtils.formatRelativeCompact(target.editedAt!)}',
+                    l10n.statusEditedAt(
+                      TimeUtils.formatRelativeCompact(
+                        target.editedAt!,
+                        l10n: l10n,
+                      ),
+                    ),
                     style: Theme.of(context)
                         .textTheme
                         .labelSmall
@@ -442,8 +457,10 @@ class _StatusCardState extends State<StatusCard> {
                 _ActionIcon(
                   icon: Icons.reply,
                   label: target.repliesCount > 0 ? '${target.repliesCount}' : '',
-                  semanticLabel:
-                      'Reply to ${target.account.effectiveDisplayName} (${target.repliesCount} replies)',
+                  semanticLabel: l10n.statusReplySemantics(
+                    target.account.effectiveDisplayName,
+                    target.repliesCount,
+                  ),
                   onPressed: () => widget.onReply(target),
                 ),
                 _ActionIcon(
@@ -452,8 +469,8 @@ class _StatusCardState extends State<StatusCard> {
                   active: target.reblogged,
                   activeColor: scheme.secondary,
                   semanticLabel: target.reblogged
-                      ? 'Unboost post (${target.reblogsCount} boosts)'
-                      : 'Boost post (${target.reblogsCount} boosts)',
+                      ? l10n.statusUnboostSemantics(target.reblogsCount)
+                      : l10n.statusBoostSemantics(target.reblogsCount),
                   onPressed: () => widget.onToggleBoost(target),
                 ),
                 _ActionIcon(
@@ -464,8 +481,8 @@ class _StatusCardState extends State<StatusCard> {
                   active: target.favourited,
                   activeColor: scheme.primary,
                   semanticLabel: target.favourited
-                      ? 'Unfavorite post (${target.favouritesCount} favorites)'
-                      : 'Favorite post (${target.favouritesCount} favorites)',
+                      ? l10n.statusUnfavoriteSemantics(target.favouritesCount)
+                      : l10n.statusFavoriteSemantics(target.favouritesCount),
                   onPressed: () => widget.onToggleFavorite(target),
                 ),
                 _ActionIcon(
@@ -475,21 +492,22 @@ class _StatusCardState extends State<StatusCard> {
                   label: '',
                   active: target.bookmarked,
                   activeColor: scheme.primary,
-                  semanticLabel:
-                      target.bookmarked ? 'Remove bookmark' : 'Bookmark post',
+                  semanticLabel: target.bookmarked
+                      ? l10n.statusRemoveBookmarkSemantics
+                      : l10n.statusBookmarkSemantics,
                   onPressed: () => widget.onToggleBookmark(target),
                 ),
                 _ActionIcon(
                   icon: Icons.forum_outlined,
-                  label: 'Thread',
-                  semanticLabel: 'View conversation thread',
+                  label: l10n.statusThreadActionLabel,
+                  semanticLabel: l10n.statusThreadActionSemantics,
                   onPressed: () => widget.onOpenThread(target),
                 ),
                 if (isOwnPost && widget.onEdit != null)
                   _ActionIcon(
                     icon: Icons.edit,
-                    label: 'Edit',
-                    semanticLabel: 'Edit your post and media alt text',
+                    label: l10n.statusEditActionLabel,
+                    semanticLabel: l10n.statusEditActionSemantics,
                     onPressed: () => widget.onEdit!(target),
                   ),
                 if (isOwnPost && widget.onDelete != null)
@@ -497,7 +515,7 @@ class _StatusCardState extends State<StatusCard> {
                     icon: Icons.delete_outline,
                     label: '',
                     activeColor: scheme.error,
-                    semanticLabel: 'Delete your post',
+                    semanticLabel: l10n.statusDeleteActionSemantics,
                     onPressed: () => widget.onDelete!(target),
                   ),
               ],

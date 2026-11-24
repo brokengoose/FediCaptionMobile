@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/status_action_handler.dart';
@@ -64,6 +65,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final indexedCount = widget.app.timelineCache.totalCachedPostCount;
     final query = _queryController.text.trim();
 
@@ -74,11 +76,11 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: 'Search $indexedCount cached posts & alt-text…',
+            hintText: l10n.searchHint(indexedCount),
             border: InputBorder.none,
             suffixIcon: query.isNotEmpty
                 ? IconButton(
-                    tooltip: 'Clear search',
+                    tooltip: l10n.searchClearTooltip,
                     icon: const Icon(Icons.clear),
                     onPressed: _queryController.clear,
                   )
@@ -96,13 +98,13 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
                     Icon(Icons.search, size: 48, color: fedi.subtleText),
                     const SizedBox(height: 12),
                     Text(
-                      'Offline Local Search ($indexedCount cached posts)',
+                      l10n.searchEmptyTitle(indexedCount),
                       style: Theme.of(context).textTheme.titleMedium,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Searches post text, Content Warnings, authors, and media alt-text locally on your device without placing any search load on your Mastodon server.',
+                      l10n.searchEmptyDescription,
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
@@ -118,7 +120,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No cached posts match "$query".',
+                      l10n.searchNoResults(query),
                       style: Theme.of(context).textTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),

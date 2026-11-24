@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../l10n/l10n.dart';
+
 /// Shared helpers for standard Mastodon keyboard navigation across macOS,
 /// iPadOS (hardware keyboard), Android (hardware keyboard), and desktop.
 class KeyboardNavHelper {
@@ -199,12 +201,13 @@ class KeyboardShortcutsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.keyboard_outlined),
-          SizedBox(width: 10),
-          Text('Keyboard Shortcuts'),
+          const Icon(Icons.keyboard_outlined),
+          const SizedBox(width: 10),
+          Text(l10n.shortcutsTitle),
         ],
       ),
       content: SizedBox(
@@ -214,39 +217,39 @@ class KeyboardShortcutsDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _section(context, 'Post Navigation', const [
-                ('j  or  ↓', 'Next post'),
-                ('k  or  ↑', 'Previous post'),
-                ('Enter  or  o', 'Open selected post / thread'),
-                ('Esc', 'Go back or close viewer'),
+              _section(context, l10n.shortcutsSectionNavigation, [
+                (l10n.shortcutsOrKeyCombo('j', '↓'), l10n.shortcutsNextPost),
+                (l10n.shortcutsOrKeyCombo('k', '↑'), l10n.shortcutsPreviousPost),
+                (l10n.shortcutsOrKeyCombo('Enter', 'o'), l10n.shortcutsOpenPost),
+                ('Esc', l10n.shortcutsEscape),
               ]),
               const SizedBox(height: 12),
-              _section(context, 'Selected Post Actions', const [
-                ('r', 'Reply to selected post'),
-                ('f', 'Favorite / unfavorite'),
-                ('b', 'Boost / unboost'),
-                ('m', 'Bookmark / unbookmark'),
-                ('x', 'Expand / collapse Content Warning'),
-                ('p', 'Open author profile'),
+              _section(context, l10n.shortcutsSectionActions, [
+                ('r', l10n.shortcutsReply),
+                ('f', l10n.shortcutsFavorite),
+                ('b', l10n.shortcutsBoost),
+                ('m', l10n.shortcutsBookmark),
+                ('x', l10n.shortcutsToggleCw),
+                ('p', l10n.shortcutsOpenProfile),
               ]),
               const SizedBox(height: 12),
-              _section(context, 'Switch Timelines', const [
-                ('g h  or  1', 'Home timeline'),
-                ('g l  or  2', 'Local timeline'),
-                ('g p  or  3', 'Federated timeline'),
-                ('g n  or  4', 'Notifications / Alerts'),
-                ('g b  or  5', 'Bookmarks'),
-                ('g f  or  6', 'Favorites'),
-                ('g u  or  7', 'My Published Posts'),
+              _section(context, l10n.shortcutsSectionTimelines, [
+                (l10n.shortcutsOrKeyCombo('g h', '1'), l10n.shortcutsHomeTimeline),
+                (l10n.shortcutsOrKeyCombo('g l', '2'), l10n.shortcutsLocalTimeline),
+                (l10n.shortcutsOrKeyCombo('g p', '3'), l10n.shortcutsFederatedTimeline),
+                (l10n.shortcutsOrKeyCombo('g n', '4'), l10n.shortcutsNotificationsTimeline),
+                (l10n.shortcutsOrKeyCombo('g b', '5'), l10n.shortcutsBookmarksTimeline),
+                (l10n.shortcutsOrKeyCombo('g f', '6'), l10n.shortcutsFavoritesTimeline),
+                (l10n.shortcutsOrKeyCombo('g u', '7'), l10n.shortcutsMyPostsTimeline),
               ]),
               const SizedBox(height: 12),
-              _section(context, 'App & Composer', const [
-                ('n  or  ⌘N', 'Compose new post'),
-                ('⌘Enter', 'Publish post (in Composer)'),
-                ('/  or  ⌘F', 'Offline local search'),
-                ('.  or  ⌘R', 'Refresh current view'),
-                ('⌘,', 'Open Settings'),
-                ('?', 'Show this help sheet'),
+              _section(context, l10n.shortcutsSectionApp, [
+                (l10n.shortcutsOrKeyCombo('n', '⌘N'), l10n.shortcutsComposeNew),
+                ('⌘Enter', l10n.shortcutsPublishPost),
+                (l10n.shortcutsOrKeyCombo('/', '⌘F'), l10n.shortcutsLocalSearch),
+                (l10n.shortcutsOrKeyCombo('.', '⌘R'), l10n.shortcutsRefresh),
+                ('⌘,', l10n.shortcutsOpenSettings),
+                ('?', l10n.shortcutsShowHelp),
               ]),
             ],
           ),
@@ -255,7 +258,7 @@ class KeyboardShortcutsDialog extends StatelessWidget {
       actions: [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(l10n.commonClose),
         ),
       ],
     );

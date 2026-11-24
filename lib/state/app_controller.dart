@@ -1,12 +1,18 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:convert';
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
 import '../core/accessibility_announcer.dart';
 import '../core/constants.dart';
+import '../core/language/language_registry.dart';
 import '../core/theme/theme_controller.dart';
+import '../l10n/l10n.dart';
+import '../l10n/model_localizations.dart';
 import '../models/ai_models.dart';
 import '../models/app_settings.dart';
 import '../models/mastodon_models.dart';
@@ -61,6 +67,12 @@ class AppController extends ChangeNotifier {
           onDeviceAi: onDeviceAi,
           aiProvider: aiProvider,
           mastodon: mastodon,
+          osLanguageProvider: () =>
+              _settings.resolvedAppLocale?.languageCode ??
+              (LanguageRegistry.normalizeCode(
+                    PlatformDispatcher.instance.locale.languageCode,
+                  ) ??
+                  'en'),
         );
     quoteCache = QuoteCacheController(mastodon: mastodon);
     timelineCache = TimelineCacheController();
@@ -73,6 +85,7 @@ class AppController extends ChangeNotifier {
     mediaAi = TimelineMediaAiController(
       mastodon: mastodon,
       aiProvider: aiProvider,
+      l10nProvider: () => l10n,
     );
     for (final provider in AiProviderType.values) {
       _modelsByProvider[provider] = AiProviderService.defaultModelsFor(provider);
@@ -139,6 +152,19 @@ class AppController extends ChangeNotifier {
   AppSettings get settings => _settings;
   AiCredentials get credentials => _credentials;
 
+  /// Resolved UI locale combining optional user override and OS locale.
+  Locale get effectiveLocale =>
+      resolveSupportedLocale(_settings.resolvedAppLocale);
+
+  /// Localized string table matching [effectiveLocale] for non-BuildContext callers.
+  AppLocalizations get l10n =>
+      resolveAppLocalizations(_settings.resolvedAppLocale);
+
+  void _syncAnnouncementDirection() {
+    AccessibilityAnnouncer.defaultTextDirection =
+        resolveTextDirection(effectiveLocale);
+  }
+
   OnDeviceAiStatus get onDeviceAiStatus => _onDeviceAiStatus;
   bool get isCheckingOnDeviceAi => _isCheckingOnDeviceAi;
   bool get isDownloadingOnDeviceModel => _isDownloadingOnDeviceModel;
@@ -185,6 +211,7 @@ class AppController extends ChangeNotifier {
       _settings = await storage.loadSettings();
       _credentials = await storage.loadAiCredentials();
       themeController.setPreference(_settings.themePreference);
+      _syncAnnouncementDirection();
 
       final savedSession = await storage.loadSession();
       if (savedSession != null) {
@@ -200,7 +227,7 @@ class AppController extends ChangeNotifier {
             accessToken: savedSession.accessToken,
           );
         } catch (e) {
-          _authError = 'Saved session expired or server unreachable: $e';
+          _authError = l10n.authErrorExpiredSession(e.toString());
         }
       }
     } finally {
@@ -258,13 +285,15 @@ class AppController extends ChangeNotifier {
     _onDeviceAiError = null;
     _safeNotify();
 
-    AccessibilityAnnouncer.announce('Downloading on-device AI model.');
+    AccessibilityAnnouncer.announce(l10n.onDeviceAiAnnounceDownloading);
     try {
       _onDeviceAiStatus = await onDeviceAi.downloadModelsIfNeeded();
-      AccessibilityAnnouncer.announce(_onDeviceAiStatus.summaryMessage);
+      AccessibilityAnnouncer.announce(
+        _onDeviceAiStatus.localizedSummaryMessage(l10n),
+      );
     } catch (e) {
       _onDeviceAiError = e.toString();
-      AccessibilityAnnouncer.announce('Failed to download on-device AI model.');
+      AccessibilityAnnouncer.announce(l10n.onDeviceAiAnnounceDownloadFailed);
     } finally {
       _isDownloadingOnDeviceModel = false;
       _safeNotify();
@@ -285,7 +314,7 @@ class AppController extends ChangeNotifier {
     _safeNotify();
 
     AccessibilityAnnouncer.announce(
-      'Update available: FediCaption version ${update.latestVersion} is now on GitHub.',
+      l10n.updateAnnounceAvailable(update.latestVersion),
     );
   }
 
@@ -302,8 +331,7 @@ class AppController extends ChangeNotifier {
   Future<bool> loginWithOAuth(String rawInstanceUrl) async {
     final instanceUrl = MastodonService.normalizeInstanceUrl(rawInstanceUrl);
     if (instanceUrl.isEmpty) {
-      _authError =
-          'Please enter a valid Mastodon server domain (e.g. mastodon.social).';
+      _authError = l10n.authErrorInvalidInstance;
       _safeNotify();
       return false;
     }
@@ -325,29 +353,9 @@ class AppController extends ChangeNotifier {
           ? AppConstants.desktopLoopbackOAuthOrigin
           : AppConstants.oauthCallbackScheme;
       final authOptions = useSystemBrowserLoopback
-          ? const FlutterWebAuth2Options(
+          ? FlutterWebAuth2Options(
               useWebview: false,
-              landingPageHtml: '''
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>FediCaption Sign-In Complete</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #14171f; color: #f8f9fc; }
-    main { max-width: 440px; padding: 32px; border-radius: 14px; background: #1e2330; text-align: center; }
-    h1 { font-size: 1.4rem; margin: 0 0 12px; }
-    p { margin: 0; color: #c7cede; line-height: 1.5; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>Signed in to FediCaption</h1>
-    <p>Authorization succeeded. You can close this browser tab and return to FediCaption.</p>
-  </main>
-</body>
-</html>
-''',
+              landingPageHtml: _buildOAuthLandingHtml(),
             )
           : const FlutterWebAuth2Options();
 
@@ -387,7 +395,7 @@ class AppController extends ChangeNotifier {
       if (code == null || code.isEmpty) {
         final err = callbackUri.queryParameters['error_description'] ??
             callbackUri.queryParameters['error'] ??
-            'Authorization was cancelled.';
+            l10n.authErrorCancelled;
         throw MastodonApiException(err);
       }
 
@@ -432,7 +440,7 @@ class AppController extends ChangeNotifier {
     final instanceUrl = MastodonService.normalizeInstanceUrl(rawInstanceUrl);
     final trimmedToken = accessToken.trim();
     if (instanceUrl.isEmpty || trimmedToken.isEmpty) {
-      _authError = 'Both server URL and access token are required.';
+      _authError = l10n.authErrorMissingInstanceAndToken;
       _safeNotify();
       return false;
     }
@@ -481,7 +489,7 @@ class AppController extends ChangeNotifier {
     _safeNotify();
 
     AccessibilityAnnouncer.announce(
-      'Signed in as ${account.effectiveDisplayName} on $instanceUrl.',
+      l10n.authAnnounceSignedIn(account.effectiveDisplayName, instanceUrl),
     );
     return true;
   }
@@ -497,7 +505,7 @@ class AppController extends ChangeNotifier {
     mediaAi.clear();
     quoteCache.clear();
     _safeNotify();
-    AccessibilityAnnouncer.announce('Signed out of Mastodon.');
+    AccessibilityAnnouncer.announce(l10n.authAnnounceSignedOut);
   }
 
   /// Persists updated non-secret settings and optionally refreshes models when
@@ -512,6 +520,7 @@ class AppController extends ChangeNotifier {
 
     _settings = updated;
     themeController.setPreference(updated.themePreference);
+    _syncAnnouncementDirection();
     _safeNotify();
 
     await storage.saveSettings(updated);
@@ -555,6 +564,7 @@ class AppController extends ChangeNotifier {
     _settings = finalized;
     _credentials = credentials;
     themeController.setPreference(finalized.themePreference);
+    _syncAnnouncementDirection();
     _safeNotify();
 
     await storage.saveAiCredentials(credentials);
@@ -563,12 +573,12 @@ class AppController extends ChangeNotifier {
     if (finalized.isAiEnabled) {
       refreshModelsFor(finalized.activeProvider);
       AccessibilityAnnouncer.announce(
-        'AI setup complete using ${finalized.activeProvider.displayName}.',
+        l10n.aiSetupAnnounceCompleteWithAi(
+          finalized.activeProvider.localizedDisplayName(l10n),
+        ),
       );
     } else {
-      AccessibilityAnnouncer.announce(
-        'Setup complete with No AI selected. Manual alt-text and offline bias heuristics are active.',
-      );
+      AccessibilityAnnouncer.announce(l10n.aiSetupAnnounceCompleteNoAi);
     }
   }
 
@@ -626,6 +636,38 @@ class AppController extends ChangeNotifier {
     timelineCache.markAllStale();
     _timelineRefreshNonce++;
     _safeNotify();
+  }
+
+  String _buildOAuthLandingHtml() {
+    final loc = l10n;
+    final locale = effectiveLocale;
+    final dir = resolveTextDirection(locale) == TextDirection.rtl ? 'rtl' : 'ltr';
+    const esc = HtmlEscape();
+    final lang = esc.convert(locale.toLanguageTag());
+    final title = esc.convert(loc.oauthLandingTitle);
+    final heading = esc.convert(loc.oauthLandingHeading);
+    final body = esc.convert(loc.oauthLandingBody);
+    return '''
+<!DOCTYPE html>
+<html lang="$lang" dir="$dir">
+<head>
+  <meta charset="utf-8" />
+  <title>$title</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #14171f; color: #f8f9fc; }
+    main { max-width: 440px; padding: 32px; border-radius: 14px; background: #1e2330; text-align: center; }
+    h1 { font-size: 1.4rem; margin: 0 0 12px; }
+    p { margin: 0; color: #c7cede; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>$heading</h1>
+    <p>$body</p>
+  </main>
+</body>
+</html>
+''';
   }
 
   void _safeNotify() {

@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/accessibility_announcer.dart';
+import '../../l10n/l10n.dart';
 import '../../services/media_cache_service.dart';
 import '../widgets/cached_network_image_provider.dart';
 
@@ -58,6 +59,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
   Future<void> _handleShare({Offset? globalPosition}) async {
     if (_isSharing) return;
     setState(() => _isSharing = true);
+    final l10n = context.l10n;
 
     try {
       HapticFeedback.mediumImpact();
@@ -71,14 +73,14 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
 
       final uri = Uri.tryParse(widget.imageUrl);
       if (uri == null) {
-        throw StateError('Invalid image URL.');
+        throw StateError(l10n.imageViewerInvalidUrl);
       }
 
       final cached = await MediaCacheService.instance.getOrFetch(widget.imageUrl);
       final mimeType = cached.mimeType;
       final fileName = _deriveFileName(uri, mimeType);
 
-      AccessibilityAnnouncer.announce('Opening share menu.');
+      AccessibilityAnnouncer.announce(l10n.imageViewerAnnounceShare);
       await SharePlus.instance.share(
         ShareParams(
           files: [
@@ -94,7 +96,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not share image: $e')),
+          SnackBar(content: Text(l10n.imageViewerShareError(e.toString()))),
         );
       }
     } finally {
@@ -132,6 +134,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final trimmedAlt = (widget.altText ?? '').trim();
 
     return Scaffold(
@@ -141,14 +144,14 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          tooltip: 'Close full-screen image',
+          tooltip: l10n.imageViewerCloseTooltip,
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Full Image'),
+        title: Text(l10n.imageViewerTitle),
         actions: [
           IconButton(
-            tooltip: 'Share or save image',
+            tooltip: l10n.imageViewerShareTooltip,
             onPressed: _isSharing ? null : () => _handleShare(),
             icon: _isSharing
                 ? const SizedBox(
@@ -170,8 +173,8 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
               child: Semantics(
                 image: true,
                 label: trimmedAlt.isNotEmpty
-                    ? 'Full image: $trimmedAlt Long press to share or save.'
-                    : 'Full image with no alt text provided. Long press to share or save.',
+                    ? l10n.imageViewerWithAltSemantics(trimmedAlt)
+                    : l10n.imageViewerNoAltSemantics,
                 child: InteractiveViewer(
                   minScale: 1.0,
                   maxScale: 4.0,
@@ -194,19 +197,19 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                                 CircularProgressIndicator(color: Colors.white),
                           );
                         },
-                        errorBuilder: (_, __, ___) => const Center(
+                        errorBuilder: (_, __, ___) => Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.broken_image,
                                 size: 48,
                                 color: Colors.white70,
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Text(
-                                'Could not load full image.',
-                                style: TextStyle(color: Colors.white70),
+                                l10n.imageViewerLoadError,
+                                style: const TextStyle(color: Colors.white70),
                               ),
                             ],
                           ),

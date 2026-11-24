@@ -4,6 +4,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../state/app_controller.dart';
 
 /// Displays live on-device AI capability (Apple Foundation Models on iPhone /
@@ -21,6 +23,7 @@ class OnDeviceAiStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final status = app.onDeviceAiStatus;
     final checking = app.isCheckingOnDeviceAi;
     final downloading = app.isDownloadingOnDeviceModel;
@@ -31,27 +34,27 @@ class OnDeviceAiStatusCard extends StatelessWidget {
             fedi.altPresentBg,
             fedi.altPresentFg,
             Icons.check_circle_outline,
-            'Ready on Device',
+            l10n.onDeviceAiBadgeReady,
           )
         : status.isDownloadable
             ? (
                 scheme.primaryContainer,
                 scheme.onPrimaryContainer,
                 Icons.download_for_offline_outlined,
-                'Model Downloadable',
+                l10n.onDeviceAiBadgeDownloadable,
               )
             : status.isNotYetReady
                 ? (
                     fedi.biasWarningBg,
                     fedi.biasWarningFg,
                     Icons.settings_suggest_outlined,
-                    'Enable in System Settings',
+                    l10n.onDeviceAiBadgeNotYetReady,
                   )
                 : (
                     fedi.altMissingBg,
                     fedi.altMissingFg,
                     Icons.info_outline,
-                    'Unavailable on This Device',
+                    l10n.onDeviceAiBadgeUnavailable,
                   );
 
     return Container(
@@ -73,7 +76,10 @@ class OnDeviceAiStatusCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${status.engineName} — $badge',
+                  l10n.onDeviceAiStatusHeader(
+                    status.localizedEngineName(l10n),
+                    badge,
+                  ),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: fg,
                         fontWeight: FontWeight.bold,
@@ -84,12 +90,12 @@ class OnDeviceAiStatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            status.summaryMessage,
+            status.localizedSummaryMessage(l10n),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: fg),
           ),
           const SizedBox(height: 6),
           Text(
-            status.diagnosticDetail,
+            status.localizedDiagnosticDetail(l10n),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: fg.withAlpha(220),
                 ),
@@ -121,8 +127,8 @@ class OnDeviceAiStatusCard extends StatelessWidget {
                       : const Icon(Icons.download),
                   label: Text(
                     downloading
-                        ? 'Downloading Model…'
-                        : 'Download On-Device Model',
+                        ? l10n.onDeviceAiDownloadingModelButton
+                        : l10n.onDeviceAiDownloadModelButton,
                   ),
                 ),
               OutlinedButton.icon(
@@ -141,7 +147,11 @@ class OnDeviceAiStatusCard extends StatelessWidget {
                         ),
                       )
                     : const Icon(Icons.refresh, size: 18),
-                label: Text(checking ? 'Checking…' : 'Re-Check Device'),
+                label: Text(
+                  checking
+                      ? l10n.onDeviceAiCheckingButton
+                      : l10n.onDeviceAiRecheckButton,
+                ),
               ),
             ],
           ),

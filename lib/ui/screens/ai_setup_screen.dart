@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/ai_models.dart';
 import '../../state/app_controller.dart';
 import '../widgets/ai_provider_config_section.dart';
@@ -100,6 +101,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final account = widget.app.currentAccount;
 
     return ListenableBuilder(
@@ -108,12 +110,12 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
         final isNone = widget.app.settings.activeProvider == AiProviderType.none;
         final controlsDisabled = _isSaving || _isDetectingOnDeviceAi;
         final noAiNotice = _defaultedToNoAi
-            ? 'On-device AI is not available on this device, so No AI is selected by default. You can choose a Cloud API or Local AI server above, or continue with No AI (manual alt-text, Read Aloud, and offline bias heuristics) and enable AI later in Settings.'
-            : 'FediCaption will not contact any AI service. You can still write alt-text manually, listen with Read Aloud, and use offline local bias heuristics. You can enable an AI provider later in Settings.';
+            ? l10n.aiSetupNoAiDefaultNotice
+            : l10n.aiSetupNoAiSelectedNotice;
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Set Up AI'),
+            title: Text(l10n.aiSetupTitle),
             automaticallyImplyLeading: false,
           ),
           body: SafeArea(
@@ -134,7 +136,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                       Semantics(
                         header: true,
                         child: Text(
-                          'Configure AI Captioning & Bias Checking',
+                          l10n.aiSetupHeading,
                           textAlign: TextAlign.center,
                           style: Theme.of(context)
                               .textTheme
@@ -145,8 +147,8 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                       const SizedBox(height: 8),
                       Text(
                         account != null
-                            ? 'Signed in as ${account.handle}. Choose an AI provider to automatically generate accessible alt-text and check posts for racial or gender bias — or choose No AI to enter alt-text manually.'
-                            : 'Choose an AI provider to automatically generate accessible alt-text and check posts for racial or gender bias — or choose No AI to enter alt-text manually.',
+                            ? l10n.aiSetupIntroWithHandle(account.handle)
+                            : l10n.aiSetupIntroWithoutHandle,
                         textAlign: TextAlign.center,
                         style: Theme.of(context)
                             .textTheme
@@ -164,20 +166,18 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: fedi.cardBorder),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Expanded(
-                                child: Text(
-                                  'Checking on-device AI availability…',
-                                ),
+                                child: Text(l10n.aiSetupDetectingOnDevice),
                               ),
                             ],
                           ),
@@ -186,9 +186,8 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                         AiProviderConfigSection(
                           key: _configKey,
                           app: widget.app,
-                          providerLabel: 'AI Provider',
-                          modelHelperText:
-                              'Sorted alphabetically. Tap Refresh after entering your key or URL.',
+                          providerLabel: l10n.aiSetupProviderLabel,
+                          modelHelperText: l10n.aiSetupModelHelper,
                           noAiNoticeText: noAiNotice,
                           showNoAiTitle: true,
                           skipInitialRefresh: true,
@@ -209,8 +208,8 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                         icon: Icon(isNone ? Icons.check : Icons.arrow_forward),
                         label: Text(
                           isNone
-                              ? 'Continue with No AI'
-                              : 'Save AI Settings & Continue',
+                              ? l10n.aiSetupContinueNoAi
+                              : l10n.aiSetupSaveAndContinue,
                         ),
                       ),
 
@@ -220,7 +219,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                           onPressed: controlsDisabled
                               ? null
                               : () => _finishSetup(forceNoAi: true),
-                          child: const Text('Use No AI (Set Up Later)'),
+                          child: Text(l10n.aiSetupUseNoAiLater),
                         ),
                       ],
                     ],

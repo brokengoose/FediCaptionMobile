@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/update_info.dart';
 
 /// Dismissible banner displayed on the main screen when a newer version is available on GitHub.
@@ -28,11 +29,14 @@ class UpdateBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     return Semantics(
       liveRegion: true,
       container: true,
-      label:
-          'Update available: FediCaption version ${update.latestVersion}. Currently on ${update.currentVersion}.',
+      label: l10n.updateBannerSemantics(
+        update.latestVersion,
+        update.currentVersion,
+      ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -54,14 +58,14 @@ class UpdateBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Update Available: v${update.latestVersion}',
+                    l10n.updateBannerTitle(update.latestVersion),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: fedi.updateBannerFg,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   Text(
-                    'You are running v${update.currentVersion}. View the latest release on GitHub.',
+                    l10n.updateBannerSubtitle(update.currentVersion),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: fedi.updateBannerFg,
                         ),
@@ -74,14 +78,14 @@ class UpdateBanner extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: fedi.updateBannerFg,
               ),
-              child: const Text(
-                'Download',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: Text(
+                l10n.commonDownload,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             IconButton(
               onPressed: onDismiss,
-              tooltip: 'Dismiss update notification',
+              tooltip: l10n.updateBannerDismissTooltip,
               color: fedi.updateBannerFg,
               icon: const Icon(Icons.close),
             ),

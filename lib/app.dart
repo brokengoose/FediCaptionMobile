@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'core/constants.dart';
+import 'l10n/l10n.dart';
 import 'state/app_controller.dart';
 import 'ui/screens/ai_setup_screen.dart';
 import 'ui/screens/home_shell.dart';
@@ -51,6 +52,9 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
           title: AppConstants.appName,
           debugShowCheckedModeBanner: false,
           theme: _app.themeController.themeData,
+          locale: _app.settings.resolvedAppLocale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: _app.isInitializing
               ? const _SplashScreen()
               : (!_app.isAuthenticated
@@ -69,10 +73,11 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       body: Center(
         child: Semantics(
-          label: 'Loading FediCaption',
+          label: l10n.appLoadingLabel,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -82,7 +87,7 @@ class _SplashScreen extends StatelessWidget {
                   'assets/icon/app_icon.png',
                   width: 84,
                   height: 84,
-                  semanticLabel: 'FediCaption app icon',
+                  semanticLabel: l10n.appIconSemanticLabel,
                 ),
               ),
               const SizedBox(height: 16),

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/accessibility_announcer.dart';
+import '../../l10n/l10n.dart';
 
 /// Full-screen accessible video player for Mastodon `video` and `gifv` media
 /// attachments across Linux, macOS, Windows, iOS, and Android.
@@ -47,7 +48,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (uri == null || widget.videoUrl.trim().isEmpty) {
       setState(() {
         _isInitializing = false;
-        _error = 'Invalid video URL.';
+        _error = context.l10n.videoPlayerInvalidUrl;
       });
       return;
     }
@@ -68,12 +69,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _isMuted = widget.isGifv;
         _isInitializing = false;
       });
-      AccessibilityAnnouncer.announce('Playing video.');
+      AccessibilityAnnouncer.announce(
+        context.l10n.videoPlayerAnnouncePlayingVideo,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isInitializing = false;
-        _error = 'Could not play video: $e';
+        _error = context.l10n.videoPlayerError(e.toString());
       });
     }
   }
@@ -91,16 +94,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _togglePlayPause() async {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
+    final l10n = context.l10n;
     if (c.value.isPlaying) {
       await c.pause();
-      AccessibilityAnnouncer.announce('Paused.');
+      AccessibilityAnnouncer.announce(l10n.videoPlayerAnnouncePaused);
     } else {
       if (c.value.position >= c.value.duration &&
           c.value.duration > Duration.zero) {
         await c.seekTo(Duration.zero);
       }
       await c.play();
-      AccessibilityAnnouncer.announce('Playing.');
+      AccessibilityAnnouncer.announce(l10n.videoPlayerAnnouncePlaying);
     }
   }
 
@@ -111,7 +115,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     await c.setVolume(nextMuted ? 0.0 : 1.0);
     if (!mounted) return;
     setState(() => _isMuted = nextMuted);
-    AccessibilityAnnouncer.announce(nextMuted ? 'Muted.' : 'Unmuted.');
+    final l10n = context.l10n;
+    AccessibilityAnnouncer.announce(
+      nextMuted
+          ? l10n.videoPlayerAnnounceMuted
+          : l10n.videoPlayerAnnounceUnmuted,
+    );
   }
 
   Future<void> _openInBrowser() async {
@@ -137,6 +146,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final trimmedAlt = (widget.altText ?? '').trim();
     final c = _controller;
     final isReady = c != null && c.value.isInitialized;
@@ -157,14 +167,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             foregroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              tooltip: 'Close video player',
+              tooltip: l10n.videoPlayerCloseTooltip,
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: Text(widget.isGifv ? 'GIF Video' : 'Video'),
+            title: Text(
+              widget.isGifv
+                  ? l10n.videoPlayerTitleGifv
+                  : l10n.videoPlayerTitleVideo,
+            ),
             actions: [
               IconButton(
-                tooltip: 'Open video in browser',
+                tooltip: l10n.videoPlayerOpenBrowserTooltip,
                 icon: const Icon(Icons.open_in_new),
                 onPressed: _openInBrowser,
               ),
@@ -200,7 +214,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     FilledButton.icon(
                                       onPressed: _openInBrowser,
                                       icon: const Icon(Icons.open_in_new),
-                                      label: const Text('Open in Browser'),
+                                      label: Text(
+                                        l10n.videoPlayerOpenBrowserButton,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -243,7 +259,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         Row(
                           children: [
                             IconButton(
-                              tooltip: isPlaying ? 'Pause' : 'Play',
+                              tooltip: isPlaying
+                                  ? l10n.videoPlayerPauseTooltip
+                                  : l10n.videoPlayerPlayTooltip,
                               color: Colors.white,
                               icon: Icon(
                                 isPlaying ? Icons.pause : Icons.play_arrow,
@@ -251,7 +269,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               onPressed: _togglePlayPause,
                             ),
                             IconButton(
-                              tooltip: _isMuted ? 'Unmute' : 'Mute',
+                              tooltip: _isMuted
+                                  ? l10n.videoPlayerUnmuteTooltip
+                                  : l10n.videoPlayerMuteTooltip,
                               color: Colors.white,
                               icon: Icon(
                                 _isMuted ? Icons.volume_off : Icons.volume_up,

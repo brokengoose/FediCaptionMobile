@@ -6,6 +6,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import '../core/language/language_registry.dart';
+
 typedef LinuxProcessStarter = Future<Process> Function(
   String executable,
   List<String> arguments,
@@ -115,7 +117,7 @@ class TtsService extends ChangeNotifier {
     } catch (_) {
       // Ignore if platform rejects volume/rate call.
     }
-    final langCode = _languageCodeFromName(languageName);
+    final langCode = LanguageRegistry.resolveTtsLocale(languageName);
     if (langCode != null) {
       try {
         await tts.setLanguage(langCode);
@@ -144,8 +146,7 @@ class TtsService extends ChangeNotifier {
     final clampedRate = speechRate.clamp(0.25, 1.0);
     final spdRate = ((clampedRate - 0.5) * 160).round().clamp(-80, 80);
     final espeakWpm = (100 + clampedRate * 150).round();
-    final primaryLang =
-        _languageCodeFromName(languageName)?.split('-').first.toLowerCase();
+    final primaryLang = LanguageRegistry.resolveLinuxTtsCode(languageName);
 
     final candidates = <(String, List<String>)>[
       (
@@ -244,39 +245,6 @@ class TtsService extends ChangeNotifier {
     }
     await _tts?.stop();
     _resetState();
-  }
-
-  String? _languageCodeFromName(String? name) {
-    if (name == null || name.trim().isEmpty) return null;
-    switch (name.trim().toLowerCase()) {
-      case 'english':
-        return 'en-US';
-      case 'spanish':
-      case 'español':
-        return 'es-ES';
-      case 'french':
-      case 'français':
-        return 'fr-FR';
-      case 'german':
-      case 'deutsch':
-        return 'de-DE';
-      case 'japanese':
-      case '日本語':
-        return 'ja-JP';
-      case 'portuguese':
-      case 'português':
-        return 'pt-BR';
-      case 'italian':
-      case 'italiano':
-        return 'it-IT';
-      case 'korean':
-        return 'ko-KR';
-      case 'chinese':
-      case 'mandarin':
-        return 'zh-CN';
-      default:
-        return null;
-    }
   }
 
   @override

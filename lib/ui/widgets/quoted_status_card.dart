@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import 'linkified_text.dart';
@@ -42,6 +43,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final quoted = widget.quotedStatus?.displayStatus;
 
     final containerDecoration = BoxDecoration(
@@ -70,7 +72,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Loading quoted post…',
+                l10n.quotedPostLoading,
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
@@ -98,7 +100,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Quoted post could not be loaded in-app',
+                    l10n.quotedPostLoadError,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: fedi.subtleText,
                           fontWeight: FontWeight.w600,
@@ -109,7 +111,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                   TextButton.icon(
                     onPressed: widget.onRetry,
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Retry'),
+                    label: Text(l10n.commonRetry),
                   ),
               ],
             ),
@@ -127,8 +129,10 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
 
     return Semantics(
       container: true,
-      label:
-          'Quoted post by ${quoted.account.effectiveDisplayName}, ${quoted.account.handle}.',
+      label: l10n.quotedPostSemantics(
+        quoted.account.effectiveDisplayName,
+        quoted.account.handle,
+      ),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(12),
@@ -141,7 +145,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                 Icon(Icons.format_quote, size: 16, color: scheme.primary),
                 const SizedBox(width: 4),
                 Text(
-                  'Quoted Post',
+                  l10n.quotedPostBadge,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: scheme.primary,
                         fontWeight: FontWeight.bold,

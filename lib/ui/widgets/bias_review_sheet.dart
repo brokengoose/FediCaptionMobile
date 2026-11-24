@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../models/app_settings.dart';
 import '../../models/bias_models.dart';
 
@@ -30,6 +31,7 @@ class BiasReviewSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final hasSuggestion =
         (result.suggestedAlternateWording ?? '').trim().isNotEmpty;
     final allowPublishAnyway = policy == PolicyMode.warn;
@@ -44,7 +46,7 @@ class BiasReviewSheet extends StatelessWidget {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 8, 8),
                 child: Row(
                   children: [
                     Icon(Icons.balance, color: fedi.biasWarningFg),
@@ -53,7 +55,7 @@ class BiasReviewSheet extends StatelessWidget {
                       child: Semantics(
                         header: true,
                         child: Text(
-                          'Pre-Post Racial & Gender Bias Review',
+                          l10n.biasReviewTitle,
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
@@ -64,7 +66,7 @@ class BiasReviewSheet extends StatelessWidget {
                     IconButton(
                       onPressed: () => Navigator.of(context)
                           .pop(BiasReviewAction.editInComposer),
-                      tooltip: 'Close and return to composer',
+                      tooltip: l10n.biasReviewCloseTooltip,
                       icon: const Icon(Icons.close),
                     ),
                   ],
@@ -91,7 +93,7 @@ class BiasReviewSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Summary',
+                            l10n.biasReviewSummaryTitle,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
@@ -111,7 +113,9 @@ class BiasReviewSheet extends StatelessWidget {
                           if (result.checkedComponents.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(
-                              'Checked: ${result.checkedComponents.join(', ')}',
+                              l10n.biasReviewCheckedComponents(
+                                result.checkedComponents.join(', '),
+                              ),
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium
@@ -121,7 +125,7 @@ class BiasReviewSheet extends StatelessWidget {
                           if (result.usedLocalFallback) ...[
                             const SizedBox(height: 4),
                             Text(
-                              'Note: Analyzed using offline local bias heuristics.',
+                              l10n.biasReviewLocalFallbackNote,
                               style: Theme.of(context)
                                   .textTheme
                                   .labelSmall
@@ -138,7 +142,7 @@ class BiasReviewSheet extends StatelessWidget {
                     Semantics(
                       header: true,
                       child: Text(
-                        'Where Bias Was Found (${result.findings.length})',
+                        l10n.biasReviewFindingsHeader(result.findings.length),
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
@@ -186,7 +190,7 @@ class BiasReviewSheet extends StatelessWidget {
                                   finding.excerpt!.trim().isNotEmpty) ...[
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Excerpt: "${finding.excerpt}"',
+                                  l10n.biasReviewExcerpt(finding.excerpt!),
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
@@ -212,7 +216,7 @@ class BiasReviewSheet extends StatelessWidget {
                       Semantics(
                         header: true,
                         child: Text(
-                          'Suggested Alternate Wording',
+                          l10n.biasReviewSuggestedWordingTitle,
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
@@ -243,14 +247,14 @@ class BiasReviewSheet extends StatelessWidget {
                         onPressed: () => Navigator.of(context)
                             .pop(BiasReviewAction.useSuggestedAndPublishNow),
                         icon: const Icon(Icons.send),
-                        label: const Text('Use Suggested Wording & Publish Now'),
+                        label: Text(l10n.biasReviewUseSuggestedAndPublishButton),
                       ),
                       const SizedBox(height: 8),
                       FilledButton.tonalIcon(
                         onPressed: () => Navigator.of(context)
                             .pop(BiasReviewAction.useSuggestedInComposer),
                         icon: const Icon(Icons.edit_note),
-                        label: const Text('Use Suggested Wording in Composer'),
+                        label: Text(l10n.biasReviewUseSuggestedButton),
                       ),
                     ],
 
@@ -260,7 +264,7 @@ class BiasReviewSheet extends StatelessWidget {
                       onPressed: () => Navigator.of(context)
                           .pop(BiasReviewAction.editInComposer),
                       icon: const Icon(Icons.arrow_back),
-                      label: const Text('Return to Composer to Edit'),
+                      label: Text(l10n.biasReviewReturnToComposerButton),
                     ),
 
                     if (allowPublishAnyway) ...[
@@ -271,12 +275,12 @@ class BiasReviewSheet extends StatelessWidget {
                         style: TextButton.styleFrom(
                           foregroundColor: scheme.error,
                         ),
-                        child: const Text('Publish Anyway'),
+                        child: Text(l10n.biasReviewPublishAnywayButton),
                       ),
                     ] else ...[
                       const SizedBox(height: 10),
                       Text(
-                        'Your Bias Rules policy is set to Require: please revise the post before publishing.',
+                        l10n.biasReviewRequireNotice,
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall

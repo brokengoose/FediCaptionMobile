@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../core/accessibility_announcer.dart';
 import '../core/constants.dart';
 import '../core/media_utils.dart';
+import '../l10n/l10n.dart';
 import '../models/ai_models.dart';
 import '../models/bias_models.dart';
 import '../models/composer_attachment.dart';
@@ -160,7 +161,8 @@ class ComposerController extends ChangeNotifier {
         _showContentWarning = true;
       }
     } catch (e) {
-      _errorMessage = 'Loaded fallback post text (could not fetch raw source: $e)';
+      _errorMessage =
+          app.l10n.composerErrorFallbackEditSource(e.toString());
     } finally {
       _isLoadingSource = false;
       _safeNotify();
@@ -194,7 +196,7 @@ class ComposerController extends ChangeNotifier {
   }) async {
     if (!canAddMoreMedia) {
       _errorMessage =
-          'Maximum of ${limits.maxMediaAttachments} media attachments reached.';
+          app.l10n.composerErrorMaxMedia(limits.maxMediaAttachments);
       _safeNotify();
       return;
     }
@@ -294,8 +296,11 @@ class ComposerController extends ChangeNotifier {
       ),
     );
 
+    final loc = app.l10n;
     AccessibilityAnnouncer.announce(
-      'AI scanning ${attachment.isVideo ? 'video' : 'image'} attachment ${index + 1}.',
+      attachment.isVideo
+          ? loc.composerAnnounceScanningVideo(index + 1)
+          : loc.composerAnnounceScanningImage(index + 1),
     );
 
     try {
@@ -360,7 +365,7 @@ class ComposerController extends ChangeNotifier {
       );
 
       AccessibilityAnnouncer.announce(
-        'Alt-text ready for attachment ${index + 1}.',
+        loc.composerAnnounceAltReady(index + 1),
       );
     } catch (e) {
       final latest = _findAttachment(localId);
@@ -373,7 +378,7 @@ class ComposerController extends ChangeNotifier {
         ),
       );
       AccessibilityAnnouncer.announce(
-        'Error generating alt-text for attachment ${index + 1}.',
+        loc.composerAnnounceAltError(index + 1),
       );
     }
   }
@@ -392,9 +397,8 @@ class ComposerController extends ChangeNotifier {
     _errorMessage = null;
     _safeNotify();
 
-    AccessibilityAnnouncer.announce(
-      'Checking post, media, links, and context for racial or gender bias.',
-    );
+    final loc = app.l10n;
+    AccessibilityAnnouncer.announce(loc.composerAnnounceCheckingBias);
 
     try {
       final biasAttachments = <BiasAttachmentInput>[];
@@ -428,11 +432,14 @@ class ComposerController extends ChangeNotifier {
         settings: app.settings,
         credentials: app.credentials,
         session: app.session,
+        contentLanguageCode: _language.trim().isNotEmpty ? _language.trim() : null,
+        responseLanguageCode: app.effectiveLocale.languageCode,
+        labels: biasComponentLabelsFrom(loc),
       );
 
       if (result.hasBias) {
         AccessibilityAnnouncer.announce(
-          'Pre-post bias review: ${result.summary}',
+          loc.composerAnnounceBiasReview(result.summary),
         );
       }
       return result;
@@ -491,8 +498,9 @@ class ComposerController extends ChangeNotifier {
   /// Publishes a new post or saves edits to an existing own post.
   Future<MastodonStatus?> publishNow() async {
     final session = app.session;
+    final loc = app.l10n;
     if (session == null) {
-      _errorMessage = 'Not signed in to Mastodon.';
+      _errorMessage = loc.composerErrorNotSignedIn;
       _safeNotify();
       return null;
     }
@@ -539,7 +547,7 @@ class ComposerController extends ChangeNotifier {
           mediaIds: mediaIds,
           mediaAttributes: mediaAttributes,
         );
-        AccessibilityAnnouncer.announce('Post updated successfully.');
+        AccessibilityAnnouncer.announce(loc.composerAnnounceUpdated);
       } else {
         saved = await app.mastodon.createStatus(
           instanceUrl: session.instanceUrl,
@@ -551,14 +559,14 @@ class ComposerController extends ChangeNotifier {
           language: _language.trim().isEmpty ? null : _language.trim(),
           mediaIds: mediaIds,
         );
-        AccessibilityAnnouncer.announce('Post published successfully.');
+        AccessibilityAnnouncer.announce(loc.composerAnnouncePublished);
       }
 
       app.notifyTimelinesShouldRefresh();
       return saved;
     } catch (e) {
       _errorMessage = e.toString();
-      AccessibilityAnnouncer.announce('Failed to publish post.');
+      AccessibilityAnnouncer.announce(loc.composerAnnouncePublishFailed);
       return null;
     } finally {
       _isPublishing = false;

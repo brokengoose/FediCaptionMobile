@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:ui';
+
 import '../core/constants.dart';
 import 'ai_models.dart';
 
@@ -67,6 +69,7 @@ class AppSettings {
     this.themePreference = ThemePreference.system,
     this.aiSetupCompleted = false,
     this.ttsSpeechRate = 0.5,
+    this.appLocale,
   });
 
   final AiProviderType activeProvider;
@@ -88,6 +91,41 @@ class AppSettings {
   final ThemePreference themePreference;
   final bool aiSetupCompleted;
   final double ttsSpeechRate;
+
+  /// Optional BCP-47 UI locale override (e.g. `'en'`, `'es'`, `'pt_BR'`).
+  /// When `null`, FediCaption follows the operating system locale.
+  final String? appLocale;
+
+  /// Parses [appLocale] into a Flutter [Locale], or `null` if unset/invalid.
+  Locale? get resolvedAppLocale {
+    final raw = appLocale?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    final parts = raw
+        .split(RegExp(r'[-_]'))
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return null;
+    final languageCode = parts[0].toLowerCase();
+    if (!RegExp(r'^[a-z]{2,3}$').hasMatch(languageCode)) return null;
+    if (parts.length == 1) {
+      return Locale(languageCode);
+    }
+    if (parts.length == 2) {
+      final second = parts[1];
+      if (second.length == 4) {
+        return Locale.fromSubtags(
+          languageCode: languageCode,
+          scriptCode: second[0].toUpperCase() + second.substring(1).toLowerCase(),
+        );
+      }
+      return Locale(languageCode, second.toUpperCase());
+    }
+    return Locale.fromSubtags(
+      languageCode: languageCode,
+      scriptCode: parts[1][0].toUpperCase() + parts[1].substring(1).toLowerCase(),
+      countryCode: parts[2].toUpperCase(),
+    );
+  }
 
   bool get isAiEnabled => activeProvider != AiProviderType.none;
 
@@ -147,6 +185,8 @@ class AppSettings {
     ThemePreference? themePreference,
     bool? aiSetupCompleted,
     double? ttsSpeechRate,
+    String? appLocale,
+    bool clearAppLocale = false,
   }) {
     return AppSettings(
       activeProvider: activeProvider ?? this.activeProvider,
@@ -168,6 +208,7 @@ class AppSettings {
       themePreference: themePreference ?? this.themePreference,
       aiSetupCompleted: aiSetupCompleted ?? this.aiSetupCompleted,
       ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
+      appLocale: clearAppLocale ? null : (appLocale ?? this.appLocale),
     );
   }
 
@@ -191,6 +232,7 @@ class AppSettings {
         'themePreference': themePreference.id,
         'aiSetupCompleted': aiSetupCompleted,
         'ttsSpeechRate': ttsSpeechRate,
+        'appLocale': appLocale,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -201,6 +243,7 @@ class AppSettings {
     final normalizedLocalModel = rawLocalModel == 'on-device-fallback'
         ? 'llama3.2-vision'
         : rawLocalModel;
+    final rawAppLocale = (json['appLocale'] as String?)?.trim();
     return AppSettings(
       activeProvider: AiProviderType.fromId(json['activeProvider'] as String?),
       onDeviceModel: (json['onDeviceModel'] as String?) ?? 'on-device-auto',
@@ -229,6 +272,9 @@ class AppSettings {
           ThemePreference.fromId(json['themePreference'] as String?),
       aiSetupCompleted: json['aiSetupCompleted'] as bool? ?? false,
       ttsSpeechRate: rawRate.clamp(0.25, 1.0),
+      appLocale: (rawAppLocale == null || rawAppLocale.isEmpty)
+          ? null
+          : rawAppLocale,
     );
   }
 }

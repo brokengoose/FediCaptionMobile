@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/html_utils.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 
 /// Renders Mastodon HTML or plain text with clickable, screen-reader-accessible
@@ -96,9 +97,10 @@ class _LinkifiedTextState extends State<LinkifiedText> {
       fontWeight: FontWeight.w500,
     );
 
+    final l10n = context.l10n;
     final spans = widget._isHtml
-        ? _parseHtmlToSpans(widget._content, baseStyle, linkStyle)
-        : _linkifyPlainText(widget._content, baseStyle, linkStyle);
+        ? _parseHtmlToSpans(widget._content, baseStyle, linkStyle, l10n)
+        : _linkifyPlainText(widget._content, baseStyle, linkStyle, l10n);
 
     // Trim leading/trailing empty newlines so cards stay tidy.
     final trimmedSpans = _trimBoundaryNewlines(spans);
@@ -114,6 +116,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
     String htmlContent,
     TextStyle? baseStyle,
     TextStyle linkStyle,
+    AppLocalizations l10n,
   ) {
     if (htmlContent.trim().isEmpty) return const [];
     final document = html_parser.parseFragment(htmlContent);
@@ -123,7 +126,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
       if (node is dom.Text) {
         final text = node.text;
         if (text.isEmpty) return;
-        spans.addAll(_linkifyPlainText(text, currentStyle, linkStyle));
+        spans.addAll(_linkifyPlainText(text, currentStyle, linkStyle, l10n));
         return;
       }
 
@@ -151,8 +154,8 @@ class _LinkifiedTextState extends State<LinkifiedText> {
               text: visibleText,
               style: linkStyle,
               semanticsLabel: matchedMention != null
-                  ? 'Mention ${matchedMention.acct}'
-                  : 'Link $visibleText',
+                  ? l10n.linkMentionSemantics(matchedMention.acct)
+                  : l10n.linkUrlSemantics(visibleText),
               recognizer: _createTapRecognizer(() {
                 if (matchedMention != null && widget.onTapMention != null) {
                   widget.onTapMention!(matchedMention);
@@ -247,6 +250,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
     String text,
     TextStyle? currentStyle,
     TextStyle linkStyle,
+    AppLocalizations l10n,
   ) {
     if (text.isEmpty) return const [];
     final spans = <InlineSpan>[];
@@ -270,7 +274,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
           TextSpan(
             text: url,
             style: linkStyle,
-            semanticsLabel: 'Link $url',
+            semanticsLabel: l10n.linkUrlSemantics(url),
             recognizer: _createTapRecognizer(() => _openUrl(url)),
           ),
         );

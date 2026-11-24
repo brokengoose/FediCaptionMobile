@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/time_utils.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import 'accessible_avatar.dart';
 import 'accessible_tip.dart';
@@ -37,8 +38,11 @@ class StatusAuthorHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
-    final compactTime = TimeUtils.formatRelativeCompact(status.createdAt);
-    final verboseTime = TimeUtils.formatRelativeAccessible(status.createdAt);
+    final l10n = context.l10n;
+    final compactTime =
+        TimeUtils.formatRelativeCompact(status.createdAt, l10n: l10n);
+    final verboseTime =
+        TimeUtils.formatRelativeAccessible(status.createdAt, l10n: l10n);
 
     return Row(
       crossAxisAlignment:
@@ -54,11 +58,14 @@ class StatusAuthorHeader extends StatelessWidget {
         Expanded(
           child: Semantics(
             button: true,
-            label:
-                '${status.account.effectiveDisplayName}, ${status.account.handle}. Tap to view posts.',
+            label: l10n.statusHeaderSemantics(
+              status.account.effectiveDisplayName,
+              status.account.handle,
+            ),
             child: AccessibleTip(
-              message:
-                  'View profile and posts by ${status.account.effectiveDisplayName}',
+              message: l10n.avatarViewProfileSemantics(
+                status.account.effectiveDisplayName,
+              ),
               child: InkWell(
                 onTap: () => onOpenProfile(status.account),
                 borderRadius: BorderRadius.circular(8),
@@ -98,10 +105,10 @@ class StatusAuthorHeader extends StatelessWidget {
         Semantics(
           link: true,
           label: compact
-              ? 'Quoted post from $verboseTime. Open original post in external browser.'
-              : 'Posted $verboseTime. Open original post in external browser.',
+              ? l10n.statusQuotedTimestampSemantics(verboseTime)
+              : l10n.statusTimestampSemantics(verboseTime),
           child: AccessibleTip(
-            message: 'Open original post in web browser ($verboseTime)',
+            message: l10n.statusTimestampTip(verboseTime),
             child: InkWell(
               onTap: status.permalinkUrl.isNotEmpty
                   ? () => _openPermalink(status.permalinkUrl)
@@ -163,6 +170,7 @@ class ContentWarningBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     return Container(
       padding: EdgeInsets.all(compact ? 8 : 10),
       decoration: BoxDecoration(
@@ -177,7 +185,7 @@ class ContentWarningBanner extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              'CW: $spoilerText',
+              l10n.cwBannerText(spoilerText),
               style: (compact
                       ? Theme.of(context).textTheme.bodySmall
                       : Theme.of(context).textTheme.bodyMedium)
@@ -191,21 +199,19 @@ class ContentWarningBanner extends StatelessWidget {
           Semantics(
             button: true,
             toggled: revealed,
-            label: revealed
-                ? 'Hide content behind content warning'
-                : 'Show content behind content warning',
+            label: revealed ? l10n.cwHideSemantics : l10n.cwShowSemantics,
             child: AccessibleTip(
-              message: revealed
-                  ? 'Hide post content behind Content Warning (x)'
-                  : 'Reveal post content behind Content Warning (x)',
+              message: revealed ? l10n.cwHideTip : l10n.cwShowTip,
               child: compact
                   ? TextButton(
                       onPressed: onToggle,
-                      child: Text(revealed ? 'Hide' : 'Show'),
+                      child: Text(revealed ? l10n.commonHide : l10n.commonShow),
                     )
                   : OutlinedButton(
                       onPressed: onToggle,
-                      child: Text(revealed ? 'Hide' : 'Show More'),
+                      child: Text(
+                        revealed ? l10n.commonHide : l10n.commonShowMore,
+                      ),
                     ),
             ),
           ),

@@ -1,7 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
-import '../../core/constants.dart';
+import '../../core/language/language_pack_registry.dart';
+import '../../core/language/language_registry.dart';
 import '../../models/ai_models.dart';
 
 /// Constructs screen-reader accessibility prompts for image and video alt-text generation.
@@ -23,6 +24,25 @@ class AiPromptBuilder {
     String? customInstructions,
     required int maxLength,
   }) {
+    final trimmedLanguage = language.trim();
+    final pack = LanguagePackRegistry.captionPackFor(trimmedLanguage);
+    final outputLanguage = trimmedLanguage.isEmpty
+        ? 'English'
+        : (LanguageRegistry.resolve(trimmedLanguage)?.englishName ??
+            trimmedLanguage);
+
+    final prefixBudget = maxLength - pack.captionPrefix.length;
+    final bodyMaxChars = prefixBudget > 0 ? prefixBudget : maxLength;
+    final forbiddenExamples = pack.forbiddenPrefixExamples.isNotEmpty
+        ? pack.forbiddenPrefixExamples
+        : [
+            if (pack.captionPrefix.trim().isNotEmpty)
+              pack.captionPrefix.trim(),
+            'Alt text:',
+          ];
+    final formattedForbidden =
+        forbiddenExamples.map((e) => '"$e"').join(', ');
+
     final buffer = StringBuffer();
     buffer.writeln(
       'Write an accessible alt-text description for a blind or low-vision screen-reader user.',
@@ -50,14 +70,10 @@ class AiPromptBuilder {
     buffer.writeln(
       'Detail level (${detailLevel.label}): ${detailLevel.guidance}.',
     );
+    buffer.writeln('Output language: $outputLanguage.');
+    buffer.writeln('Keep the description under $bodyMaxChars characters.');
     buffer.writeln(
-      'Output language: ${language.trim().isEmpty ? 'English' : language.trim()}.',
-    );
-    buffer.writeln(
-      'Keep the description under ${maxLength - AppConstants.aiCaptionPrefix.length} characters.',
-    );
-    buffer.writeln(
-      'Do NOT include prefixes like "Image of", "Photo of", "Video of", "Alt text:", or "AI generated description:" and do NOT wrap your answer in quotation marks.',
+      'Do NOT include prefixes like $formattedForbidden and do NOT wrap your answer in quotation marks.',
     );
 
     if (postContext != null && postContext.trim().isNotEmpty) {

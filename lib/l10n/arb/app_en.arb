@@ -1,0 +1,1294 @@
+{
+  "@@locale": "en",
+
+  "appLoadingLabel": "Loading FediCaption",
+  "@appLoadingLabel": {
+    "description": "Screen reader label on the startup loading screen"
+  },
+  "appIconSemanticLabel": "FediCaption app icon",
+  "@appIconSemanticLabel": {
+    "description": "Semantic description for the FediCaption launcher icon"
+  },
+
+  "commonRetry": "Retry",
+  "commonCancel": "Cancel",
+  "commonClose": "Close",
+  "commonDelete": "Delete",
+  "commonDownload": "Download",
+  "commonShow": "Show",
+  "commonHide": "Hide",
+  "commonShowMore": "Show More",
+  "commonUserFallback": "user",
+  "@commonUserFallback": {
+    "description": "Generic fallback noun when an account display name is unavailable"
+  },
+
+  "loginSettingsTooltip": "Settings and Appearance",
+  "loginElephantSemanticLabel": "FediCaption cartoon elephant wearing dark sunglasses",
+  "loginWelcomeTitle": "Welcome to FediCaption",
+  "loginTagline": "An accessible Mastodon client with automatic AI alt-text generation and pre-post racial & gender bias checking.",
+  "loginServerDomainLabel": "Mastodon Server Domain",
+  "loginServerDomainHint": "mastodon.social",
+  "loginServerDomainHelper": "Enter your Mastodon, Glitch-soc, Hometown, Pleroma, or Akkoma server.",
+  "loginSigningIn": "Signing in…",
+  "loginSignInOAuth": "Sign in with Mastodon (OAuth 2.0)",
+  "loginTokenFallbackTitle": "Direct Access Token Fallback",
+  "loginTokenFallbackSubtitle": "Sign in with a personal access token from your Mastodon Development settings.",
+  "loginTokenLabel": "Access Token",
+  "loginTokenHint": "Paste Mastodon access token",
+  "loginShowToken": "Show token",
+  "loginHideToken": "Hide token",
+  "loginSignInToken": "Sign in with Access Token",
+
+  "oauthLandingTitle": "FediCaption Sign-In Complete",
+  "oauthLandingHeading": "Signed in to FediCaption",
+  "oauthLandingBody": "Authorization succeeded. You can close this browser tab and return to FediCaption.",
+
+  "authErrorInvalidInstance": "Please enter a valid Mastodon server domain (e.g. mastodon.social).",
+  "authErrorCancelled": "Authorization was cancelled.",
+  "authErrorMissingInstanceAndToken": "Both server URL and access token are required.",
+  "authErrorExpiredSession": "Saved session expired or server unreachable: {error}",
+  "@authErrorExpiredSession": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "authAnnounceSignedIn": "Signed in as {displayName} on {instanceUrl}.",
+  "@authAnnounceSignedIn": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "instanceUrl": {"type": "String"}
+    }
+  },
+  "authAnnounceSignedOut": "Signed out of Mastodon.",
+
+  "aiSetupTitle": "Set Up AI",
+  "aiSetupHeading": "Configure AI Captioning & Bias Checking",
+  "aiSetupIntroWithHandle": "Signed in as {handle}. Choose an AI provider to automatically generate accessible alt-text and check posts for racial or gender bias — or choose No AI to enter alt-text manually.",
+  "@aiSetupIntroWithHandle": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "aiSetupIntroWithoutHandle": "Choose an AI provider to automatically generate accessible alt-text and check posts for racial or gender bias — or choose No AI to enter alt-text manually.",
+  "aiSetupDetectingOnDevice": "Checking on-device AI availability…",
+  "aiSetupProviderLabel": "AI Provider",
+  "aiSetupModelHelper": "Sorted alphabetically. Tap Refresh after entering your key or URL.",
+  "aiSetupNoAiDefaultNotice": "On-device AI is not available on this device, so No AI is selected by default. You can choose a Cloud API or Local AI server above, or continue with No AI (manual alt-text, Read Aloud, and offline bias heuristics) and enable AI later in Settings.",
+  "aiSetupNoAiSelectedNotice": "FediCaption will not contact any AI service. You can still write alt-text manually, listen with Read Aloud, and use offline local bias heuristics. You can enable an AI provider later in Settings.",
+  "aiSetupContinueNoAi": "Continue with No AI",
+  "aiSetupSaveAndContinue": "Save AI Settings & Continue",
+  "aiSetupUseNoAiLater": "Use No AI (Set Up Later)",
+  "aiSetupAnnounceCompleteWithAi": "AI setup complete using {providerName}.",
+  "@aiSetupAnnounceCompleteWithAi": {
+    "placeholders": {
+      "providerName": {"type": "String"}
+    }
+  },
+  "aiSetupAnnounceCompleteNoAi": "Setup complete with No AI selected. Manual alt-text and offline bias heuristics are active.",
+
+  "aiConfigActiveProviderLabel": "Active AI Provider",
+  "aiConfigModelHelper": "Sorted alphabetically. Select a vision-capable model.",
+  "aiConfigNoAiNotice": "AI is disabled (\"No AI\"). Alt-text can be entered manually, Read Aloud remains available, and pre-post bias checks use offline local heuristics.",
+  "aiConfigGeminiApiKeyLabel": "Google Gemini API Key",
+  "aiConfigGeminiApiKeyHint": "AIza…",
+  "aiConfigOpenAiBaseUrlLabel": "OpenAI-Compatible Base URL",
+  "aiConfigOpenAiBaseUrlHelper": "Supports OpenAI, OpenRouter, LM Studio, vLLM, or llama.cpp.",
+  "aiConfigOpenAiApiKeyLabel": "API Key (Optional for local servers)",
+  "aiConfigOpenAiApiKeyHint": "sk-…",
+  "aiConfigAnthropicApiKeyLabel": "Anthropic API Key",
+  "aiConfigAnthropicApiKeyHint": "sk-ant-…",
+  "aiConfigLocalBaseUrlLabel": "Local AI Server URL (Ollama / LM Studio LAN)",
+  "aiConfigLocalBaseUrlHelper": "Default: {defaultUrl}. Use your computer's LAN IP for Ollama (port 11434/v1) or LM Studio (port 1234/v1).",
+  "@aiConfigLocalBaseUrlHelper": {
+    "placeholders": {
+      "defaultUrl": {"type": "String"}
+    }
+  },
+  "aiConfigLocalApiKeyLabel": "Optional LAN Server Token / Key",
+  "aiConfigLocalApiKeyHint": "Leave blank if not required",
+  "aiConfigNoAiSelectedTitle": "No AI Selected",
+  "aiConfigModelDropdownLabel": "AI Model (A–Z)",
+  "aiConfigFetchingModelsHelper": "Fetching available models from provider…",
+  "aiConfigRefreshModelsTooltip": "Refresh Models",
+  "aiConfigShowApiKey": "Show API key",
+  "aiConfigHideApiKey": "Hide API key",
+
+  "onDeviceAiStatusHeader": "{engineName} — {badge}",
+  "@onDeviceAiStatusHeader": {
+    "placeholders": {
+      "engineName": {"type": "String"},
+      "badge": {"type": "String"}
+    }
+  },
+  "onDeviceAiBadgeReady": "Ready on Device",
+  "onDeviceAiBadgeDownloadable": "Model Downloadable",
+  "onDeviceAiBadgeNotYetReady": "Enable in System Settings",
+  "onDeviceAiBadgeUnavailable": "Unavailable on This Device",
+  "onDeviceAiDownloadingModelButton": "Downloading Model…",
+  "onDeviceAiDownloadModelButton": "Download On-Device Model",
+  "onDeviceAiCheckingButton": "Checking…",
+  "onDeviceAiRecheckButton": "Re-Check Device",
+  "onDeviceAiAnnounceDownloading": "Downloading on-device AI model.",
+  "onDeviceAiAnnounceDownloadFailed": "Failed to download on-device AI model.",
+  "onDeviceAiEngineWeb": "Web (no OS on-device model)",
+  "onDeviceAiEngineApple": "Apple Foundation Models",
+  "onDeviceAiEngineGeminiNano": "Google Gemini Nano (ML Kit GenAI / AICore)",
+  "onDeviceAiEngineGeneric": "On-Device AI",
+  "onDeviceAiSummaryReadyBoth": "Ready on this device ({engineName}) — supports on-device image captioning and bias checking with zero network calls.",
+  "@onDeviceAiSummaryReadyBoth": {
+    "placeholders": {
+      "engineName": {"type": "String"}
+    }
+  },
+  "onDeviceAiSummaryReadyDescriberOnly": "On-device image description ready ({engineName}). Bias checking will use offline heuristics.",
+  "@onDeviceAiSummaryReadyDescriberOnly": {
+    "placeholders": {
+      "engineName": {"type": "String"}
+    }
+  },
+  "onDeviceAiSummaryReadyPromptOnly": "On-device text & multimodal prompting ready ({engineName}).",
+  "@onDeviceAiSummaryReadyPromptOnly": {
+    "placeholders": {
+      "engineName": {"type": "String"}
+    }
+  },
+  "onDeviceAiSummaryDownloadable": "Supported on this device ({engineName}). Tap \"Download On-Device Model\" to provision the OS-managed model.",
+  "@onDeviceAiSummaryDownloadable": {
+    "placeholders": {
+      "engineName": {"type": "String"}
+    }
+  },
+  "onDeviceAiSummaryNotYetReady": "Supported on this device ({engineName}), but not yet enabled. Turn on Apple Intelligence / device AI in system Settings.",
+  "@onDeviceAiSummaryNotYetReady": {
+    "placeholders": {
+      "engineName": {"type": "String"}
+    }
+  },
+  "onDeviceAiSummaryUnavailable": "Not available on this device or simulator ({engineName} requires supported iPhone/Pixel/Samsung flagship hardware). You can use a Cloud API, Local LAN server, or No AI.",
+  "@onDeviceAiSummaryUnavailable": {
+    "placeholders": {
+      "engineName": {"type": "String"}
+    }
+  },
+  "onDeviceAiDiagnosticDetail": "Prompt API: {promptAvailability}{promptDiagnostic}\nImage Description API: {imageAvailability}{imageDiagnostic}",
+  "@onDeviceAiDiagnosticDetail": {
+    "placeholders": {
+      "promptAvailability": {"type": "String"},
+      "promptDiagnostic": {"type": "String"},
+      "imageAvailability": {"type": "String"},
+      "imageDiagnostic": {"type": "String"}
+    }
+  },
+
+  "aiProviderOnDeviceLabel": "On-Device AI (Apple Intelligence / Gemini Nano)",
+  "aiProviderGeminiLabel": "Google Gemini API",
+  "aiProviderOpenAiLabel": "OpenAI / Compatible API",
+  "aiProviderAnthropicLabel": "Anthropic Claude API",
+  "aiProviderLocalLabel": "Local Network Server (Ollama / LM Studio LAN)",
+  "aiProviderNoneLabel": "No AI (Manual Alt-Text & Offline Heuristics)",
+
+  "aiModelOnDeviceAuto": "On-Device Auto (Vision Prompt + Image Describer)",
+  "aiModelOnDeviceDescriber": "On-Device Image Describer (Fast Alt-Text)",
+  "aiModelOnDevicePrompt": "On-Device Multimodal Prompt (Custom Detail & Bias)",
+
+  "detailLevelConciseLabel": "Concise",
+  "detailLevelConciseGuidance": "1-2 sentences (150-300 characters)",
+  "detailLevelDescriptiveLabel": "Descriptive",
+  "detailLevelDescriptiveGuidance": "2-4 sentences (300-700 characters)",
+  "detailLevelDetailedLabel": "Detailed",
+  "detailLevelDetailedGuidance": "Comprehensive (600-1200 characters) including layout, lighting, colors, and full text transcription",
+
+  "policyModeWarnLabel": "Warn (Default)",
+  "policyModeRequireLabel": "Require",
+  "policyModeOffLabel": "Off",
+  "altPolicyWarnSubtitle": "Warn before posting uncaptioned media, with options to auto-generate with AI or post anyway.",
+  "altPolicyRequireSubtitle": "Strictly require alt-text on all attached media before posting.",
+  "altPolicyOffSubtitle": "Do not warn about missing alt-text.",
+  "biasPolicyWarnSubtitle": "Warn about racial or gender bias before posting; allow editing, suggested wording, or \"Publish Anyway\".",
+  "biasPolicyRequireSubtitle": "Require detected racial or gender bias to be resolved before posting (hides \"Publish Anyway\").",
+  "biasPolicyOffSubtitle": "Skip pre-post racial & gender bias checking and publish immediately.",
+
+  "themeSystemLabel": "System Default (Auto-Detect)",
+  "themeDarkLabel": "Dark Theme",
+  "themeLightLabel": "Light Theme",
+  "themeHighContrastLabel": "High Contrast (WCAG AAA)",
+
+  "postVisibilityPublicLabel": "Public",
+  "postVisibilityPublicDesc": "Visible to everyone and shown in public timelines",
+  "postVisibilityUnlistedLabel": "Unlisted",
+  "postVisibilityUnlistedDesc": "Visible to everyone, but omitted from public timelines",
+  "postVisibilityPrivateLabel": "Followers Only",
+  "postVisibilityPrivateDesc": "Visible only to your followers",
+  "postVisibilityDirectLabel": "Mentioned Only",
+  "postVisibilityDirectDesc": "Visible only to mentioned users",
+
+  "attachmentStatusScanning": "AI Scanning...",
+  "attachmentStatusReady": "Alt-Text Ready",
+  "attachmentStatusMissingAltText": "Missing Alt-Text",
+  "attachmentStatusError": "Error",
+
+  "timelineHomeShort": "Home",
+  "timelineHomeFull": "Home Timeline",
+  "timelineLocalShort": "Local",
+  "timelineLocalFull": "Local Timeline",
+  "timelineFederatedShort": "Federated",
+  "timelineFederatedFull": "Federated Timeline",
+  "timelineAlertsShort": "Alerts",
+  "timelineNotificationsFull": "Notifications",
+  "timelineBookmarksShort": "Bookmarks",
+  "timelineFavoritesShort": "Favorites",
+  "timelineMyPostsShort": "My Posts",
+  "timelineMyPostsFull": "My Published Posts",
+
+  "homeAnnounceSwitchedTimeline": "Switched to {title}.",
+  "@homeAnnounceSwitchedTimeline": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "homeProfileHeaderSemantics": "{displayName}, {handle}. Tap to view your own published posts.",
+  "@homeProfileHeaderSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "handle": {"type": "String"}
+    }
+  },
+  "homeProfileHeaderTip": "View your own published posts as {handle} (g u)",
+  "@homeProfileHeaderTip": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "homeSearchTooltip": "Search cached posts and alt-text offline (/)",
+  "homeShortcutsTooltip": "View keyboard navigation shortcuts (?)",
+  "homeSettingsTooltip": "Open Settings & AI Configuration (⌘,)",
+  "homeDrawerSettings": "Settings & AI Configuration",
+  "homeNavHomeTip": "Home timeline — posts from people you follow (g h)",
+  "homeNavLocalTip": "Local timeline — public posts from your server (g l)",
+  "homeNavFederatedTip": "Federated timeline — public posts across the Fediverse (g p)",
+  "homeNavNotificationsTip": "Notifications — replies, mentions, boosts, and follows (g n)",
+  "homeNavBookmarksTip": "Bookmarks — posts you saved privately (g b)",
+  "homeNavFavoritesTip": "Favorites — posts you liked (g f)",
+  "homeNavMyPostsTip": "My Published Posts — your own Mastodon posts (g u)",
+  "homeComposeTip": "Compose a new Mastodon post (n or ⌘N)",
+  "homeComposeLabel": "Post",
+
+  "searchHint": "Search {count} cached posts & alt-text…",
+  "@searchHint": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "searchClearTooltip": "Clear search",
+  "searchEmptyTitle": "Offline Local Search ({count} cached posts)",
+  "@searchEmptyTitle": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "searchEmptyDescription": "Searches post text, Content Warnings, authors, and media alt-text locally on your device without placing any search load on your Mastodon server.",
+  "searchNoResults": "No cached posts match \"{query}\".",
+  "@searchNoResults": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+
+  "updateBannerSemantics": "Update available: FediCaption version {latestVersion}. Currently on {currentVersion}.",
+  "@updateBannerSemantics": {
+    "placeholders": {
+      "latestVersion": {"type": "String"},
+      "currentVersion": {"type": "String"}
+    }
+  },
+  "updateBannerTitle": "Update Available: v{latestVersion}",
+  "@updateBannerTitle": {
+    "placeholders": {
+      "latestVersion": {"type": "String"}
+    }
+  },
+  "updateBannerSubtitle": "You are running v{currentVersion}. View the latest release on GitHub.",
+  "@updateBannerSubtitle": {
+    "placeholders": {
+      "currentVersion": {"type": "String"}
+    }
+  },
+  "updateBannerDismissTooltip": "Dismiss update notification",
+  "updateAnnounceAvailable": "Update available: FediCaption version {latestVersion} is now on GitHub.",
+  "@updateAnnounceAvailable": {
+    "placeholders": {
+      "latestVersion": {"type": "String"}
+    }
+  },
+
+  "timelineAnnouncePostSelection": "Post {index} of {total} by {authorName}. {preview}",
+  "@timelineAnnouncePostSelection": {
+    "placeholders": {
+      "index": {"type": "int"},
+      "total": {"type": "int"},
+      "authorName": {"type": "String"},
+      "preview": {"type": "String"}
+    }
+  },
+  "timelineAnnounceUpToDate": "{title} is up to date.",
+  "@timelineAnnounceUpToDate": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+  "timelineAnnounceLoadedNew": "{count, plural, =1{Loaded 1 new post in {title}.} other{Loaded {count} new posts in {title}.}}",
+  "@timelineAnnounceLoadedNew": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "title": {"type": "String"}
+    }
+  },
+  "timelineAnnounceLoadedInitial": "{title} loaded with {count, plural, =1{1 post} other{{count} posts}}.",
+  "@timelineAnnounceLoadedInitial": {
+    "placeholders": {
+      "title": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "timelineEmptyMessage": "No posts in {title} yet.",
+  "@timelineEmptyMessage": {
+    "placeholders": {
+      "title": {"type": "String"}
+    }
+  },
+
+  "threadTitle": "Conversation Thread",
+  "threadRepliesHeader": "Replies ({count})",
+  "@threadRepliesHeader": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "threadAnnounceSelection": "Post {index} of {total} by {authorName}.",
+  "@threadAnnounceSelection": {
+    "placeholders": {
+      "index": {"type": "int"},
+      "total": {"type": "int"},
+      "authorName": {"type": "String"}
+    }
+  },
+  "threadAnnounceLoaded": "Conversation loaded with {ancestorsCount, plural, =1{1 earlier post} other{{ancestorsCount} earlier posts}} and {repliesCount, plural, =1{1 reply} other{{repliesCount} replies}}.",
+  "@threadAnnounceLoaded": {
+    "placeholders": {
+      "ancestorsCount": {"type": "int"},
+      "repliesCount": {"type": "int"}
+    }
+  },
+
+  "notificationsEmpty": "No notifications yet.",
+  "notificationsMediaPostPlaceholder": "(Media post)",
+  "notificationsOpenThreadTip": "Open conversation thread for this post (Enter)",
+  "notificationsAnnounceSelection": "Notification {index} of {total}: {summary}.",
+  "@notificationsAnnounceSelection": {
+    "placeholders": {
+      "index": {"type": "int"},
+      "total": {"type": "int"},
+      "summary": {"type": "String"}
+    }
+  },
+  "notificationsAnnounceUpToDate": "Notifications are up to date.",
+  "notificationsAnnounceLoadedNew": "{count, plural, =1{Loaded 1 new notification.} other{Loaded {count} new notifications.}}",
+  "@notificationsAnnounceLoadedNew": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "notificationsAnnounceLoadedInitial": "{count, plural, =1{Loaded 1 notification.} other{Loaded {count} notifications.}}",
+  "@notificationsAnnounceLoadedInitial": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "notificationMentionSummary": "{author} mentioned you",
+  "@notificationMentionSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationReblogSummary": "{author} boosted your post",
+  "@notificationReblogSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationFavouriteSummary": "{author} favorited your post",
+  "@notificationFavouriteSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationFollowSummary": "{author} followed you",
+  "@notificationFollowSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationFollowRequestSummary": "{author} requested to follow you",
+  "@notificationFollowRequestSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationStatusSummary": "{author} published a new post",
+  "@notificationStatusSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationUpdateSummary": "{author} edited a post",
+  "@notificationUpdateSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationPollSummary": "{author}: a poll you participated in has ended",
+  "@notificationPollSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationQuoteSummary": "{author} quoted your post",
+  "@notificationQuoteSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationQuotedUpdateSummary": "{author} edited a post you quoted",
+  "@notificationQuotedUpdateSummary": {
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "notificationGenericSummary": "{author} ({type})",
+  "@notificationGenericSummary": {
+    "placeholders": {
+      "author": {"type": "String"},
+      "type": {"type": "String"}
+    }
+  },
+
+  "avatarViewProfileSemantics": "View profile and posts by {displayName}",
+  "@avatarViewProfileSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "linkMentionSemantics": "Mention {handle}",
+  "@linkMentionSemantics": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "linkUrlSemantics": "Link {label}",
+  "@linkUrlSemantics": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+
+  "profileTitle": "Profile",
+  "profileFollowsYou": "Follows you",
+  "profileSubscribeSemantics": "Subscribe to {displayName}",
+  "@profileSubscribeSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileUnsubscribeSemantics": "Unsubscribe from {displayName}",
+  "@profileUnsubscribeSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileRequestedSemantics": "Follow request pending",
+  "profileSubscribe": "Subscribe",
+  "profileUnsubscribe": "Unsubscribe",
+  "profileRequested": "Requested",
+  "profileEnableNotifySemantics": "Enable post notifications for {displayName}",
+  "@profileEnableNotifySemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileDisableNotifySemantics": "Disable post notifications for {displayName}",
+  "@profileDisableNotifySemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileNotifyOnTooltip": "Notifications On (tap to disable)",
+  "profileNotifyOffTooltip": "Notifications Off (tap to enable)",
+  "profilePostsCount": "{count, plural, =1{1 Post} other{{count} Posts}}",
+  "@profilePostsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "profileFollowingCount": "{count} Following",
+  "@profileFollowingCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "profileFollowersCount": "{count, plural, =1{1 Follower} other{{count} Followers}}",
+  "@profileFollowersCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "profileEmptyPosts": "No posts published yet.",
+  "profileAnnounceLoaded": "Loaded profile for {displayName} with {count, plural, =1{1 post} other{{count} posts}}.",
+  "@profileAnnounceLoaded": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "profileAnnounceSubscribed": "Subscribed to {displayName}.",
+  "@profileAnnounceSubscribed": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileAnnounceUnsubscribed": "Unsubscribed from {displayName}.",
+  "@profileAnnounceUnsubscribed": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileErrorSubscription": "Failed to update subscription: {error}",
+  "@profileErrorSubscription": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "profileAnnounceNotifyEnabled": "Notifications enabled for {displayName}.",
+  "@profileAnnounceNotifyEnabled": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileAnnounceNotifyDisabled": "Notifications disabled for {displayName}.",
+  "@profileAnnounceNotifyDisabled": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "profileErrorNotifications": "Failed to update notifications: {error}",
+  "@profileErrorNotifications": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "statusBoostedSemantics": "Boosted by {displayName}. Tap to view profile.",
+  "@statusBoostedSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "statusBoostedTip": "View profile of {displayName} (who boosted this post)",
+  "@statusBoostedTip": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "statusBoostedLabel": "{displayName} boosted",
+  "@statusBoostedLabel": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
+  "statusOpenThreadTip": "Open post and conversation thread (Enter)",
+  "statusEditedAt": "Edited {relativeTime}",
+  "@statusEditedAt": {
+    "placeholders": {
+      "relativeTime": {"type": "String"}
+    }
+  },
+  "statusReplySemantics": "Reply to {displayName} ({count, plural, =1{1 reply} other{{count} replies}})",
+  "@statusReplySemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "statusUnboostSemantics": "Unboost post ({count, plural, =1{1 boost} other{{count} boosts}})",
+  "@statusUnboostSemantics": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statusBoostSemantics": "Boost post ({count, plural, =1{1 boost} other{{count} boosts}})",
+  "@statusBoostSemantics": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statusUnfavoriteSemantics": "Unfavorite post ({count, plural, =1{1 favorite} other{{count} favorites}})",
+  "@statusUnfavoriteSemantics": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statusFavoriteSemantics": "Favorite post ({count, plural, =1{1 favorite} other{{count} favorites}})",
+  "@statusFavoriteSemantics": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "statusRemoveBookmarkSemantics": "Remove bookmark",
+  "statusBookmarkSemantics": "Bookmark post",
+  "statusThreadActionLabel": "Thread",
+  "statusThreadActionSemantics": "View conversation thread",
+  "statusEditActionLabel": "Edit",
+  "statusEditActionSemantics": "Edit your post and media alt text",
+  "statusDeleteActionSemantics": "Delete your post",
+  "statusAnnounceTranslated": "Post translated to {language} using {engineName}.",
+  "@statusAnnounceTranslated": {
+    "placeholders": {
+      "language": {"type": "String"},
+      "engineName": {"type": "String"}
+    }
+  },
+
+  "statusHeaderSemantics": "{displayName}, {handle}. Tap to view posts.",
+  "@statusHeaderSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "handle": {"type": "String"}
+    }
+  },
+  "statusQuotedTimestampSemantics": "Quoted post from {verboseTime}. Open original post in external browser.",
+  "@statusQuotedTimestampSemantics": {
+    "placeholders": {
+      "verboseTime": {"type": "String"}
+    }
+  },
+  "statusTimestampSemantics": "Posted {verboseTime}. Open original post in external browser.",
+  "@statusTimestampSemantics": {
+    "placeholders": {
+      "verboseTime": {"type": "String"}
+    }
+  },
+  "statusTimestampTip": "Open original post in web browser ({verboseTime})",
+  "@statusTimestampTip": {
+    "placeholders": {
+      "verboseTime": {"type": "String"}
+    }
+  },
+  "cwBannerText": "CW: {spoilerText}",
+  "@cwBannerText": {
+    "placeholders": {
+      "spoilerText": {"type": "String"}
+    }
+  },
+  "cwHideSemantics": "Hide content behind content warning",
+  "cwShowSemantics": "Show content behind content warning",
+  "cwHideTip": "Hide post content behind Content Warning (x)",
+  "cwShowTip": "Reveal post content behind Content Warning (x)",
+
+  "quotedPostLoading": "Loading quoted post…",
+  "quotedPostLoadError": "Quoted post could not be loaded in-app",
+  "quotedPostSemantics": "Quoted post by {displayName}, {handle}.",
+  "@quotedPostSemantics": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "handle": {"type": "String"}
+    }
+  },
+  "quotedPostBadge": "Quoted Post",
+
+  "translationTranslatingStatus": "Translating from {sourceLanguage} to {targetLanguage}…",
+  "@translationTranslatingStatus": {
+    "placeholders": {
+      "sourceLanguage": {"type": "String"},
+      "targetLanguage": {"type": "String"}
+    }
+  },
+  "translationTranslatedStatus": "Translated from {sourceLanguage} via {engineName}",
+  "@translationTranslatedStatus": {
+    "placeholders": {
+      "sourceLanguage": {"type": "String"},
+      "engineName": {"type": "String"}
+    }
+  },
+  "translationWrittenInStatus": "Written in {sourceLanguage}",
+  "@translationWrittenInStatus": {
+    "placeholders": {
+      "sourceLanguage": {"type": "String"}
+    }
+  },
+  "translationShowOriginalTip": "Switch back to the original {sourceLanguage} post and alt-text",
+  "@translationShowOriginalTip": {
+    "placeholders": {
+      "sourceLanguage": {"type": "String"}
+    }
+  },
+  "translationShowTranslatedTip": "Show the translated {targetLanguage} post and alt-text",
+  "@translationShowTranslatedTip": {
+    "placeholders": {
+      "targetLanguage": {"type": "String"}
+    }
+  },
+  "translationShowOriginalButton": "Show Original",
+  "translationShowTranslatedButton": "Show Translation",
+  "translationTranslateTip": "Translate this {sourceLanguage} post and its media alt-text into {targetLanguage} on-device",
+  "@translationTranslateTip": {
+    "placeholders": {
+      "sourceLanguage": {"type": "String"},
+      "targetLanguage": {"type": "String"}
+    }
+  },
+  "translationTranslateButton": "Translate to {targetLanguage}",
+  "@translationTranslateButton": {
+    "placeholders": {
+      "targetLanguage": {"type": "String"}
+    }
+  },
+
+  "mediaVideoBadge": "VIDEO",
+  "mediaVideoWithAltSemantics": "Video: {altText} Tap to play video.",
+  "@mediaVideoWithAltSemantics": {
+    "placeholders": {
+      "altText": {"type": "String"}
+    }
+  },
+  "mediaImageWithAltSemantics": "Image: {altText} Tap to view full image.",
+  "@mediaImageWithAltSemantics": {
+    "placeholders": {
+      "altText": {"type": "String"}
+    }
+  },
+  "mediaVideoNoAltSemantics": "Video with no alt text provided. Tap to play video.",
+  "mediaImageNoAltSemantics": "Image with no alt text provided. Tap to view full image.",
+  "mediaVideoOpenTip": "Play embedded video in full-screen player",
+  "mediaImageOpenTip": "View full-size image with zoom and share options",
+  "mediaAltProvidedBadge": "ALT TEXT PROVIDED",
+  "mediaNoAltBadge": "NO ALT TEXT",
+  "mediaCollapseAltSemantics": "Collapse alt text box",
+  "mediaExpandAltSemantics": "Expand alt text box",
+  "mediaAuthorAltTranslatedHeading": "Author Alt-Text (Translated):",
+  "mediaAuthorAltHeading": "Author Alt-Text:",
+  "mediaOnDemandAiHeading": "On-Demand AI Description:",
+  "mediaDescribingSemantics": "Generating AI description",
+  "mediaRedescribeSemantics": "Re-describe media with AI",
+  "mediaDescribeSemantics": "Describe media with AI",
+  "mediaDescribeTip": "Generate an AI alt-text description for this media attachment",
+  "mediaDescribingButton": "Describing…",
+  "mediaRedescribeButton": "Re-Describe with AI",
+  "mediaDescribeButton": "Describe with AI",
+  "mediaStopReadingSemantics": "Stop reading alt text aloud",
+  "mediaReadAloudSemantics": "Read alt text aloud",
+  "mediaStopReadingTip": "Stop reading alt-text aloud",
+  "mediaReadAloudTip": "Read this alt-text description aloud using text-to-speech",
+  "mediaStopReadingButton": "Stop Reading",
+  "mediaReadAloudButton": "Read Aloud",
+  "mediaAiAnnounceGenerating": "Generating AI description for media.",
+  "mediaAiAnnounceReady": "AI description ready. {caption}",
+  "@mediaAiAnnounceReady": {
+    "placeholders": {
+      "caption": {"type": "String"}
+    }
+  },
+  "mediaAiAnnounceFailed": "Failed to generate AI description.",
+
+  "imageViewerTitle": "Full Image",
+  "imageViewerCloseTooltip": "Close full-screen image",
+  "imageViewerShareTooltip": "Share or save image",
+  "imageViewerInvalidUrl": "Invalid image URL.",
+  "imageViewerAnnounceShare": "Opening share menu.",
+  "imageViewerShareError": "Could not share image: {error}",
+  "@imageViewerShareError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "imageViewerWithAltSemantics": "Full image: {altText} Long press to share or save.",
+  "@imageViewerWithAltSemantics": {
+    "placeholders": {
+      "altText": {"type": "String"}
+    }
+  },
+  "imageViewerNoAltSemantics": "Full image with no alt text provided. Long press to share or save.",
+  "imageViewerLoadError": "Could not load full image.",
+
+  "videoPlayerInvalidUrl": "Invalid video URL.",
+  "videoPlayerError": "Could not play video: {error}",
+  "@videoPlayerError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "videoPlayerAnnouncePlayingVideo": "Playing video.",
+  "videoPlayerAnnouncePaused": "Paused.",
+  "videoPlayerAnnouncePlaying": "Playing.",
+  "videoPlayerAnnounceMuted": "Muted.",
+  "videoPlayerAnnounceUnmuted": "Unmuted.",
+  "videoPlayerCloseTooltip": "Close video player",
+  "videoPlayerTitleGifv": "GIF Video",
+  "videoPlayerTitleVideo": "Video",
+  "videoPlayerOpenBrowserTooltip": "Open video in browser",
+  "videoPlayerOpenBrowserButton": "Open in Browser",
+  "videoPlayerPauseTooltip": "Pause",
+  "videoPlayerPlayTooltip": "Play",
+  "videoPlayerUnmuteTooltip": "Unmute",
+  "videoPlayerMuteTooltip": "Mute",
+
+  "composerCheckingBias": "Checking Bias…",
+  "composerSaving": "Saving…",
+  "composerPublishing": "Publishing…",
+  "composerSaveChanges": "Save Changes",
+  "composerPublish": "Publish",
+  "composerTitleEdit": "Edit Post",
+  "composerTitleReply": "Reply",
+  "composerTitleNew": "Compose Post",
+  "composerEditSubmitTip": "Save your edited post and alt-text (⌘Enter)",
+  "composerPublishSubmitTip": "Check accessibility and bias rules, then publish post (⌘Enter)",
+  "composerReplyingTo": "Replying to {handle}",
+  "@composerReplyingTo": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "composerCwSwitchTitle": "Content Warning / Spoiler",
+  "composerCwSwitchSubtitle": "Included in character counter and pre-post bias check.",
+  "composerCwLabel": "Content Warning",
+  "composerCwHint": "Brief summary or topic warning",
+  "composerBodyLabel": "What is on your mind?",
+  "composerBodyHint": "Write your Mastodon post…",
+  "composerCharsRemainingSemantics": "{remaining} characters remaining out of {maxCharacters} maximum.",
+  "@composerCharsRemainingSemantics": {
+    "placeholders": {
+      "remaining": {"type": "int"},
+      "maxCharacters": {"type": "int"}
+    }
+  },
+  "composerCharsCounter": "{used} / {maxCharacters} chars ({remaining} remaining)",
+  "@composerCharsCounter": {
+    "placeholders": {
+      "used": {"type": "int"},
+      "maxCharacters": {"type": "int"},
+      "remaining": {"type": "int"}
+    }
+  },
+  "composerVisibilityLabel": "Post Visibility",
+  "composerVisibilityItem": "{label} — {description}",
+  "@composerVisibilityItem": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "description": {"type": "String"}
+    }
+  },
+  "composerAttachmentsHeader": "Media Attachments ({count} / {maxCount})",
+  "@composerAttachmentsHeader": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "maxCount": {"type": "int"}
+    }
+  },
+  "composerCameraTip": "Take a photo with your camera and auto-generate alt-text",
+  "composerCameraLabel": "Camera",
+  "composerPhotoLibraryTip": "Choose a photo from your library (EXIF stripped & resized automatically)",
+  "composerPhotoLibraryLabel": "Photo Library",
+  "composerVideoTip": "Choose a video to attach and auto-generate alt-text",
+  "composerVideoLabel": "Video",
+  "composerFilePickerTip": "Pick an image or video file from disk (EXIF stripped & resized automatically)",
+  "composerFilePickerLabel": "File Picker",
+
+  "composerAttachmentVideoLabel": "Attachment {index} (Video)",
+  "@composerAttachmentVideoLabel": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerAttachmentImageLabel": "Attachment {index} (Image)",
+  "@composerAttachmentImageLabel": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerRemoveAttachmentTooltip": "Remove attachment {index}",
+  "@composerRemoveAttachmentTooltip": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerAltTextLabel": "Alt-Text Description",
+  "composerAltTextHintVideo": "Describe this video for screen-reader users…",
+  "composerAltTextHintImage": "Describe this image for screen-reader users…",
+  "composerAltTextCounterHelper": "{current} / {max} chars",
+  "@composerAltTextCounterHelper": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "composerDetailLevelLabel": "Detail Level",
+  "composerRescanButton": "Re-Scan with AI",
+  "composerScanningButton": "AI Scanning…",
+
+  "composerErrorFallbackEditSource": "Loaded fallback post text (could not fetch raw source: {error})",
+  "@composerErrorFallbackEditSource": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "composerErrorMaxMedia": "Maximum of {maxMedia} media attachments reached.",
+  "@composerErrorMaxMedia": {
+    "placeholders": {
+      "maxMedia": {"type": "int"}
+    }
+  },
+  "composerErrorNotSignedIn": "Not signed in to Mastodon.",
+  "composerAnnounceScanningVideo": "AI scanning video attachment {index}.",
+  "@composerAnnounceScanningVideo": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerAnnounceScanningImage": "AI scanning image attachment {index}.",
+  "@composerAnnounceScanningImage": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerAnnounceAltReady": "Alt-text ready for attachment {index}.",
+  "@composerAnnounceAltReady": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerAnnounceAltError": "Error generating alt-text for attachment {index}.",
+  "@composerAnnounceAltError": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "composerAnnounceCheckingBias": "Checking post, media, links, and context for racial or gender bias.",
+  "composerAnnounceBiasReview": "Pre-post bias review: {summary}",
+  "@composerAnnounceBiasReview": {
+    "placeholders": {
+      "summary": {"type": "String"}
+    }
+  },
+  "composerAnnounceUpdated": "Post updated successfully.",
+  "composerAnnouncePublished": "Post published successfully.",
+  "composerAnnouncePublishFailed": "Failed to publish post.",
+
+  "missingAltTextTitleRequire": "Alt-Text Required Before Posting",
+  "missingAltTextTitleWarn": "Missing Media Alt-Text",
+  "missingAltTextBodyWarnAi": "{count, plural, =1{1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?} other{{count} media attachments are missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?}}",
+  "@missingAltTextBodyWarnAi": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "missingAltTextBodyWarnManual": "{count, plural, =1{1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?} other{{count} media attachments are missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?}}",
+  "@missingAltTextBodyWarnManual": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "missingAltTextBodyRequire": "{count, plural, =1{1 media attachment is missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.} other{{count} media attachments are missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.}}",
+  "@missingAltTextBodyRequire": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "missingAltTextAutoGenerateButton": "Auto-Generate Missing Alt-Text with AI",
+  "missingAltTextEditButton": "Edit in Composer",
+  "missingAltTextPostAnywayButton": "Post Anyway",
+
+  "biasReviewTitle": "Pre-Post Racial & Gender Bias Review",
+  "biasReviewCloseTooltip": "Close and return to composer",
+  "biasReviewSummaryTitle": "Summary",
+  "biasReviewCheckedComponents": "Checked: {components}",
+  "@biasReviewCheckedComponents": {
+    "placeholders": {
+      "components": {"type": "String"}
+    }
+  },
+  "biasReviewLocalFallbackNote": "Note: Analyzed using offline local bias heuristics.",
+  "biasReviewFindingsHeader": "Where Bias Was Found ({count})",
+  "@biasReviewFindingsHeader": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "biasReviewExcerpt": "Excerpt: \"{excerpt}\"",
+  "@biasReviewExcerpt": {
+    "placeholders": {
+      "excerpt": {"type": "String"}
+    }
+  },
+  "biasReviewSuggestedWordingTitle": "Suggested Alternate Wording",
+  "biasReviewUseSuggestedAndPublishButton": "Use Suggested Wording & Publish Now",
+  "biasReviewUseSuggestedButton": "Use Suggested Wording in Composer",
+  "biasReviewReturnToComposerButton": "Return to Composer to Edit",
+  "biasReviewPublishAnywayButton": "Publish Anyway",
+  "biasReviewRequireNotice": "Your Bias Rules policy is set to Require: please revise the post before publishing.",
+
+  "biasComponentPostText": "Post Text",
+  "biasComponentContentWarning": "Content Warning",
+  "biasComponentAttachment": "Attachment {index}",
+  "@biasComponentAttachment": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
+  "biasComponentLink": "Link ({url})",
+  "@biasComponentLink": {
+    "placeholders": {
+      "url": {"type": "String"}
+    }
+  },
+  "biasComponentReferencedMessage": "Referenced Message (@{handle})",
+  "@biasComponentReferencedMessage": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "biasSummaryClean": "No racial or gender bias detected.",
+  "biasSummaryLocalClean": "No racial or gender bias detected via local check.",
+  "biasSummaryLocalFindings": "Checked {checkedLabel} (offline heuristic check) and found {count, plural, =1{1 potential racial or gender bias issue} other{{count} potential racial or gender bias issues}}.",
+  "@biasSummaryLocalFindings": {
+    "placeholders": {
+      "checkedLabel": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "biasSummaryAiFallbackBias": "Checked {checkedLabel} and detected potential racial or gender bias.",
+  "@biasSummaryAiFallbackBias": {
+    "placeholders": {
+      "checkedLabel": {"type": "String"}
+    }
+  },
+
+  "settingsTitle": "Settings",
+  "settingsSectionAi": "AI Provider & API Keys",
+  "settingsSectionCaptioning": "AI Alt-Text Captioning",
+  "settingsDefaultDetailLevel": "Default Detail Level",
+  "settingsDetailLevelItem": "{label} — {guidance}",
+  "@settingsDetailLevelItem": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "guidance": {"type": "String"}
+    }
+  },
+  "settingsVideoKeyframesLabel": "Video Keyframes to Extract",
+  "settingsVideoKeyframesHelper": "Used for frame-based models or videos exceeding Gemini inline limits.",
+  "settingsVideoKeyframesOption": "{count} keyframes",
+  "@settingsVideoKeyframesOption": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settingsVideoKeyframesDefaultOption": "{count} keyframes (Default)",
+  "@settingsVideoKeyframesDefaultOption": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settingsAutoGenerateTitle": "Auto-Generate Alt-Text on Attach",
+  "settingsAutoGenerateSubtitle": "Automatically scan images and videos as soon as they are attached.",
+  "settingsIncludePostContextTitle": "Include Draft Post Text as Context",
+  "settingsIncludePostContextSubtitle": "Helps the AI identify names, events, or subjects mentioned in your draft.",
+  "settingsCaptionLanguageLabel": "Caption Output Language",
+  "settingsCaptionLanguageHint": "English",
+  "settingsCustomInstructionsLabel": "Custom Instructions (Optional)",
+  "settingsCustomInstructionsHint": "e.g. Our orange tabby cat is named Marmalade; prefer plain objective tone.",
+  "settingsSectionAccessibility": "Accessibility Rules",
+  "settingsTtsSpeedTitle": "Built-in On-Device Read Aloud Speed ({speed}x)",
+  "@settingsTtsSpeedTitle": {
+    "placeholders": {
+      "speed": {"type": "String"}
+    }
+  },
+  "settingsTtsSpeedSubtitle": "Uses your device's built-in TTS engine (AVSpeechSynthesizer on Apple platforms, Google/Samsung TTS on Android, SAPI on Windows, Speech Dispatcher / eSpeak on Linux).",
+  "settingsTtsSpeedLabel": "{speed}x",
+  "@settingsTtsSpeedLabel": {
+    "placeholders": {
+      "speed": {"type": "String"}
+    }
+  },
+  "settingsAltPolicyLabel": "Pre-Post Alt-Text Policy",
+  "settingsSectionBias": "Bias Rules",
+  "settingsBiasPolicyLabel": "Pre-Post Racial & Gender Bias Policy",
+  "settingsSectionAppearance": "Appearance & Theme",
+  "settingsDetectedOsMode": "Detected OS mode: {mode}",
+  "@settingsDetectedOsMode": {
+    "placeholders": {
+      "mode": {"type": "String"}
+    }
+  },
+  "settingsOsModeHighContrast": "High Contrast",
+  "settingsOsModeDark": "Dark",
+  "settingsOsModeLight": "Light",
+  "settingsAppLanguageLabel": "App Interface Language",
+  "settingsAppLanguageSystemDefault": "System Default ({localeName})",
+  "@settingsAppLanguageSystemDefault": {
+    "placeholders": {
+      "localeName": {"type": "String"}
+    }
+  },
+  "settingsAppLanguageHelper": "Choose the language used for menus, buttons, and accessibility labels.",
+  "settingsSectionAccount": "Account & Server Info",
+  "settingsAccountTitle": "{displayName} ({handle})",
+  "@settingsAccountTitle": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "handle": {"type": "String"}
+    }
+  },
+  "settingsAccountSubtitle": "Server: {instanceUrl}\nMax post length: {maxChars} chars · Max media: {maxMedia} · Alt-text limit: {altLimit} chars",
+  "@settingsAccountSubtitle": {
+    "placeholders": {
+      "instanceUrl": {"type": "String"},
+      "maxChars": {"type": "int"},
+      "maxMedia": {"type": "int"},
+      "altLimit": {"type": "int"}
+    }
+  },
+  "settingsSignOut": "Sign Out",
+  "settingsAboutTitle": "{appName} v{appVersion}",
+  "@settingsAboutTitle": {
+    "placeholders": {
+      "appName": {"type": "String"},
+      "appVersion": {"type": "String"}
+    }
+  },
+  "settingsAboutSubtitle": "Contributor: {contributorName} · Generated with Antigravity",
+  "@settingsAboutSubtitle": {
+    "placeholders": {
+      "contributorName": {"type": "String"}
+    }
+  },
+
+  "shortcutsTitle": "Keyboard Shortcuts",
+  "shortcutsOrKeyCombo": "{primary}  or  {alternate}",
+  "@shortcutsOrKeyCombo": {
+    "placeholders": {
+      "primary": {"type": "String"},
+      "alternate": {"type": "String"}
+    }
+  },
+  "shortcutsSectionNavigation": "Post Navigation",
+  "shortcutsNextPost": "Next post",
+  "shortcutsPreviousPost": "Previous post",
+  "shortcutsOpenPost": "Open selected post / thread",
+  "shortcutsEscape": "Go back or close viewer",
+  "shortcutsSectionActions": "Selected Post Actions",
+  "shortcutsReply": "Reply to selected post",
+  "shortcutsFavorite": "Favorite / unfavorite",
+  "shortcutsBoost": "Boost / unboost",
+  "shortcutsBookmark": "Bookmark / unbookmark",
+  "shortcutsToggleCw": "Expand / collapse Content Warning",
+  "shortcutsOpenProfile": "Open author profile",
+  "shortcutsSectionTimelines": "Switch Timelines",
+  "shortcutsHomeTimeline": "Home timeline",
+  "shortcutsLocalTimeline": "Local timeline",
+  "shortcutsFederatedTimeline": "Federated timeline",
+  "shortcutsNotificationsTimeline": "Notifications / Alerts",
+  "shortcutsBookmarksTimeline": "Bookmarks",
+  "shortcutsFavoritesTimeline": "Favorites",
+  "shortcutsMyPostsTimeline": "My Published Posts",
+  "shortcutsSectionApp": "App & Composer",
+  "shortcutsComposeNew": "Compose new post",
+  "shortcutsPublishPost": "Publish post (in Composer)",
+  "shortcutsLocalSearch": "Offline local search",
+  "shortcutsRefresh": "Refresh current view",
+  "shortcutsOpenSettings": "Open Settings",
+  "shortcutsShowHelp": "Show this help sheet",
+
+  "actionAnnounceBoosted": "Post boosted.",
+  "actionAnnounceUnboosted": "Boost removed.",
+  "actionErrorBoost": "Could not update boost: {error}",
+  "@actionErrorBoost": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "actionAnnounceFavorited": "Post favorited.",
+  "actionAnnounceUnfavorited": "Removed from favorites.",
+  "actionErrorFavorite": "Could not update favorite: {error}",
+  "@actionErrorFavorite": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "actionAnnounceBookmarked": "Post bookmarked.",
+  "actionAnnounceUnbookmarked": "Bookmark removed.",
+  "actionErrorBookmark": "Could not update bookmark: {error}",
+  "@actionErrorBookmark": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "actionDeleteTitle": "Delete Post?",
+  "actionDeleteConfirmBody": "This will permanently delete your post from your Mastodon server.",
+  "actionAnnounceDeleted": "Post deleted.",
+  "actionErrorDelete": "Failed to delete post: {error}",
+  "@actionErrorDelete": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+
+  "timeCompactNow": "now",
+  "timeCompactMinutes": "{count}m",
+  "@timeCompactMinutes": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeCompactHours": "{count}h",
+  "@timeCompactHours": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeCompactDays": "{count}d",
+  "@timeCompactDays": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeCompactMonths": "{count}mo",
+  "@timeCompactMonths": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeCompactYears": "{count}y",
+  "@timeCompactYears": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeAccessibleJustNow": "just now",
+  "timeAccessibleMinutesAgo": "{count, plural, =1{1 minute ago} other{{count} minutes ago}}",
+  "@timeAccessibleMinutesAgo": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeAccessibleHoursAgo": "{count, plural, =1{1 hour ago} other{{count} hours ago}}",
+  "@timeAccessibleHoursAgo": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "timeAccessibleDaysAgo": "{count, plural, =1{1 day ago} other{{count} days ago}}",
+  "@timeAccessibleDaysAgo": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
+}

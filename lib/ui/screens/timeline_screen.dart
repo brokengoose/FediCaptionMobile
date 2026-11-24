@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
+import '../../l10n/l10n.dart';
+import '../../l10n/model_localizations.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
@@ -112,7 +114,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
     final preview =
         snippet.length > 90 ? '${snippet.substring(0, 90)}…' : snippet;
     AccessibilityAnnouncer.announce(
-      'Post ${next + 1} of ${_statuses.length} by ${target.account.effectiveDisplayName}. $preview',
+      context.l10n.timelineAnnouncePostSelection(
+        next + 1,
+        _statuses.length,
+        target.account.effectiveDisplayName,
+        preview,
+      ),
     );
   }
 
@@ -233,10 +240,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
         _isLoading = false;
       });
       if (!silentAnnouncement) {
+        final l10n = context.l10n;
+        final title = widget.timelineType.localizedFullTitle(l10n);
         AccessibilityAnnouncer.announce(
           newer.isEmpty
-              ? '${widget.timelineType.fullTitle} is up to date.'
-              : 'Loaded ${newer.length} new posts in ${widget.timelineType.fullTitle}.',
+              ? l10n.timelineAnnounceUpToDate(title)
+              : l10n.timelineAnnounceLoadedNew(newer.length, title),
         );
       }
     } catch (e) {
@@ -282,8 +291,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
         _hasMore = hasMore;
       });
       if (!silentAnnouncement) {
+        final l10n = context.l10n;
         AccessibilityAnnouncer.announce(
-          '${widget.timelineType.fullTitle} loaded with ${items.length} posts.',
+          l10n.timelineAnnounceLoadedInitial(
+            widget.timelineType.localizedFullTitle(l10n),
+            items.length,
+          ),
         );
       }
     } catch (e) {
@@ -371,6 +384,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -389,7 +403,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
               FilledButton.icon(
                 onPressed: _loadInitial,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(l10n.commonRetry),
               ),
             ],
           ),
@@ -405,7 +419,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
             const SizedBox(height: 96),
             Center(
               child: Text(
-                'No posts in ${widget.timelineType.fullTitle} yet.',
+                l10n.timelineEmptyMessage(
+                  widget.timelineType.localizedFullTitle(l10n),
+                ),
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),

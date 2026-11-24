@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../services/translation_service.dart';
 import 'accessible_tip.dart';
 
@@ -35,6 +36,7 @@ class PostTranslationBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
+    final l10n = context.l10n;
     final srcName = TranslationService.languageDisplayName(sourceLanguageCode);
     final tgtName = TranslationService.languageDisplayName(targetLanguageCode);
 
@@ -59,10 +61,13 @@ class PostTranslationBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   isTranslating
-                      ? 'Translating from $srcName to $tgtName…'
+                      ? l10n.translationTranslatingStatus(srcName, tgtName)
                       : translationResult != null && showingTranslation
-                          ? 'Translated from $srcName via ${translationResult!.engineName}'
-                          : 'Written in $srcName',
+                          ? l10n.translationTranslatedStatus(
+                              srcName,
+                              translationResult!.engineName,
+                            )
+                          : l10n.translationWrittenInStatus(srcName),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: fedi.subtleText,
                         fontWeight: FontWeight.w600,
@@ -79,23 +84,24 @@ class PostTranslationBanner extends StatelessWidget {
               else if (translationResult != null)
                 AccessibleTip(
                   message: showingTranslation
-                      ? 'Switch back to the original $srcName post and alt-text'
-                      : 'Show the translated $tgtName post and alt-text',
+                      ? l10n.translationShowOriginalTip(srcName)
+                      : l10n.translationShowTranslatedTip(tgtName),
                   child: TextButton(
                     onPressed: onToggleOriginal,
                     child: Text(
-                      showingTranslation ? 'Show Original' : 'Show Translation',
+                      showingTranslation
+                          ? l10n.translationShowOriginalButton
+                          : l10n.translationShowTranslatedButton,
                     ),
                   ),
                 )
               else
                 AccessibleTip(
-                  message:
-                      'Translate this $srcName post and its media alt-text into $tgtName on-device',
+                  message: l10n.translationTranslateTip(srcName, tgtName),
                   child: FilledButton.tonalIcon(
                     onPressed: onTranslate,
                     icon: const Icon(Icons.translate, size: 16),
-                    label: Text('Translate to $tgtName'),
+                    label: Text(l10n.translationTranslateButton(tgtName)),
                   ),
                 ),
             ],

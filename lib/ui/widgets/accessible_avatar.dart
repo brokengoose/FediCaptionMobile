@@ -4,6 +4,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
+import '../../l10n/l10n.dart';
 import 'accessible_tip.dart';
 import 'cached_network_image_provider.dart';
 
@@ -55,7 +56,8 @@ class AccessibleAvatar extends StatelessWidget {
       return ExcludeSemantics(child: avatar);
     }
 
-    final tipText = semanticLabel ?? 'View profile and posts by $displayName';
+    final tipText = semanticLabel ??
+        context.l10n.avatarViewProfileSemantics(displayName);
     return Semantics(
       button: true,
       label: tipText,

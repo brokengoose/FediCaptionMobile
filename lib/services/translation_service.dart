@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 
+import '../core/language/language_registry.dart';
 import '../models/ai_models.dart';
 import '../models/app_settings.dart';
 import '../models/mastodon_models.dart';
@@ -124,25 +125,12 @@ class TranslationService {
 
   /// Normalizes a BCP-47 / ISO 639 language tag (e.g. `'en-US'`, `'pt_BR'`)
   /// into its lowercase primary subtag (`'en'`, `'pt'`), or `null` if invalid.
-  static String? normalizeLanguageCode(String? raw) {
-    if (raw == null) return null;
-    final trimmed = raw.trim().toLowerCase();
-    if (trimmed.isEmpty || trimmed == 'und' || trimmed == 'unknown') {
-      return null;
-    }
-    final primary = trimmed.split(RegExp(r'[-_]')).first;
-    if (primary.length < 2 || primary.length > 3) return null;
-    if (!RegExp(r'^[a-z]{2,3}$').hasMatch(primary)) return null;
-    // Normalize Norwegian Bokmål / Nynorsk to 'no' for matching consistency.
-    if (primary == 'nb' || primary == 'nn') return 'no';
-    return primary;
-  }
+  static String? normalizeLanguageCode(String? raw) =>
+      LanguageRegistry.normalizeCode(raw);
 
   /// Returns a human-readable display name for an ISO 639-1 language code.
-  static String languageDisplayName(String code) {
-    final normalized = normalizeLanguageCode(code) ?? code.trim().toLowerCase();
-    return _languageNames[normalized] ?? normalized.toUpperCase();
-  }
+  static String languageDisplayName(String code) =>
+      LanguageRegistry.englishNameFor(code);
 
   /// Returns `true` when [settings] and [credentials] specify an external or
   /// local-network AI provider ready for text translation.
@@ -712,7 +700,7 @@ class TranslationService {
     return input
         .replaceAll(RegExp(r'https?://\S+'), ' ')
         .replaceAll(RegExp(r'@[A-Za-z0-9_.\-@]+'), ' ')
-        .replaceAll(RegExp(r'#[A-Za-z0-9_]+'), ' ')
+        .replaceAll(RegExp(r'#[\p{L}\p{N}_]+', unicode: true), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
@@ -739,103 +727,6 @@ class TranslationService {
 
   /// Lightweight Unicode script heuristic used only when a post has no
   /// `language` tag and native language identification is unavailable.
-  static String? detectScriptLanguage(String text) {
-    var hiraganaKatakana = 0;
-    var hangul = 0;
-    var cjk = 0;
-    var cyrillic = 0;
-    var greek = 0;
-    var arabic = 0;
-    var hebrew = 0;
-    var devanagari = 0;
-    var thai = 0;
-
-    for (final rune in text.runes) {
-      if ((rune >= 0x3040 && rune <= 0x30FF)) {
-        hiraganaKatakana++;
-      } else if (rune >= 0xAC00 && rune <= 0xD7AF) {
-        hangul++;
-      } else if (rune >= 0x4E00 && rune <= 0x9FFF) {
-        cjk++;
-      } else if (rune >= 0x0400 && rune <= 0x04FF) {
-        cyrillic++;
-      } else if (rune >= 0x0370 && rune <= 0x03FF) {
-        greek++;
-      } else if (rune >= 0x0600 && rune <= 0x06FF) {
-        arabic++;
-      } else if (rune >= 0x0590 && rune <= 0x05FF) {
-        hebrew++;
-      } else if (rune >= 0x0900 && rune <= 0x097F) {
-        devanagari++;
-      } else if (rune >= 0x0E00 && rune <= 0x0E7F) {
-        thai++;
-      }
-    }
-
-    if (hiraganaKatakana >= 2) return 'ja';
-    if (hangul >= 2) return 'ko';
-    if (cjk >= 3) return 'zh';
-    if (cyrillic >= 4) return 'ru';
-    if (greek >= 4) return 'el';
-    if (arabic >= 4) return 'ar';
-    if (hebrew >= 4) return 'he';
-    if (devanagari >= 4) return 'hi';
-    if (thai >= 4) return 'th';
-    return null;
-  }
-
-  static const Map<String, String> _languageNames = {
-    'af': 'Afrikaans',
-    'ar': 'Arabic',
-    'bg': 'Bulgarian',
-    'bn': 'Bengali',
-    'ca': 'Catalan',
-    'cs': 'Czech',
-    'cy': 'Welsh',
-    'da': 'Danish',
-    'de': 'German',
-    'el': 'Greek',
-    'en': 'English',
-    'eo': 'Esperanto',
-    'es': 'Spanish',
-    'et': 'Estonian',
-    'eu': 'Basque',
-    'fa': 'Persian',
-    'fi': 'Finnish',
-    'fr': 'French',
-    'ga': 'Irish',
-    'gl': 'Galician',
-    'he': 'Hebrew',
-    'hi': 'Hindi',
-    'hr': 'Croatian',
-    'hu': 'Hungarian',
-    'id': 'Indonesian',
-    'is': 'Icelandic',
-    'it': 'Italian',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    'lt': 'Lithuanian',
-    'lv': 'Latvian',
-    'ms': 'Malay',
-    'nl': 'Dutch',
-    'no': 'Norwegian',
-    'pl': 'Polish',
-    'pt': 'Portuguese',
-    'ro': 'Romanian',
-    'ru': 'Russian',
-    'sk': 'Slovak',
-    'sl': 'Slovenian',
-    'sr': 'Serbian',
-    'sv': 'Swedish',
-    'sw': 'Swahili',
-    'ta': 'Tamil',
-    'te': 'Telugu',
-    'th': 'Thai',
-    'tl': 'Tagalog',
-    'tr': 'Turkish',
-    'uk': 'Ukrainian',
-    'ur': 'Urdu',
-    'vi': 'Vietnamese',
-    'zh': 'Chinese',
-  };
+  static String? detectScriptLanguage(String text) =>
+      LanguageRegistry.detectScriptLanguage(text);
 }

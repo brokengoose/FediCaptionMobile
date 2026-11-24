@@ -8,14 +8,21 @@ import 'package:flutter/widgets.dart';
 class AccessibilityAnnouncer {
   AccessibilityAnnouncer._();
 
+  /// Active announcement direction, synchronized with the app's resolved locale.
+  static TextDirection defaultTextDirection = TextDirection.ltr;
+
   static void announce(
     String message, {
-    TextDirection textDirection = TextDirection.ltr,
+    TextDirection? textDirection,
   }) {
     final trimmed = message.trim();
     if (trimmed.isEmpty) return;
     final views = WidgetsBinding.instance.platformDispatcher.views;
     if (views.isEmpty) return;
-    SemanticsService.sendAnnouncement(views.first, trimmed, textDirection);
+    SemanticsService.sendAnnouncement(
+      views.first,
+      trimmed,
+      textDirection ?? defaultTextDirection,
+    );
   }
 }

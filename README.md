@@ -51,6 +51,11 @@
 - **Themes & Screen Readers**: Dark, Light, and **WCAG AAA High Contrast** themes with automatic live OS appearance & high-contrast detection, full VoiceOver/TalkBack live announcements, and `>= 48×48 dp` touch targets.
 - **GitHub Version Check**: Checks GitHub Releases (and `main/VERSION` fallback) on startup and displays a dismissible **Update Available** banner when a newer version is published.
 
+### 6. Multi-Language & Localization Architecture
+- **UI & Accessibility Localization (`lib/l10n/`)**: All menus, dialogs, screen-reader labels, VoiceOver/TalkBack live announcements, relative timestamps, and bias component labels use Flutter `gen-l10n` ARB catalogs (`lib/l10n/arb/app_en.arb`) with full bidirectional (`LTR`/`RTL`) layout support.
+- **Pluggable Domain Language Packs (`lib/core/language/`)**: Central `LanguageRegistry` (52 languages with native endonyms, BCP-47 TTS locales, word-spacing/casing flags, and script detection) plus `LanguagePackRegistry` (`CaptionLanguagePack` & `BiasLanguagePack`) separate language-specific caption prefixes, LLM prompt cleanup rules, and offline inclusive-language heuristics from core services.
+- Want to translate FediCaption or add caption/bias rules for another language? See the step-by-step guide in [docs/ADDING_A_LANGUAGE.md](docs/ADDING_A_LANGUAGE.md).
+
 ---
 
 ## Getting Started (Local Xcode & Android Studio)
@@ -100,9 +105,15 @@ lib/
 │   ├── accessibility_announcer.dart     # VoiceOver & TalkBack live announcements
 │   ├── constants.dart                   # App metadata, OAuth website, limits, prefix
 │   ├── html_utils.dart                  # HTML-to-text, URL/punctuation parsing, RE: quote extraction
+│   ├── language/                        # LanguageRegistry, LanguagePackRegistry & pluggable packs
 │   ├── media_utils.dart                 # Shared video extension & MIME type helpers
-│   ├── time_utils.dart                  # Relative & accessible timestamps
+│   ├── time_utils.dart                  # Localized relative & accessible timestamps
 │   └── theme/                           # Dark, Light, WCAG AAA High Contrast + OS auto-detect
+├── l10n/
+│   ├── arb/                             # Flutter gen-l10n ARB templates (app_en.arb)
+│   ├── generated/                       # Generated AppLocalizations classes
+│   ├── l10n.dart                        # context.l10n, locale/RTL & bias label helpers
+│   └── model_localizations.dart         # Localized labels for models, enums & notifications
 ├── models/                              # Mastodon, AI, Bias, Settings, Composer, Update models
 ├── services/
 │   ├── ai/                              # AiModelCatalog, AiPromptBuilder, AiHttpAdapters

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/accessibility_announcer.dart';
+import '../l10n/l10n.dart';
 import '../models/ai_models.dart';
 import '../models/app_settings.dart';
 import '../models/mastodon_models.dart';
@@ -21,12 +22,15 @@ class TimelineMediaAiController extends ChangeNotifier {
   TimelineMediaAiController({
     required MastodonService mastodon,
     required AiProviderService aiProvider,
+    AppLocalizations Function()? l10nProvider,
     this.maxEntries = 200,
   })  : _mastodon = mastodon,
-        _aiProvider = aiProvider;
+        _aiProvider = aiProvider,
+        _l10nProvider = l10nProvider ?? (() => resolveAppLocalizations());
 
   final MastodonService _mastodon;
   final AiProviderService _aiProvider;
+  final AppLocalizations Function() _l10nProvider;
   final int maxEntries;
 
   final LinkedHashMap<String, String> _descriptions =
@@ -89,7 +93,8 @@ class TimelineMediaAiController extends ChangeNotifier {
     _errors.remove(attachment.id);
     _safeNotify();
 
-    AccessibilityAnnouncer.announce('Generating AI description for media.');
+    final l10n = _l10nProvider();
+    AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceGenerating);
 
     try {
       // Prefer Mastodon's pre-sized preview_url (typically 20-50x smaller than
@@ -119,10 +124,10 @@ class TimelineMediaAiController extends ChangeNotifier {
         _descriptions.remove(_descriptions.keys.first);
       }
       _persistCache();
-      AccessibilityAnnouncer.announce('AI description ready. $caption');
+      AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceReady(caption));
     } catch (e) {
       _errors[attachment.id] = e.toString();
-      AccessibilityAnnouncer.announce('Failed to generate AI description.');
+      AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceFailed);
     } finally {
       _describingIds.remove(attachment.id);
       _safeNotify();

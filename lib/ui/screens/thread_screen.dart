@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
+import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
@@ -80,7 +81,11 @@ class _ThreadScreenState extends State<ThreadScreen> {
       if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
     });
     AccessibilityAnnouncer.announce(
-      'Post ${next + 1} of ${all.length} by ${status.displayStatus.account.effectiveDisplayName}.',
+      context.l10n.threadAnnounceSelection(
+        next + 1,
+        all.length,
+        status.displayStatus.account.effectiveDisplayName,
+      ),
     );
   }
 
@@ -167,7 +172,10 @@ class _ThreadScreenState extends State<ThreadScreen> {
         _isLoading = false;
       });
       AccessibilityAnnouncer.announce(
-        'Conversation loaded with ${ctx.ancestors.length} earlier posts and ${ctx.descendants.length} replies.',
+        context.l10n.threadAnnounceLoaded(
+          ctx.ancestors.length,
+          ctx.descendants.length,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -258,8 +266,8 @@ class _ThreadScreenState extends State<ThreadScreen> {
     if (!highlight) return card;
     return Container(
       decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(
+        border: BorderDirectional(
+          start: BorderSide(
             color: Theme.of(context).colorScheme.primary,
             width: 4,
           ),
@@ -271,8 +279,9 @@ class _ThreadScreenState extends State<ThreadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Conversation Thread')),
+      appBar: AppBar(title: Text(l10n.threadTitle)),
       body: RefreshIndicator(
         onRefresh: _loadContext,
         child: ListView(
@@ -301,7 +310,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
                 child: Semantics(
                   header: true,
                   child: Text(
-                    'Replies (${_descendants.length})',
+                    l10n.threadRepliesHeader(_descendants.length),
                     style: Theme.of(context)
                         .textTheme
                         .titleSmall
