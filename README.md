@@ -12,7 +12,7 @@
 
 | Platform | Target / Packaging | On-Device AI (`edge_gen_ai`) | Translation Backends | Read Aloud (TTS) & Video | Auth & Secret Storage |
 | --- | --- | --- | --- | --- | --- |
-| **iOS** | iOS 15.0+ (`UIScene`, iPhone/iPad) | Apple Foundation Models (iOS 26+) | On-Device AI → Apple Translation (iOS 18+) → ML Kit / Configured AI → Mastodon API | `AVSpeechSynthesizer` / `video_player` | `ASWebAuthenticationSession` / iOS Keychain |
+| **iOS** | iOS 15.0+ (`UIScene`, iPhone/iPad) | Apple Foundation Models (iOS 26+) | On-Device AI → Apple Translation (iOS 18+) → Configured AI → Mastodon API | `AVSpeechSynthesizer` / `video_player` | `ASWebAuthenticationSession` / iOS Keychain |
 | **Android** | API 26+ (Android 8.0+, APK) | Google Gemini Nano via ML Kit GenAI & AICore (Pixel 8+ & supported Samsung flagships) | On-Device AI → ML Kit Translation → Configured AI → Mastodon API | System `TextToSpeech` / `video_player` | Chrome Custom Tabs / Android Keystore |
 | **macOS** | macOS 12.0+ Universal (`x86_64` + `arm64`, `.app`) | Apple Foundation Models (Apple Silicon, macOS 26+; unavailable on Intel) | On-Device AI (Apple Silicon) → Apple Translation (macOS 15+) → Configured AI → Mastodon API | `AVSpeechSynthesizer` / `video_player` | `ASWebAuthenticationSession` / Sandboxed app prefs |
 | **Windows** | Windows 10/11 (`x64`, portable ZIP / `.exe`) | Not available on Windows OS | Configured AI Provider (Gemini/OpenAI/Anthropic/LAN) → Mastodon API | Windows SAPI / Windows Media Foundation (`video_player_win`) & native CryptoAPI TLS (`crypt32.lib`) | Default browser RFC 8252 loopback OAuth / Windows Credential Manager |
@@ -43,7 +43,7 @@
 
 ### 3. Multi-Backend Post & Alt-Text Translation
 - When viewing a post whose language differs from your UI/OS language, FediCaption offers top-of-post translation covering Content Warnings, post text, and media alt-text.
-- Automatically chains native/local backends (`On-Device AI` → Apple `Translation` framework on iOS 18+/macOS 15+ → Google `ML Kit Translation` on Android/iOS → your configured `AI Provider`) with automatic fallback to **Mastodon's built-in server translation endpoint** (`POST /api/v1/statuses/:id/translate`) when enabled on your instance — enabling seamless translation across desktop (Windows & Linux) as well as mobile.
+- Automatically chains native/local backends (`On-Device AI` → Apple `Translation` framework on iOS 18+/macOS 15+ → Google `ML Kit Translation` on Android → your configured `AI Provider`) with automatic fallback to **Mastodon's built-in server translation endpoint** (`POST /api/v1/statuses/:id/translate`) when enabled on your instance — enabling seamless translation across desktop (Windows & Linux) as well as mobile.
 
 ### 4. Pre-Post Racial & Gender Bias Checking
 - Inspects **Post Text & Content Warning**, **Attachments (visual media + alt-text)**, **External Links** (fetches page title, meta description, and text excerpt), and **Referenced / Replied-to Mastodon Messages**.
