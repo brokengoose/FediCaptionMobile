@@ -106,26 +106,38 @@ jobs:
             sed 's/^          //' <<'EOF'
           Quick Start
           -----------
-          1. Extract the FediCaption folder anywhere you like.
-          2. Run from a terminal:
+          1. Install the required system runtime libraries below (in particular
+             libmpv, which FediCaption links at startup and will not start without).
+          2. Extract the FediCaption folder anywhere you like.
+          3. Run from a terminal:
                ./fedicaption
-          3. (Optional) Add FediCaption and its icon to your desktop app launcher:
+          4. (Optional) Add FediCaption and its icon to your desktop app launcher:
                ./install-desktop-entry.sh
 
-          Recommended System Runtime Packages
-          -----------------------------------
-          - Embedded video & GIFV playback: libmpv / mpv
-              Ubuntu/Debian: sudo apt install libmpv2 mpv
-              Fedora:        sudo dnf install mpv-libs
-              Arch:          sudo pacman -S mpv
+          Required System Runtime Libraries
+          ---------------------------------
+          FediCaption links these shared libraries at startup and will fail to launch
+          with a missing shared library error if they are not installed:
+
+          - libmpv (REQUIRED to launch; used for embedded video & GIFV playback):
+              Ubuntu 24.04+ / Debian 12+: sudo apt install libmpv2
+              Older Ubuntu / Debian:      sudo apt install libmpv1
+              Fedora:                     sudo dnf install mpv-libs
+              Arch:                       sudo pacman -S mpv
+          - WebKit2GTK / libsoup & desktop runtime libraries (usually pre-installed
+            on GNOME/Ubuntu desktops; install if missing on minimal setups):
+              Ubuntu/Debian: sudo apt install libwebkit2gtk-4.1-0 libsecret-1-0 libepoxy0 libgtk-3-0
+              Fedora:        sudo dnf install webkit2gtk4.1 libsecret libepoxy gtk3
+              Arch:          sudo pacman -S webkit2gtk-4.1 libsecret libepoxy gtk3
+
+          Optional System Packages
+          ------------------------
           - Read-aloud alt-text (TTS): Speech Dispatcher or eSpeak NG
               Ubuntu/Debian: sudo apt install speech-dispatcher espeak-ng
-          - Encrypted credential storage (optional; falls back if absent):
+              Fedora:        sudo dnf install speech-dispatcher espeak-ng
+              Arch:          sudo pacman -S speech-dispatcher espeak-ng
+          - Encrypted credential storage (optional; falls back automatically if absent):
               gnome-keyring or kwallet (org.freedesktop.secrets)
-          - WebKit2GTK / libsoup shared library (linked by desktop plugins):
-              Ubuntu/Debian: libwebkit2gtk-4.1-0 (pre-installed on GNOME/Ubuntu)
-              Fedora:        webkit2gtk4.1
-              Arch:          webkit2gtk-4.1
           EOF
           } > "${STAGE_DIR}/README-LINUX.txt"
 
