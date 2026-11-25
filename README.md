@@ -1,6 +1,6 @@
 # FediCaption Mobile (iOS, Android, macOS, Windows & Linux)
 
-**FediCaption Mobile** is an accessible, cross-platform Flutter Mastodon client for **iOS (iPhone/iPad)**, **Android**, **macOS (Universal Intel & Apple Silicon)**, **Windows (`x64`)**, and **Linux (`x64` & `ARM64`)**, featuring built-in **on-device AI** (Apple Foundation Models & Google Gemini Nano), multi-provider cloud/LAN AI, automatic AI alt-text generation for images and videos, on-demand timeline media descriptions, full-post & per-media **Read Aloud (TTS)**, multi-backend post & alt-text translation, embedded quoted posts, standard Mastodon keyboard shortcuts, and pre-post racial & gender bias checking.
+**FediCaption Mobile** is an accessible, cross-platform Flutter Mastodon client for **iOS (iPhone/iPad)**, **Android**, **macOS (Universal Intel & Apple Silicon)**, **Windows (`x64` & `ARM64`)**, and **Linux (`x64` & `ARM64`)**, featuring built-in **on-device AI** (Apple Foundation Models & Google Gemini Nano), multi-provider cloud/LAN AI, automatic AI alt-text generation for images and videos, on-demand timeline media descriptions, full-post & per-media **Read Aloud (TTS)**, multi-backend post & alt-text translation, embedded quoted posts, standard Mastodon keyboard shortcuts, and pre-post racial & gender bias checking.
 
 > This project was generated with **Antigravity**.  
 > Contributor: **brokengoose** (`brokengoose@users.noreply.github.com`)  
@@ -15,7 +15,7 @@
 | **iOS** | iOS 15.0+ (`UIScene`, iPhone/iPad) | Apple Foundation Models (iOS 26+) | On-Device AI → Apple Translation (iOS 18+) → Configured AI → Mastodon API | `AVSpeechSynthesizer` / `video_player` | `ASWebAuthenticationSession` / iOS Keychain |
 | **Android** | API 26+ (Android 8.0+, APK) | Google Gemini Nano via ML Kit GenAI & AICore (Pixel 8+ & supported Samsung flagships) | On-Device AI → ML Kit Translation → Configured AI → Mastodon API | System `TextToSpeech` / `video_player` | Chrome Custom Tabs / Android Keystore |
 | **macOS** | macOS 12.0+ Universal (`x86_64` + `arm64`, `.app`) | Apple Foundation Models (Apple Silicon, macOS 26+; unavailable on Intel) | On-Device AI (Apple Silicon) → Apple Translation (macOS 15+) → Configured AI → Mastodon API | `AVSpeechSynthesizer` / `video_player` | `ASWebAuthenticationSession` / Sandboxed app prefs |
-| **Windows** | Windows 10/11 (`x64`, portable ZIP / `.exe`) | Not available on Windows OS | Configured AI Provider (Gemini/OpenAI/Anthropic/LAN) → Mastodon API | Windows SAPI / Windows Media Foundation (`video_player_win`) & native CryptoAPI TLS (`crypt32.lib`) | Default browser RFC 8252 loopback OAuth / Windows Credential Manager |
+| **Windows** | Windows 10/11 (`x64` & `ARM64`, portable ZIP / `.exe`) | Not available on Windows OS | Configured AI Provider (Gemini/OpenAI/Anthropic/LAN) → Mastodon API | Windows SAPI / Windows Media Foundation (`video_player_win`) & native CryptoAPI TLS (`crypt32.lib`) | Default browser RFC 8252 loopback OAuth / Windows Credential Manager |
 | **Linux** | Portable GTK3 (`x64` & `ARM64`/`aarch64`, `.tar.gz`) | Not available on Linux OS | Configured AI Provider (Gemini/OpenAI/Anthropic/LAN) → Mastodon API | `spd-say` → `espeak-ng` → `espeak` (optional) / **`libmpv` (required)** (`video_player_media_kit`) | Default browser RFC 8252 loopback OAuth / `libsecret` keyring (with fallback) |
 
 ---
@@ -83,9 +83,9 @@
   - Android Studio with Android SDK (**minSdk 26+** / Android 8.0+, required for ML Kit GenAI / AICore on-device AI)
 - **macOS**:
   - macOS with Xcode & CocoaPods (`brew install cocoapods`), targeting **macOS 12.0+** (Universal `x86_64` Intel + `arm64` Apple Silicon)
-- **Windows (`x64`)**:
-  - **Runtime (end users)**: Windows 10 or Windows 11 (`x64`). No Edge WebView2 Runtime is required — OAuth opens in your default browser, video uses Windows Media Foundation (`video_player_win`), TTS uses Windows SAPI, and TLS uses the native Windows Certificate Store (`crypt32.lib`).
-  - **Building from source**: Visual Studio 2022 (or Visual Studio Build Tools) with the **Desktop development with C++** workload (MSVC C++17 toolchain, CMake `>= 3.14`, Windows SDK) and `flutter config --enable-windows-desktop` (also built automatically in CI via [.github/workflows/windows-build.yml](.github/workflows/windows-build.yml)).
+- **Windows (`x64` & `ARM64`)**:
+  - **Runtime (end users)**: Windows 10 or Windows 11 (`x64` or native `ARM64` for Snapdragon / Copilot+ PCs). No Edge WebView2 Runtime is required — OAuth opens in your default browser, video uses Windows Media Foundation (`video_player_win`), TTS uses Windows SAPI, and TLS uses the native Windows Certificate Store (`crypt32.lib`).
+  - **Building from source**: Visual Studio 2022 (or Visual Studio Build Tools) with the **Desktop development with C++** workload (MSVC C++17 toolchain, CMake `>= 3.14`, Windows SDK; plus **MSVC C++ ARM64 build tools** and **C++ ATL for ARM64** when building for `ARM64`) and `flutter config --enable-windows-desktop` (also built automatically in CI for both `x64` and `ARM64` via [.github/workflows/windows-build.yml](.github/workflows/windows-build.yml)).
 - **Linux (`x64` & `ARM64` / `aarch64`)**:
   - **Runtime (end users)**:
     - **`libmpv` is required to launch** (`video_player_media_kit` links `libmpv` at startup for video & GIFV playback):
