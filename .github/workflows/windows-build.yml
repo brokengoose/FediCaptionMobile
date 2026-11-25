@@ -19,18 +19,38 @@ permissions:
 
 jobs:
   build-windows:
-    name: Windows x64 Release Build
-    runs-on: windows-latest
+    name: Windows ${{ matrix.arch }} Release Build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Flutter (stable)
+      - name: Set up Flutter (stable, x64)
+        if: matrix.arch == 'x64'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Set up Flutter (stable, ARM64)
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $flutterDir = Join-Path $env:USERPROFILE "flutter"
+          git clone -b stable --depth 1 https://github.com/flutter/flutter.git $flutterDir
+          "$flutterDir\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & "$flutterDir\bin\flutter.bat" --version
+          & "$flutterDir\bin\flutter.bat" config --enable-windows-desktop
 
       - name: Install dependencies
         run: flutter pub get
@@ -44,12 +64,14 @@ jobs:
       - name: Build Windows release executable
         run: flutter build windows --release
 
-      - name: Package portable Windows x64 ZIP and SHA-256 checksum
+      - name: Package portable Windows ${{ matrix.arch }} ZIP and SHA-256 checksum
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $releaseDir = "build\windows\x64\runner\Release"
+          $arch = "${{ matrix.arch }}"
+          $releaseDir = "build\windows\$arch\runner\Release"
           if (-not (Test-Path "$releaseDir\FediCaption.exe")) {
+            Get-ChildItem -Path build\windows -Recurse -Depth 2 -ErrorAction SilentlyContinue | Format-Table FullName
             throw "Expected FediCaption.exe not found in $releaseDir"
           }
 
@@ -64,21 +86,22 @@ jobs:
           New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
           Copy-Item -Path "$releaseDir\*" -Destination $stageDir -Recurse -Force
 
-          $zipName = "FediCaption-$tag-windows-x64.zip"
+          $zipName = "FediCaption-$tag-windows-$arch.zip"
           $zipPath = "$outDir\$zipName"
+          $sumName = "SHA256SUMS-windows-$arch.txt"
           Compress-Archive -Path $stageDir -DestinationPath $zipPath -Force
 
           $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
-          "$hash  $zipName" | Out-File -FilePath "$outDir\SHA256SUMS-windows.txt" -Encoding ascii
+          "$hash  $zipName" | Out-File -FilePath "$outDir\$sumName" -Encoding ascii
 
           echo "ZIP_PATH=$zipPath" >> $env:GITHUB_ENV
-          echo "SUM_PATH=$outDir\SHA256SUMS-windows.txt" >> $env:GITHUB_ENV
+          echo "SUM_PATH=$outDir\$sumName" >> $env:GITHUB_ENV
           Get-ChildItem $outDir
 
       - name: Upload Windows build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FediCaption-windows-x64
+          name: FediCaption-windows-${{ matrix.arch }}
           path: |
             ${{ env.ZIP_PATH }}
             ${{ env.SUM_PATH }}
