@@ -229,5 +229,132 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Open Settings & AI Configuration'), findsOneWidget);
     });
+
+    testWidgets('wide window expands post cards without wide margins',
+        (tester) async {
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      app.timelineCache.putTimeline(
+        TimelineType.home,
+        [_sampleStatus('1', text: 'Wide layout post')],
+        hasMore: false,
+      );
+
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(1200, 900);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: HomeShell(app: app),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final widthAt1200 = tester.getSize(find.byType(StatusCard)).width;
+      expect(widthAt1200, greaterThan(850));
+
+      tester.view.physicalSize = const Size(1600, 900);
+      await tester.pumpAndSettle();
+
+      final widthAt1600 = tester.getSize(find.byType(StatusCard)).width;
+      expect(widthAt1600, closeTo(widthAt1200 + 400, 4.0));
+    });
+
+    testWidgets('Page Down and Page Up scroll TimelineScreen by one page',
+        (tester) async {
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      app.timelineCache.putTimeline(
+        TimelineType.home,
+        [
+          for (var i = 1; i <= 20; i++)
+            _sampleStatus('$i', text: 'Timeline post number $i'),
+        ],
+        hasMore: false,
+      );
+
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(800, 600);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: TimelineScreen(
+              app: app,
+              timelineType: TimelineType.home,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable =
+          tester.state<ScrollableState>(find.byType(Scrollable).first);
+      final viewportHeight = scrollable.position.viewportDimension;
+      expect(scrollable.position.pixels, 0.0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pumpAndSettle();
+      expect(scrollable.position.pixels, closeTo(viewportHeight * 0.9, 2.0));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+      await tester.pumpAndSettle();
+      expect(scrollable.position.pixels, closeTo(0.0, 0.5));
+    });
+
+    testWidgets('Home key scrolls TimelineScreen back to the newest post at top',
+        (tester) async {
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      app.timelineCache.putTimeline(
+        TimelineType.home,
+        [
+          for (var i = 1; i <= 20; i++)
+            _sampleStatus('$i', text: 'Timeline post number $i'),
+        ],
+        hasMore: false,
+      );
+
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(800, 600);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: TimelineScreen(
+              app: app,
+              timelineType: TimelineType.home,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable =
+          tester.state<ScrollableState>(find.byType(Scrollable).first);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pumpAndSettle();
+      expect(scrollable.position.pixels, greaterThan(500));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.pumpAndSettle();
+      expect(scrollable.position.pixels, closeTo(0.0, 0.5));
+      expect(find.text('Timeline post number 1'), findsOneWidget);
+    });
   });
 }

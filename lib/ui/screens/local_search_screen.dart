@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
+import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/status_card.dart';
 
@@ -27,6 +28,7 @@ class LocalSearchScreen extends StatefulWidget {
 
 class _LocalSearchScreenState extends State<LocalSearchScreen> {
   final TextEditingController _queryController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   late final StatusActionHandler _actions;
   List<MastodonStatus> _results = const [];
 
@@ -45,11 +47,32 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
   }
 
   bool _handleKeyEvent(KeyEvent event) {
-    if (!mounted || event is! KeyDownEvent) return false;
+    if (!mounted || (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
+      return false;
+    }
     if (ModalRoute.of(context)?.isCurrent != true) return false;
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape && event is KeyDownEvent) {
       Navigator.of(context).maybePop();
       return true;
+    }
+    if (KeyboardNavHelper.hasNoCommandModifiers() &&
+        !HardwareKeyboard.instance.isShiftPressed &&
+        _results.isNotEmpty) {
+      if (key == LogicalKeyboardKey.pageDown) {
+        KeyboardNavHelper.scrollByPage(_scrollController, direction: 1);
+        return true;
+      }
+      if (key == LogicalKeyboardKey.pageUp) {
+        KeyboardNavHelper.scrollByPage(_scrollController, direction: -1);
+        return true;
+      }
+      if (key == LogicalKeyboardKey.home &&
+          event is KeyDownEvent &&
+          !KeyboardNavHelper.isTextInputFocused()) {
+        KeyboardNavHelper.scrollToTop(_scrollController);
+        return true;
+      }
     }
     return false;
   }
@@ -59,6 +82,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _queryController.removeListener(_onQueryChanged);
     _queryController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -127,6 +151,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
                   ),
                 )
               : ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.only(top: 6, bottom: 32),
                   itemCount: _results.length,
                   itemBuilder: (context, index) {

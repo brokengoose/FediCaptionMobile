@@ -1224,6 +1224,8 @@
   "shortcutsSectionNavigation": "Post Navigation",
   "shortcutsNextPost": "Next post",
   "shortcutsPreviousPost": "Previous post",
+  "shortcutsScrollPage": "Scroll up / down one page",
+  "shortcutsScrollToTop": "Jump to top of list",
   "shortcutsOpenPost": "Open selected post / thread",
   "shortcutsEscape": "Go back or close viewer",
   "shortcutsSectionActions": "Selected Post Actions",

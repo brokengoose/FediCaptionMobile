@@ -2828,6 +2828,18 @@ abstract class AppLocalizations {
   /// **'Previous post'**
   String get shortcutsPreviousPost;
 
+  /// No description provided for @shortcutsScrollPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll up / down one page'**
+  String get shortcutsScrollPage;
+
+  /// No description provided for @shortcutsScrollToTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to top of list'**
+  String get shortcutsScrollToTop;
+
   /// No description provided for @shortcutsOpenPost.
   ///
   /// In en, this message translates to:

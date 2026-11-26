@@ -6,8 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/html_utils.dart';
 import '../../core/media_utils.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/time_utils.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/model_localizations.dart';
 import '../../models/app_settings.dart';
@@ -15,10 +17,15 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../../state/composer_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
+import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_tip.dart';
 import '../widgets/bias_review_sheet.dart';
 import '../widgets/composer_attachment_tile.dart';
+import '../widgets/linkified_text.dart';
+import '../widgets/media_attachment_card.dart';
 import '../widgets/missing_alt_text_dialog.dart';
+import '../widgets/quoted_status_card.dart';
+import '../widgets/status_header_parts.dart';
 
 /// Post composer for creating new posts, replying, and editing own posts.
 /// Implements automatic AI alt-text scanning, dynamic instance character/media limits,
@@ -264,36 +271,11 @@ class _ComposerScreenState extends State<ComposerScreen> {
                     child: LinearProgressIndicator(),
                   ),
 
-                // Reply context banner
+                // Full post being replied to
                 if (widget.replyToStatus != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withAlpha(115),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: fedi.cardBorder),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.composerReplyingTo(
-                            widget.replyToStatus!.displayStatus.account.handle,
-                          ),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.replyToStatus!.displayStatus.plainText,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
+                  _ReplyContextCard(
+                    app: widget.app,
+                    status: widget.replyToStatus!,
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -512,6 +494,198 @@ class _ComposerScreenState extends State<ComposerScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Renders the entire Mastodon post being replied to (author header,
+/// Content Warning, quoted post if present, full body, and media attachments)
+/// above the composer input area.
+class _ReplyContextCard extends StatefulWidget {
+  const _ReplyContextCard({
+    required this.app,
+    required this.status,
+  });
+
+  final AppController app;
+  final MastodonStatus status;
+
+  @override
+  State<_ReplyContextCard> createState() => _ReplyContextCardState();
+}
+
+class _ReplyContextCardState extends State<_ReplyContextCard> {
+  late final StatusActionHandler _actions = StatusActionHandler(app: widget.app);
+  bool _cwRevealed = true;
+  LeadingQuoteMatch? _leadingQuote;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncQuoteResolution();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReplyContextCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldTarget = oldWidget.status.displayStatus;
+    final newTarget = widget.status.displayStatus;
+    if (oldTarget.id != newTarget.id ||
+        oldTarget.contentHtml != newTarget.contentHtml) {
+      _syncQuoteResolution();
+    }
+  }
+
+  void _syncQuoteResolution() {
+    final target = widget.status.displayStatus;
+    _leadingQuote = HtmlUtils.extractLeadingQuote(target.contentHtml);
+    final quoteUrl = _leadingQuote?.quoteUrl;
+    if (target.quotedStatus == null &&
+        quoteUrl != null &&
+        !widget.app.hasResolvedQuote(quoteUrl) &&
+        !widget.app.isResolvingQuote(quoteUrl)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.app.resolveQuotedStatus(quoteUrl);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fedi = context.fediColors;
+    final l10n = context.l10n;
+    final target = widget.status.displayStatus;
+    final hasCw = target.spoilerText.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: fedi.isHighContrast
+            ? scheme.surface
+            : scheme.surfaceContainerHighest.withAlpha(115),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: fedi.cardBorder,
+          width: fedi.isHighContrast ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.reply, size: 16, color: scheme.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.composerReplyingTo(target.account.handle),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          StatusAuthorHeader(
+            status: target,
+            onOpenProfile: (acc) => _actions.openProfile(context, acc),
+          ),
+          const SizedBox(height: 8),
+          if (hasCw) ...[
+            ContentWarningBanner(
+              spoilerText: target.spoilerText,
+              revealed: _cwRevealed,
+              onToggle: () => setState(() => _cwRevealed = !_cwRevealed),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (!hasCw || _cwRevealed) ...[
+            ListenableBuilder(
+              listenable: widget.app.quoteCache,
+              builder: (context, _) {
+                final quoteMatch = _leadingQuote;
+                final quoteUrl = quoteMatch?.quoteUrl;
+                final embeddedQuote = target.quotedStatus ??
+                    (quoteUrl != null
+                        ? widget.app.cachedQuotedStatus(quoteUrl)
+                        : null);
+                final isLoadingQuote = target.quotedStatus == null &&
+                    quoteUrl != null &&
+                    (widget.app.isResolvingQuote(quoteUrl) ||
+                        !widget.app.hasResolvedQuote(quoteUrl));
+                final hasQuoteWindow =
+                    target.quotedStatus != null || quoteUrl != null;
+
+                final bodyHtml = quoteMatch != null
+                    ? quoteMatch.remainingHtml
+                    : target.contentHtml;
+                final bodyPlainText = HtmlUtils.htmlToPlainText(bodyHtml);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (hasQuoteWindow)
+                      QuotedStatusCard(
+                        app: widget.app,
+                        quotedStatus: embeddedQuote,
+                        quoteUrl: quoteUrl,
+                        isLoading: isLoadingQuote,
+                        onOpenProfile: (acc) =>
+                            _actions.openProfile(context, acc),
+                        onOpenThread: (st) => _actions.openThread(context, st),
+                        onRetry: quoteUrl != null
+                            ? () => widget.app.resolveQuotedStatus(
+                                  quoteUrl,
+                                  forceRetry: true,
+                                )
+                            : null,
+                      ),
+                    if (hasQuoteWindow && bodyPlainText.isNotEmpty)
+                      const SizedBox(height: 6),
+                    if (bodyPlainText.isNotEmpty)
+                      LinkifiedText.html(
+                        bodyHtml,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        mentions: target.mentions,
+                        onTapMention: (mention) => _actions.openProfile(
+                          context,
+                          mention.toStubAccount(),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            if (target.editedAt != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  l10n.statusEditedAt(
+                    TimeUtils.formatRelativeCompact(
+                      target.editedAt!,
+                      l10n: l10n,
+                    ),
+                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: fedi.subtleText),
+                ),
+              ),
+            for (final media in target.mediaAttachments)
+              MediaAttachmentCard(
+                attachment: media,
+                app: widget.app,
+                postContext: target.plainText,
+              ),
+          ],
+        ],
+      ),
     );
   }
 }

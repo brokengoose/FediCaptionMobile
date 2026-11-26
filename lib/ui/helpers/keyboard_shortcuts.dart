@@ -69,6 +69,42 @@ class KeyboardNavHelper {
     );
   }
 
+  /// Scrolls [controller] by approximately one viewport page (90% of viewport
+  /// height for reading continuity). Pass `direction: 1` for Page Down or `-1`
+  /// for Page Up.
+  static void scrollByPage(
+    ScrollController controller, {
+    required int direction,
+  }) {
+    if (!controller.hasClients) return;
+    final pos = controller.position;
+    if (!pos.hasViewportDimension || pos.viewportDimension <= 0) return;
+    final pageStep =
+        (pos.viewportDimension * 0.9).clamp(120.0, pos.viewportDimension);
+    final target = (pos.pixels + direction * pageStep).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    if ((target - pos.pixels).abs() < 0.5) return;
+    controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// Smoothly scrolls [controller] to the top of the list (`minScrollExtent`).
+  static void scrollToTop(ScrollController controller) {
+    if (!controller.hasClients) return;
+    final pos = controller.position;
+    if ((pos.pixels - pos.minScrollExtent).abs() < 0.5) return;
+    controller.animateTo(
+      pos.minScrollExtent,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   /// Shared dispatcher for standard Mastodon post-list keyboard shortcuts.
   /// Returns `true` if [event] was handled.
   static bool handleStatusFeedKeyEvent(
@@ -76,6 +112,9 @@ class KeyboardNavHelper {
     required bool Function() isActive,
     VoidCallback? onNext,
     VoidCallback? onPrevious,
+    VoidCallback? onPageDown,
+    VoidCallback? onPageUp,
+    VoidCallback? onScrollToTop,
     VoidCallback? onOpen,
     VoidCallback? onReply,
     VoidCallback? onFavorite,
@@ -135,9 +174,22 @@ class KeyboardNavHelper {
       onPrevious();
       return true;
     }
+    if (key == LogicalKeyboardKey.pageDown && onPageDown != null) {
+      onPageDown();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.pageUp && onPageUp != null) {
+      onPageUp();
+      return true;
+    }
 
     // Single-fire action keys (ignore key-repeat).
     if (event is KeyRepeatEvent) return false;
+
+    if (key == LogicalKeyboardKey.home && onScrollToTop != null) {
+      onScrollToTop();
+      return true;
+    }
 
     if ((key == LogicalKeyboardKey.enter ||
             key == LogicalKeyboardKey.numpadEnter ||
@@ -220,6 +272,8 @@ class KeyboardShortcutsDialog extends StatelessWidget {
               _section(context, l10n.shortcutsSectionNavigation, [
                 (l10n.shortcutsOrKeyCombo('j', '↓'), l10n.shortcutsNextPost),
                 (l10n.shortcutsOrKeyCombo('k', '↑'), l10n.shortcutsPreviousPost),
+                (l10n.shortcutsOrKeyCombo('PgUp', 'PgDn'), l10n.shortcutsScrollPage),
+                ('Home', l10n.shortcutsScrollToTop),
                 (l10n.shortcutsOrKeyCombo('Enter', 'o'), l10n.shortcutsOpenPost),
                 ('Esc', l10n.shortcutsEscape),
               ]),

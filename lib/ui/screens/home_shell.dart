@@ -519,12 +519,7 @@ class _HomeShellState extends State<HomeShell> {
                     ),
                     const VerticalDivider(width: 1),
                     Expanded(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 760),
-                          child: contentColumn,
-                        ),
-                      ),
+                      child: contentColumn,
                     ),
                   ],
                 )

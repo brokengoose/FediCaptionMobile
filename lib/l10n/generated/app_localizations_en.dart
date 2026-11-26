@@ -1843,6 +1843,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcutsPreviousPost => 'Previous post';
 
   @override
+  String get shortcutsScrollPage => 'Scroll up / down one page';
+
+  @override
+  String get shortcutsScrollToTop => 'Jump to top of list';
+
+  @override
   String get shortcutsOpenPost => 'Open selected post / thread';
 
   @override

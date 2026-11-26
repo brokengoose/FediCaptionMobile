@@ -28,6 +28,7 @@ class ThreadScreen extends StatefulWidget {
 }
 
 class _ThreadScreenState extends State<ThreadScreen> {
+  final ScrollController _scrollController = ScrollController();
   late final StatusActionHandler _actions;
   late MastodonStatus _focalStatus;
   List<MastodonStatus> _ancestors = [];
@@ -57,6 +58,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -95,6 +97,16 @@ class _ThreadScreenState extends State<ThreadScreen> {
       isActive: () => mounted && (ModalRoute.of(context)?.isCurrent ?? false),
       onNext: () => _moveSelection(1),
       onPrevious: () => _moveSelection(-1),
+      onPageDown: () =>
+          KeyboardNavHelper.scrollByPage(_scrollController, direction: 1),
+      onPageUp: () =>
+          KeyboardNavHelper.scrollByPage(_scrollController, direction: -1),
+      onScrollToTop: () {
+        if (_allOrderedStatuses.isNotEmpty) {
+          setState(() => _selectedIndex = 0);
+        }
+        KeyboardNavHelper.scrollToTop(_scrollController);
+      },
       onOpen: () {
         final st = _selectedStatus;
         if (st != null) {
@@ -286,6 +298,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
       body: RefreshIndicator(
         onRefresh: _loadContext,
         child: ListView(
+          controller: _scrollController,
           padding: const EdgeInsets.only(top: 6, bottom: 48),
           children: [
             for (var i = 0; i < _ancestors.length; i++)

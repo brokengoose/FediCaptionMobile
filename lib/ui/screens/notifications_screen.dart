@@ -102,6 +102,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       isActive: () => mounted && (ModalRoute.of(context)?.isCurrent ?? false),
       onNext: () => _moveSelection(1),
       onPrevious: () => _moveSelection(-1),
+      onPageDown: () =>
+          KeyboardNavHelper.scrollByPage(_scrollController, direction: 1),
+      onPageUp: () =>
+          KeyboardNavHelper.scrollByPage(_scrollController, direction: -1),
+      onScrollToTop: () {
+        if (_selectedIndex != null && _notifications.isNotEmpty) {
+          setState(() => _selectedIndex = 0);
+        }
+        KeyboardNavHelper.scrollToTop(_scrollController);
+      },
       onOpen: () {
         final item = _selectedNotification;
         if (item == null) return;
