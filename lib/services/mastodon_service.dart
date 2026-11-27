@@ -23,6 +23,20 @@ class MastodonApiException implements Exception {
   String toString() => message;
 }
 
+/// Upload accepted, but the server hadn't finished processing it (typically a
+/// long video) before polling gave up. [mediaId] stays valid, so callers can
+/// retry publishing with it later instead of re-uploading.
+class MediaStillProcessingException extends MastodonApiException {
+  const MediaStillProcessingException(this.mediaId)
+    : super(
+        'The server is still processing this media. '
+        'Wait a moment, then try publishing again.',
+        statusCode: 206,
+      );
+
+  final String mediaId;
+}
+
 /// Client credentials issued when registering FediCaption via `POST /api/v1/apps`.
 class OAuthAppCredentials {
   const OAuthAppCredentials({
@@ -37,12 +51,29 @@ class OAuthAppCredentials {
 /// Complete Mastodon REST API client supporting OAuth 2.0, dynamic instance limits,
 /// timelines, profiles, relationships, media uploads, and editing own posts with alt-text.
 class MastodonService {
-  MastodonService({http.Client? client})
-    : _client = client ?? http.Client(),
-      _ownsClient = client == null;
+  MastodonService({
+    http.Client? client,
+    this._mediaPollBackoff = _defaultMediaPollBackoff,
+    this._mediaPollAttempts = 15,
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null;
 
   final http.Client _client;
   final bool _ownsClient;
+
+  /// Progressive backoff between `GET /api/v1/media/:id` polls while the server
+  /// processes an upload (reduces pressure on Sidekiq video workers); the last
+  /// entry repeats. Injectable so tests don't sleep.
+  static const List<Duration> _defaultMediaPollBackoff = [
+    Duration(milliseconds: 1500),
+    Duration(milliseconds: 2000),
+    Duration(milliseconds: 2500),
+    Duration(milliseconds: 3000),
+    Duration(milliseconds: 4000),
+    Duration(milliseconds: 5000),
+  ];
+  final List<Duration> _mediaPollBackoff;
+  final int _mediaPollAttempts;
 
   static const Duration _profileCacheTtl = Duration(minutes: 3);
   final Map<String, ({MastodonAccount account, DateTime fetchedAt})>
@@ -541,41 +572,39 @@ class MastodonService {
         base: base,
         accessToken: accessToken,
         mediaId: attachment.id,
-        fallback: attachment,
       );
     }
 
     return attachment;
   }
 
+  /// Polls until async media processing finishes. Never returns an
+  /// unprocessed attachment: publishing one fails with Mastodon's 422
+  /// "not finished processing", so callers get a clear error instead.
   Future<MastodonMediaAttachment> _waitForMediaProcessing({
     required String base,
     required String accessToken,
     required String mediaId,
-    required MastodonMediaAttachment fallback,
   }) async {
-    // Progressive backoff reduces polling pressure on Sidekiq video workers.
-    const delaysMs = [1500, 2000, 2500, 3000, 4000, 5000];
-    for (var attempt = 0; attempt < 15; attempt++) {
-      final delayMs =
-          delaysMs[attempt < delaysMs.length ? attempt : delaysMs.length - 1];
-      await Future<void>.delayed(Duration(milliseconds: delayMs));
+    for (var attempt = 0; attempt < _mediaPollAttempts; attempt++) {
+      final delay =
+          _mediaPollBackoff[attempt < _mediaPollBackoff.length
+              ? attempt
+              : _mediaPollBackoff.length - 1];
+      await Future<void>.delayed(delay);
       final res = await _client
           .get(
             Uri.parse('$base/api/v1/media/$mediaId'),
             headers: _authHeaders(accessToken),
           )
           .timeout(const Duration(seconds: 15));
-      if (res.statusCode == 200) {
-        return MastodonMediaAttachment.fromJson(
-          jsonDecode(res.body) as Map<String, dynamic>,
-        );
-      }
-      if (res.statusCode != 206) {
-        break;
-      }
+      if (res.statusCode == 206) continue; // Still processing.
+      _ensureSuccess(res, 'Media processing failed');
+      return MastodonMediaAttachment.fromJson(
+        jsonDecode(res.body) as Map<String, dynamic>,
+      );
     }
-    return fallback;
+    throw MediaStillProcessingException(mediaId);
   }
 
   /// Publishes a new status (`POST /api/v1/statuses`).
@@ -627,7 +656,9 @@ class MastodonService {
       'spoiler_text': (spoilerText ?? '').trim(),
       if (language != null && language.trim().isNotEmpty)
         'language': language.trim(),
-      if (mediaIds.isNotEmpty) 'media_ids': mediaIds,
+      // Always sent on edit: Mastodon only touches attachments when the key
+      // is present, so omitting an empty list would keep removed media.
+      'media_ids': mediaIds,
       if (mediaAttributes.isNotEmpty) 'media_attributes': mediaAttributes,
     };
 

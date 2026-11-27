@@ -15,6 +15,7 @@ import '../models/bias_models.dart';
 import '../models/composer_attachment.dart';
 import '../models/mastodon_models.dart';
 import '../services/image_upload_optimizer.dart';
+import '../services/mastodon_service.dart';
 import '../services/video_frame_extractor.dart';
 import 'app_controller.dart';
 
@@ -537,19 +538,27 @@ class ComposerController extends ChangeNotifier {
               prior.description == description) {
             mediaId = prior.id;
           } else {
-            final uploaded = await app.mastodon.uploadMedia(
-              instanceUrl: session.instanceUrl,
+            void remember(String id) => _uploadedMedia[att.localId] = (
+              id: id,
               accessToken: session.accessToken,
               filePath: att.filePath!,
               description: description,
             );
-            mediaId = uploaded.id;
-            _uploadedMedia[att.localId] = (
-              id: mediaId,
-              accessToken: session.accessToken,
-              filePath: att.filePath!,
-              description: description,
-            );
+            try {
+              final uploaded = await app.mastodon.uploadMedia(
+                instanceUrl: session.instanceUrl,
+                accessToken: session.accessToken,
+                filePath: att.filePath!,
+                description: description,
+              );
+              mediaId = uploaded.id;
+              remember(mediaId);
+            } on MediaStillProcessingException catch (e) {
+              // Uploaded but still processing: keep the id so retrying later
+              // publishes it instead of uploading the file again.
+              remember(e.mediaId);
+              rethrow;
+            }
           }
           mediaIds.add(mediaId);
           mediaAttributes.add({'id': mediaId, 'description': description});
