@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/accessibility_announcer.dart';
 import '../../core/html_utils.dart';
 import '../../core/media_utils.dart';
 import '../../core/theme/app_theme.dart';
@@ -51,6 +52,7 @@ class ComposerScreen extends StatefulWidget {
 class _ComposerScreenState extends State<ComposerScreen> {
   late final ComposerController _controller;
   final ImagePicker _imagePicker = ImagePicker();
+  bool _confirmingDiscard = false;
 
   @override
   void initState() {
@@ -86,49 +88,105 @@ class _ComposerScreenState extends State<ComposerScreen> {
       return true;
     }
     if (key == LogicalKeyboardKey.escape && !_controller.isPublishing) {
-      Navigator.of(context).maybePop();
+      unawaited(Navigator.of(context).maybePop());
       return true;
     }
     return false;
   }
 
+  void _showPickerError(Object error) {
+    if (!mounted) return;
+    final detail = error is PlatformException
+        ? (error.message ?? error.code)
+        : error.toString();
+    final msg = context.l10n.composerErrorPickMedia(detail);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    AccessibilityAnnouncer.announce(msg);
+  }
+
+  Future<void> _confirmAndPop() async {
+    if (_confirmingDiscard || !mounted) return;
+    _confirmingDiscard = true;
+    try {
+      final l10n = context.l10n;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            _controller.isEditing
+                ? l10n.composerDiscardEditTitle
+                : l10n.composerDiscardDraftTitle,
+          ),
+          content: Text(l10n.composerDiscardDraftBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(l10n.composerKeepEditing),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(l10n.composerDiscard),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      _confirmingDiscard = false;
+    }
+  }
+
   Future<void> _pickPhoto(ImageSource source) async {
-    final file = await _imagePicker.pickImage(
-      source: source,
-      maxWidth: 2048,
-      maxHeight: 2048,
-      imageQuality: 85,
-    );
-    if (file == null) return;
-    await _controller.addLocalMedia(filePath: file.path, isVideo: false);
+    try {
+      final file = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+      await _controller.addLocalMedia(filePath: file.path, isVideo: false);
+    } catch (e) {
+      _showPickerError(e);
+    }
   }
 
   Future<void> _pickVideo(ImageSource source) async {
-    final file = await _imagePicker.pickVideo(source: source);
-    if (file == null) return;
-    await _controller.addLocalMedia(filePath: file.path, isVideo: true);
+    try {
+      final file = await _imagePicker.pickVideo(source: source);
+      if (file == null) return;
+      await _controller.addLocalMedia(filePath: file.path, isVideo: true);
+    } catch (e) {
+      _showPickerError(e);
+    }
   }
 
   Future<void> _pickFromFiles() async {
-    final picked = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: const [
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'gif',
-        'mp4',
-        'mov',
-        'webm',
-      ],
-    );
-    final path = picked?.path;
-    if (path == null || path.isEmpty) return;
-    await _controller.addLocalMedia(
-      filePath: path,
-      isVideo: MediaUtils.isVideoFilePath(path),
-    );
+    try {
+      final picked = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const [
+          'jpg',
+          'jpeg',
+          'png',
+          'webp',
+          'gif',
+          'mp4',
+          'mov',
+          'webm',
+        ],
+      );
+      final path = picked?.path;
+      if (path == null || path.isEmpty) return;
+      await _controller.addLocalMedia(
+        filePath: path,
+        isVideo: MediaUtils.isVideoFilePath(path),
+      );
+    } catch (e) {
+      _showPickerError(e);
+    }
   }
 
   /// Complete pre-post publishing flow:
@@ -245,258 +303,273 @@ class _ComposerScreenState extends State<ComposerScreen> {
                   ? l10n.composerSaveChanges
                   : l10n.composerPublish);
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              _controller.isEditing
-                  ? l10n.composerTitleEdit
-                  : (_controller.isReply
-                        ? l10n.composerTitleReply
-                        : l10n.composerTitleNew),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: AccessibleTip(
-                  message: _controller.isEditing
-                      ? l10n.composerEditSubmitTip(submitShortcut)
-                      : l10n.composerPublishSubmitTip(submitShortcut),
-                  child: FilledButton(
-                    onPressed: _controller.canSubmit ? _handleSubmit : null,
-                    child: Text(submitLabel),
-                  ),
-                ),
+        return PopScope(
+          canPop: !_controller.hasUnsavedChanges && !_controller.isPublishing,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop || _controller.isPublishing || _confirmingDiscard) {
+              return;
+            }
+            unawaited(_confirmAndPop());
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(
+                _controller.isEditing
+                    ? l10n.composerTitleEdit
+                    : (_controller.isReply
+                          ? l10n.composerTitleReply
+                          : l10n.composerTitleNew),
               ),
-            ],
-          ),
-          body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_controller.isLoadingSource)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: LinearProgressIndicator(),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
                   ),
-
-                // Full post being replied to
-                if (widget.replyToStatus != null) ...[
-                  _ReplyContextCard(
-                    app: widget.app,
-                    status: widget.replyToStatus!,
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                if (_controller.errorMessage != null) ...[
-                  Semantics(
-                    liveRegion: true,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        _controller.errorMessage!,
-                        style: TextStyle(color: scheme.onErrorContainer),
-                      ),
+                  child: AccessibleTip(
+                    message: _controller.isEditing
+                        ? l10n.composerEditSubmitTip(submitShortcut)
+                        : l10n.composerPublishSubmitTip(submitShortcut),
+                    child: FilledButton(
+                      onPressed: _controller.canSubmit ? _handleSubmit : null,
+                      child: Text(submitLabel),
                     ),
-                  ),
-                ],
-
-                // Content Warning toggle & input
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l10n.composerCwSwitchTitle),
-                  subtitle: Text(l10n.composerCwSwitchSubtitle),
-                  value: _controller.showContentWarning,
-                  onChanged: _controller.toggleContentWarning,
-                ),
-                if (_controller.showContentWarning) ...[
-                  TextField(
-                    controller: _controller.spoilerController,
-                    decoration: InputDecoration(
-                      labelText: l10n.composerCwLabel,
-                      hintText: l10n.composerCwHint,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Main post body
-                TextField(
-                  controller: _controller.textController,
-                  maxLines: 8,
-                  minLines: 4,
-                  decoration: InputDecoration(
-                    labelText: l10n.composerBodyLabel,
-                    hintText: l10n.composerBodyHint,
-                    alignLabelWithHint: true,
                   ),
                 ),
-
-                const SizedBox(height: 8),
-
-                // Live dynamic server character counter (includes body + CW)
-                Row(
-                  children: [
-                    Semantics(
-                      liveRegion: overLimit,
-                      label: l10n.composerCharsRemainingSemantics(
-                        remaining,
-                        limits.maxCharacters,
-                      ),
-                      child: Text(
-                        l10n.composerCharsCounter(
-                          _controller.usedCharacters,
-                          limits.maxCharacters,
-                          remaining,
-                        ),
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: overLimit ? scheme.error : fedi.subtleText,
-                              fontWeight: overLimit
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                      ),
+              ],
+            ),
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (_controller.isLoadingSource)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(),
                     ),
-                    const Spacer(),
-                    if (_controller.isCheckingBias || _controller.isPublishing)
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
+
+                  // Full post being replied to
+                  if (widget.replyToStatus != null) ...[
+                    _ReplyContextCard(
+                      app: widget.app,
+                      status: widget.replyToStatus!,
+                    ),
+                    const SizedBox(height: 12),
                   ],
-                ),
 
-                const SizedBox(height: 14),
-
-                // Visibility selector (when creating new post / reply)
-                if (!_controller.isEditing) ...[
-                  DropdownButtonFormField<PostVisibility>(
-                    key: ValueKey(_controller.visibility),
-                    initialValue: _controller.visibility,
-                    decoration: InputDecoration(
-                      labelText: l10n.composerVisibilityLabel,
+                  if (_controller.errorMessage != null) ...[
+                    Semantics(
+                      liveRegion: true,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: scheme.errorContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _controller.errorMessage!,
+                          style: TextStyle(color: scheme.onErrorContainer),
+                        ),
+                      ),
                     ),
-                    items: PostVisibility.values
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v,
-                            child: Text(
-                              l10n.composerVisibilityItem(
-                                v.localizedLabel(l10n),
-                                v.localizedDescription(l10n),
+                  ],
+
+                  // Content Warning toggle & input
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.composerCwSwitchTitle),
+                    subtitle: Text(l10n.composerCwSwitchSubtitle),
+                    value: _controller.showContentWarning,
+                    onChanged: _controller.toggleContentWarning,
+                  ),
+                  if (_controller.showContentWarning) ...[
+                    TextField(
+                      controller: _controller.spoilerController,
+                      decoration: InputDecoration(
+                        labelText: l10n.composerCwLabel,
+                        hintText: l10n.composerCwHint,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Main post body
+                  TextField(
+                    controller: _controller.textController,
+                    maxLines: 8,
+                    minLines: 4,
+                    decoration: InputDecoration(
+                      labelText: l10n.composerBodyLabel,
+                      hintText: l10n.composerBodyHint,
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Live dynamic server character counter (includes body + CW)
+                  Row(
+                    children: [
+                      Semantics(
+                        liveRegion: overLimit,
+                        label: l10n.composerCharsRemainingSemantics(
+                          remaining,
+                          limits.maxCharacters,
+                        ),
+                        child: Text(
+                          l10n.composerCharsCounter(
+                            _controller.usedCharacters,
+                            limits.maxCharacters,
+                            remaining,
+                          ),
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: overLimit
+                                    ? scheme.error
+                                    : fedi.subtleText,
+                                fontWeight: overLimit
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_controller.isCheckingBias ||
+                          _controller.isPublishing)
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Visibility selector (when creating new post / reply)
+                  if (!_controller.isEditing) ...[
+                    DropdownButtonFormField<PostVisibility>(
+                      key: ValueKey(_controller.visibility),
+                      initialValue: _controller.visibility,
+                      decoration: InputDecoration(
+                        labelText: l10n.composerVisibilityLabel,
+                      ),
+                      items: PostVisibility.values
+                          .map(
+                            (v) => DropdownMenuItem(
+                              value: v,
+                              child: Text(
+                                l10n.composerVisibilityItem(
+                                  v.localizedLabel(l10n),
+                                  v.localizedDescription(l10n),
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (next) {
-                      if (next != null) _controller.setVisibility(next);
-                    },
-                    isExpanded: true,
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
-                // Attach Media toolbar
-                Semantics(
-                  header: true,
-                  child: Text(
-                    l10n.composerAttachmentsHeader(
-                      _controller.attachments.length,
-                      limits.maxMediaAttachments,
+                          )
+                          .toList(),
+                      onChanged: (next) {
+                        if (next != null) _controller.setVisibility(next);
+                      },
+                      isExpanded: true,
                     ),
-                    style: Theme.of(context).textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Attach Media toolbar
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      l10n.composerAttachmentsHeader(
+                        _controller.attachments.length,
+                        limits.maxMediaAttachments,
+                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (Theme.of(context).platform == TargetPlatform.iOS ||
-                        Theme.of(context).platform == TargetPlatform.android)
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (Theme.of(context).platform == TargetPlatform.iOS ||
+                          Theme.of(context).platform == TargetPlatform.android)
+                        AccessibleTip(
+                          message: l10n.composerCameraTip,
+                          child: OutlinedButton.icon(
+                            onPressed: _controller.canAddMoreMedia
+                                ? () => _pickPhoto(ImageSource.camera)
+                                : null,
+                            icon: const Icon(Icons.photo_camera),
+                            label: Text(l10n.composerCameraLabel),
+                          ),
+                        ),
                       AccessibleTip(
-                        message: l10n.composerCameraTip,
+                        message: l10n.composerPhotoLibraryTip,
                         child: OutlinedButton.icon(
                           onPressed: _controller.canAddMoreMedia
-                              ? () => _pickPhoto(ImageSource.camera)
+                              ? () => _pickPhoto(ImageSource.gallery)
                               : null,
-                          icon: const Icon(Icons.photo_camera),
-                          label: Text(l10n.composerCameraLabel),
+                          icon: const Icon(Icons.photo_library),
+                          label: Text(l10n.composerPhotoLibraryLabel),
                         ),
                       ),
-                    AccessibleTip(
-                      message: l10n.composerPhotoLibraryTip,
-                      child: OutlinedButton.icon(
-                        onPressed: _controller.canAddMoreMedia
-                            ? () => _pickPhoto(ImageSource.gallery)
-                            : null,
-                        icon: const Icon(Icons.photo_library),
-                        label: Text(l10n.composerPhotoLibraryLabel),
-                      ),
-                    ),
-                    AccessibleTip(
-                      message: l10n.composerVideoTip,
-                      child: OutlinedButton.icon(
-                        onPressed: _controller.canAddMoreMedia
-                            ? () => _pickVideo(ImageSource.gallery)
-                            : null,
-                        icon: const Icon(Icons.video_library),
-                        label: Text(l10n.composerVideoLabel),
-                      ),
-                    ),
-                    AccessibleTip(
-                      message: l10n.composerFilePickerTip,
-                      child: OutlinedButton.icon(
-                        onPressed: _controller.canAddMoreMedia
-                            ? _pickFromFiles
-                            : null,
-                        icon: const Icon(Icons.attach_file),
-                        label: Text(l10n.composerFilePickerLabel),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // Per-attachment controls & AI alt-text editors
-                for (var i = 0; i < _controller.attachments.length; i++)
-                  ComposerAttachmentTile(
-                    key: ValueKey(_controller.attachments[i].localId),
-                    index: i,
-                    attachment: _controller.attachments[i],
-                    maxAltTextLength: limits.altTextLimit,
-                    language: widget.app.settings.language,
-                    tts: widget.app.tts,
-                    aiEnabled: widget.app.settings.isAiEnabled,
-                    ttsSpeechRate: widget.app.settings.ttsSpeechRate,
-                    onAltTextChanged: (text) =>
-                        _controller.updateAttachmentAltText(
-                          _controller.attachments[i].localId,
-                          text,
+                      AccessibleTip(
+                        message: l10n.composerVideoTip,
+                        child: OutlinedButton.icon(
+                          onPressed: _controller.canAddMoreMedia
+                              ? () => _pickVideo(ImageSource.gallery)
+                              : null,
+                          icon: const Icon(Icons.video_library),
+                          label: Text(l10n.composerVideoLabel),
                         ),
-                    onDetailLevelChanged: (level) =>
-                        _controller.updateAttachmentDetailLevel(
-                          _controller.attachments[i].localId,
-                          level,
+                      ),
+                      AccessibleTip(
+                        message: l10n.composerFilePickerTip,
+                        child: OutlinedButton.icon(
+                          onPressed: _controller.canAddMoreMedia
+                              ? _pickFromFiles
+                              : null,
+                          icon: const Icon(Icons.attach_file),
+                          label: Text(l10n.composerFilePickerLabel),
                         ),
-                    onRescan: () => _controller.scanAttachmentWithAi(
-                      _controller.attachments[i].localId,
-                    ),
-                    onRemove: () => _controller.removeAttachment(
-                      _controller.attachments[i].localId,
-                    ),
+                      ),
+                    ],
                   ),
-              ],
+
+                  const SizedBox(height: 8),
+
+                  // Per-attachment controls & AI alt-text editors
+                  for (var i = 0; i < _controller.attachments.length; i++)
+                    ComposerAttachmentTile(
+                      key: ValueKey(_controller.attachments[i].localId),
+                      index: i,
+                      attachment: _controller.attachments[i],
+                      maxAltTextLength: limits.altTextLimit,
+                      language: widget.app.settings.language,
+                      tts: widget.app.tts,
+                      aiEnabled: widget.app.settings.isAiEnabled,
+                      ttsSpeechRate: widget.app.settings.ttsSpeechRate,
+                      onAltTextChanged: (text) =>
+                          _controller.updateAttachmentAltText(
+                            _controller.attachments[i].localId,
+                            text,
+                          ),
+                      onDetailLevelChanged: (level) =>
+                          _controller.updateAttachmentDetailLevel(
+                            _controller.attachments[i].localId,
+                            level,
+                          ),
+                      onRescan: () => _controller.scanAttachmentWithAi(
+                        _controller.attachments[i].localId,
+                      ),
+                      onRemove: () => _controller.removeAttachment(
+                        _controller.attachments[i].localId,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );

@@ -98,6 +98,23 @@ class QuoteCacheController extends ChangeNotifier {
     }
   }
 
+  /// Removes any cached quote entry matching [targetId] so deleted posts are
+  /// not kept in the quote-resolution cache.
+  void removeStatus(String targetId) {
+    var removed = false;
+    for (final key in _cache.keys.toList()) {
+      final cached = _cache[key];
+      if (cached != null &&
+          (cached.id == targetId || cached.displayStatus.id == targetId)) {
+        _cache.remove(key);
+        removed = true;
+      }
+    }
+    if (removed) {
+      _safeNotify();
+    }
+  }
+
   bool _seedSingle(MastodonStatus status) {
     var changed = false;
     for (final candidate in [status.permalinkUrl, status.uri]) {

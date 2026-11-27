@@ -247,18 +247,55 @@ class TimelineCacheController extends ChangeNotifier {
     if (anyChanged) _safeNotify();
   }
 
+  static MastodonStatus _stripDeletedQuote(
+    MastodonStatus existing,
+    String targetId,
+  ) {
+    var current = existing;
+    if (existing.reblog != null) {
+      final nextReblog = _stripDeletedQuote(existing.reblog!, targetId);
+      if (!identical(nextReblog, existing.reblog)) {
+        current = current.copyWith(reblog: nextReblog);
+      }
+    }
+    final q = current.quotedStatus;
+    if (q != null) {
+      if (q.id == targetId || q.displayStatus.id == targetId) {
+        current = current.copyWith(clearQuotedStatus: true);
+      } else {
+        final nextQuoted = _stripDeletedQuote(q, targetId);
+        if (!identical(nextQuoted, q)) {
+          current = current.copyWith(quotedStatus: nextQuoted);
+        }
+      }
+    }
+    return current;
+  }
+
   /// Removes a deleted status across every cached timeline and drops
-  /// notifications that point at it.
+  /// notifications that point at it, and clears deleted embedded quotes.
   void removeStatusEverywhere(String targetId) {
     bool matches(MastodonStatus s) =>
         s.id == targetId || s.displayStatus.id == targetId;
     var changed = false;
     for (final entry in _timelines.entries.toList()) {
-      final filtered = entry.value.statuses.where((s) => !matches(s)).toList();
-      if (filtered.length != entry.value.statuses.length) {
+      var listChanged = false;
+      final updated = <MastodonStatus>[];
+      for (final s in entry.value.statuses) {
+        if (matches(s)) {
+          listChanged = true;
+          continue;
+        }
+        final stripped = _stripDeletedQuote(s, targetId);
+        if (!identical(stripped, s)) {
+          listChanged = true;
+        }
+        updated.add(stripped);
+      }
+      if (listChanged) {
         changed = true;
         _timelines[entry.key] = CachedTimelinePage(
-          statuses: filtered,
+          statuses: List<MastodonStatus>.unmodifiable(updated),
           fetchedAt: entry.value.fetchedAt,
           hasMore: entry.value.hasMore,
         );
@@ -266,13 +303,28 @@ class TimelineCacheController extends ChangeNotifier {
     }
     final notifs = _notifications;
     if (notifs != null) {
-      final filtered = notifs.notifications
-          .where((n) => n.status == null || !matches(n.status!))
-          .toList();
-      if (filtered.length != notifs.notifications.length) {
+      var notifChanged = false;
+      final updatedNotifs = <MastodonNotification>[];
+      for (final n in notifs.notifications) {
+        final st = n.status;
+        if (st != null && matches(st)) {
+          notifChanged = true;
+          continue;
+        }
+        if (st != null) {
+          final stripped = _stripDeletedQuote(st, targetId);
+          if (!identical(stripped, st)) {
+            notifChanged = true;
+            updatedNotifs.add(n.copyWith(status: stripped));
+            continue;
+          }
+        }
+        updatedNotifs.add(n);
+      }
+      if (notifChanged) {
         changed = true;
         _notifications = CachedNotificationsPage(
-          notifications: List<MastodonNotification>.unmodifiable(filtered),
+          notifications: List<MastodonNotification>.unmodifiable(updatedNotifs),
           fetchedAt: notifs.fetchedAt,
           hasMore: notifs.hasMore,
         );

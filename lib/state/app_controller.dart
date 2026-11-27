@@ -904,6 +904,13 @@ class AppController extends ChangeNotifier {
     quoteCache.updateStatus(target);
   }
 
+  /// Removes a deleted status across cached timelines, notifications, embedded
+  /// quotes, and the quote-resolution cache.
+  void removeStatusEverywhere(String targetId) {
+    timelineCache.removeStatusEverywhere(targetId);
+    quoteCache.removeStatus(targetId);
+  }
+
   String _buildOAuthLandingHtml() {
     final loc = l10n;
     final locale = effectiveLocale;

@@ -325,6 +325,7 @@ class MastodonStatus {
     int? repliesCount,
     MastodonStatus? reblog,
     MastodonStatus? quotedStatus,
+    bool clearQuotedStatus = false,
     String? contentHtml,
     String? spoilerText,
     List<MastodonMediaAttachment>? mediaAttachments,
@@ -353,7 +354,9 @@ class MastodonStatus {
       mediaAttachments: mediaAttachments ?? this.mediaAttachments,
       mentions: mentions ?? this.mentions,
       reblog: reblog ?? this.reblog,
-      quotedStatus: quotedStatus ?? this.quotedStatus,
+      quotedStatus: clearQuotedStatus
+          ? null
+          : (quotedStatus ?? this.quotedStatus),
       editedAt: editedAt ?? this.editedAt,
     );
   }

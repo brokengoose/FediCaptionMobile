@@ -69,8 +69,9 @@ class WindowsTlsTrust {
       // Continue to Layer 2 CryptoAPI fallback even if channel fails.
     }
 
-    // Layer 2: Synchronous CryptoAPI SSL chain verification fallback (handles
-    // Windows Auto-Root Update, AIA intermediate fetches, and corporate/AV CAs).
+    // Layer 2: Synchronous CryptoAPI SSL chain verification fallback using
+    // local/cached stores and certificates (cache-only to avoid blocking the
+    // UI isolate on AIA/CRL network fetches).
     try {
       final lib = DynamicLibrary.executable();
       final alloc = lib.lookupFunction<_AllocNative, _AllocDart>(

@@ -1032,6 +1032,18 @@
     }
   },
   "composerErrorNotSignedIn": "Not signed in to Mastodon.",
+  "composerErrorPickMedia": "Could not attach media: {error}",
+  "@composerErrorPickMedia": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "composerDiscardDraftTitle": "Discard draft?",
+  "composerDiscardEditTitle": "Discard edits?",
+  "composerDiscardDraftBody": "Your unsaved post changes will be lost.",
+  "composerKeepEditing": "Keep Editing",
+  "composerDiscard": "Discard",
+  "composerAttachmentMetadataWarning": "Original file kept — EXIF/location metadata could not be stripped automatically.",
   "composerAnnounceScanningVideo": "AI scanning video attachment {index}.",
   "@composerAnnounceScanningVideo": {
     "placeholders": {

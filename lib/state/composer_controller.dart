@@ -67,9 +67,26 @@ class ComposerController extends ChangeNotifier {
           .toList();
     }
 
+    _captureInitialSnapshot();
     textController.addListener(_safeNotify);
     spoilerController.addListener(_safeNotify);
   }
+
+  late String _initialText;
+  late String _initialSpoiler;
+  late PostVisibility _initialVisibility;
+  late String _initialAttachmentSignature;
+
+  void _captureInitialSnapshot() {
+    _initialText = textController.text;
+    _initialSpoiler = spoilerController.text;
+    _initialVisibility = _visibility;
+    _initialAttachmentSignature = _attachmentSignature();
+  }
+
+  String _attachmentSignature() => _attachments
+      .map((a) => '${a.remoteMediaId ?? a.localId}:${a.altText}')
+      .join('|');
 
   final AppController app;
   final MastodonStatus? replyToStatus;
@@ -137,6 +154,25 @@ class ComposerController extends ChangeNotifier {
   bool get hasAnyScanningAttachment =>
       _attachments.any((a) => a.status == AttachmentStatus.scanning);
 
+  /// True when the user has entered or modified content beyond the initial
+  /// composer state (used to guard against accidental draft loss on Back/Esc).
+  bool get hasUnsavedChanges {
+    if (isEditing) {
+      return textController.text != _initialText ||
+          spoilerController.text != _initialSpoiler ||
+          _visibility != _initialVisibility ||
+          _attachmentSignature() != _initialAttachmentSignature;
+    }
+    if (isReply) {
+      return textController.text.trim() != _initialText.trim() ||
+          spoilerController.text.trim() != _initialSpoiler.trim() ||
+          _attachments.isNotEmpty;
+    }
+    return textController.text.trim().isNotEmpty ||
+        spoilerController.text.trim().isNotEmpty ||
+        _attachments.isNotEmpty;
+  }
+
   List<ComposerAttachment> get attachmentsMissingAltText =>
       _attachments.where((a) => !a.hasAltText).toList();
 
@@ -169,6 +205,7 @@ class ComposerController extends ChangeNotifier {
         spoilerController.text = source.spoilerText;
         _showContentWarning = true;
       }
+      _captureInitialSnapshot();
     } catch (e) {
       _errorMessage = app.l10n.composerErrorFallbackEditSource(e.toString());
     } finally {
@@ -215,6 +252,7 @@ class ComposerController extends ChangeNotifier {
     final fileName = p.basename(filePath);
     var effectivePath = filePath;
     var mimeType = MediaUtils.guessMimeType(filePath, isVideo: isVideo);
+    var metadataNotStripped = false;
 
     if (!isVideo) {
       final optimized = await _imageOptimizer.optimizeFile(
@@ -229,6 +267,7 @@ class ComposerController extends ChangeNotifier {
       }
       effectivePath = optimized.filePath;
       mimeType = optimized.mimeType;
+      metadataNotStripped = optimized.decodeFailed;
       if (optimized.isTempFile) {
         _tempOptimizedFiles.add(effectivePath);
       }
@@ -246,6 +285,7 @@ class ComposerController extends ChangeNotifier {
       status: shouldAutoScan
           ? AttachmentStatus.scanning
           : AttachmentStatus.missingAltText,
+      metadataNotStripped: metadataNotStripped,
     );
 
     _attachments = [..._attachments, initial];

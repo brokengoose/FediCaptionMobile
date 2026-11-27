@@ -3,10 +3,26 @@
 
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
+
+/// Outcome of attempting to optimize and strip metadata from an image file.
+enum ImageOptimizationStatus {
+  /// Re-encoded in memory with EXIF/GPS/XMP metadata removed.
+  optimized,
+
+  /// Multi-frame animated image preserved untouched to avoid dropping frames.
+  preservedAnimated,
+
+  /// File could not be decoded (e.g. unsupported format such as HEIC or
+  /// corrupt bytes), so the original file is kept intact with any metadata.
+  decodeFailed,
+
+  /// Source file did not exist or had 0 bytes.
+  emptyOrMissing,
+}
 
 /// Result of optimizing a local image before uploading to Mastodon or sending
 /// to an AI provider.
@@ -17,6 +33,7 @@ class OptimizedImageFile {
     required this.isTempFile,
     required this.originalByteCount,
     required this.optimizedByteCount,
+    this.status = ImageOptimizationStatus.optimized,
   });
 
   final String filePath;
@@ -24,6 +41,13 @@ class OptimizedImageFile {
   final bool isTempFile;
   final int originalByteCount;
   final int optimizedByteCount;
+  final ImageOptimizationStatus status;
+
+  /// True when the image was re-encoded without EXIF/GPS/XMP metadata.
+  bool get metadataStripped => status == ImageOptimizationStatus.optimized;
+
+  /// True when decoding failed and the original file was kept with metadata.
+  bool get decodeFailed => status == ImageOptimizationStatus.decodeFailed;
 }
 
 /// Pure in-memory encoded output produced by [ImageUploadOptimizer.optimizeBytes].
@@ -59,72 +83,163 @@ class ImageUploadOptimizer {
   /// JPEG quality (1–100) for opaque photos.
   final int jpegQuality;
 
-  /// Optimizes [sourcePath] in a background isolate and writes a clean,
-  /// EXIF-free temp file. Animated GIFs and undecodable files fall back
-  /// gracefully to the original [sourcePath].
+  /// Optimizes [sourcePath] (reading, decoding, resizing, and re-encoding in a
+  /// background isolate) and writes a clean, EXIF-free temp file. Animated
+  /// GIFs/WebPs are preserved untouched, and undecodable files report
+  /// [ImageOptimizationStatus.decodeFailed] so callers can warn the user.
   Future<OptimizedImageFile> optimizeFile(
     String sourcePath, {
     required String fallbackMimeType,
   }) async {
-    final file = File(sourcePath);
-    if (!await file.exists()) {
-      return OptimizedImageFile(
-        filePath: sourcePath,
-        mimeType: fallbackMimeType,
-        isTempFile: false,
-        originalByteCount: 0,
-        optimizedByteCount: 0,
-      );
-    }
-
-    final rawBytes = await file.readAsBytes();
-    final originalSize = rawBytes.length;
-    if (originalSize == 0) {
-      return OptimizedImageFile(
-        filePath: sourcePath,
-        mimeType: fallbackMimeType,
-        isTempFile: false,
-        originalByteCount: 0,
-        optimizedByteCount: 0,
-      );
-    }
-
     final maxDim = maxDimension;
     final quality = jpegQuality;
+    final tempDirPath = Directory.systemTemp.path;
 
-    OptimizedImageBytes? optimized;
+    ({OptimizedImageFile result, String? failureDetail}) outcome;
     try {
-      optimized = await Isolate.run(
-        () =>
-            optimizeBytes(rawBytes, maxDimension: maxDim, jpegQuality: quality),
+      outcome = await Isolate.run(
+        () => _optimizeFileSync(
+          sourcePath: sourcePath,
+          fallbackMimeType: fallbackMimeType,
+          maxDimension: maxDim,
+          jpegQuality: quality,
+          tempDirPath: tempDirPath,
+        ),
       );
-    } catch (_) {
-      optimized = null;
-    }
-
-    if (optimized == null) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('ImageUploadOptimizer isolate failure ($sourcePath): $e');
+      }
       return OptimizedImageFile(
         filePath: sourcePath,
         mimeType: fallbackMimeType,
         isTempFile: false,
-        originalByteCount: originalSize,
-        optimizedByteCount: originalSize,
+        originalByteCount: 0,
+        optimizedByteCount: 0,
+        status: ImageOptimizationStatus.decodeFailed,
       );
     }
 
+    if (kDebugMode && outcome.failureDetail != null) {
+      debugPrint(
+        'ImageUploadOptimizer could not strip metadata from $sourcePath: '
+        '${outcome.failureDetail}',
+      );
+    }
+    return outcome.result;
+  }
+
+  static ({OptimizedImageFile result, String? failureDetail})
+  _optimizeFileSync({
+    required String sourcePath,
+    required String fallbackMimeType,
+    required int maxDimension,
+    required int jpegQuality,
+    required String tempDirPath,
+  }) {
+    final file = File(sourcePath);
+    if (!file.existsSync()) {
+      return (
+        result: OptimizedImageFile(
+          filePath: sourcePath,
+          mimeType: fallbackMimeType,
+          isTempFile: false,
+          originalByteCount: 0,
+          optimizedByteCount: 0,
+          status: ImageOptimizationStatus.emptyOrMissing,
+        ),
+        failureDetail: null,
+      );
+    }
+
+    Uint8List rawBytes;
+    try {
+      rawBytes = file.readAsBytesSync();
+    } catch (e) {
+      return (
+        result: OptimizedImageFile(
+          filePath: sourcePath,
+          mimeType: fallbackMimeType,
+          isTempFile: false,
+          originalByteCount: 0,
+          optimizedByteCount: 0,
+          status: ImageOptimizationStatus.decodeFailed,
+        ),
+        failureDetail: e.toString(),
+      );
+    }
+
+    final originalSize = rawBytes.length;
+    if (originalSize == 0) {
+      return (
+        result: OptimizedImageFile(
+          filePath: sourcePath,
+          mimeType: fallbackMimeType,
+          isTempFile: false,
+          originalByteCount: 0,
+          optimizedByteCount: 0,
+          status: ImageOptimizationStatus.emptyOrMissing,
+        ),
+        failureDetail: null,
+      );
+    }
+
+    img.Image? decoded;
+    String? decodeError;
+    try {
+      decoded = img.decodeImage(rawBytes);
+    } catch (e) {
+      decodeError = e.toString();
+    }
+    if (decoded == null) {
+      return (
+        result: OptimizedImageFile(
+          filePath: sourcePath,
+          mimeType: fallbackMimeType,
+          isTempFile: false,
+          originalByteCount: originalSize,
+          optimizedByteCount: originalSize,
+          status: ImageOptimizationStatus.decodeFailed,
+        ),
+        failureDetail: decodeError ?? 'Unsupported image format',
+      );
+    }
+
+    if (decoded.numFrames > 1) {
+      return (
+        result: OptimizedImageFile(
+          filePath: sourcePath,
+          mimeType: fallbackMimeType,
+          isTempFile: false,
+          originalByteCount: originalSize,
+          optimizedByteCount: originalSize,
+          status: ImageOptimizationStatus.preservedAnimated,
+        ),
+        failureDetail: null,
+      );
+    }
+
+    final optimized = _optimizeDecoded(
+      decoded,
+      maxDimension: maxDimension,
+      jpegQuality: jpegQuality,
+    );
     final stamp = DateTime.now().microsecondsSinceEpoch;
     final outPath = p.join(
-      Directory.systemTemp.path,
+      tempDirPath,
       'fedicaption_opt_$stamp.${optimized.extension}',
     );
-    await File(outPath).writeAsBytes(optimized.bytes, flush: true);
+    File(outPath).writeAsBytesSync(optimized.bytes, flush: true);
 
-    return OptimizedImageFile(
-      filePath: outPath,
-      mimeType: optimized.mimeType,
-      isTempFile: true,
-      originalByteCount: originalSize,
-      optimizedByteCount: optimized.bytes.length,
+    return (
+      result: OptimizedImageFile(
+        filePath: outPath,
+        mimeType: optimized.mimeType,
+        isTempFile: true,
+        originalByteCount: originalSize,
+        optimizedByteCount: optimized.bytes.length,
+      ),
+      failureDetail: null,
     );
   }
 
@@ -145,6 +260,18 @@ class ImageUploadOptimizer {
     // Preserve animated GIF/WebP/APNG files untouched so animation isn't lost.
     if (decoded.numFrames > 1) return null;
 
+    return _optimizeDecoded(
+      decoded,
+      maxDimension: maxDimension,
+      jpegQuality: jpegQuality,
+    );
+  }
+
+  static OptimizedImageBytes _optimizeDecoded(
+    img.Image decoded, {
+    required int maxDimension,
+    required int jpegQuality,
+  }) {
     // Bake EXIF orientation into pixels before stripping metadata.
     var processed = img.bakeOrientation(decoded);
 

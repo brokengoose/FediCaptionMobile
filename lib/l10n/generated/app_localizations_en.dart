@@ -1546,6 +1546,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get composerErrorNotSignedIn => 'Not signed in to Mastodon.';
 
   @override
+  String composerErrorPickMedia(String error) {
+    return 'Could not attach media: $error';
+  }
+
+  @override
+  String get composerDiscardDraftTitle => 'Discard draft?';
+
+  @override
+  String get composerDiscardEditTitle => 'Discard edits?';
+
+  @override
+  String get composerDiscardDraftBody =>
+      'Your unsaved post changes will be lost.';
+
+  @override
+  String get composerKeepEditing => 'Keep Editing';
+
+  @override
+  String get composerDiscard => 'Discard';
+
+  @override
+  String get composerAttachmentMetadataWarning =>
+      'Original file kept — EXIF/location metadata could not be stripped automatically.';
+
+  @override
   String composerAnnounceScanningVideo(int index) {
     return 'AI scanning video attachment $index.';
   }
