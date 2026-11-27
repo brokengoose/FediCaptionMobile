@@ -166,7 +166,10 @@ class MastodonService {
   }
 
   /// Queries dynamic server limits from `GET /api/v2/instance` with fallback to `GET /api/v1/instance`.
-  Future<InstanceLimits> fetchInstanceLimits({
+  ///
+  /// Returns `null` when neither endpoint could be read, so callers can fall
+  /// back to defaults without mistaking them for the server's real limits.
+  Future<InstanceLimits?> fetchInstanceLimits({
     required String instanceUrl,
     String? accessToken,
   }) async {
@@ -187,7 +190,7 @@ class MastodonService {
         // Try fallback endpoint.
       }
     }
-    return const InstanceLimits();
+    return null;
   }
 
   /// Fetches statuses for any supported [TimelineType] with optional `maxId`

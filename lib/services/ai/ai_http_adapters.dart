@@ -74,7 +74,7 @@ class AiHttpAdapters {
         ? model.substring('models/'.length)
         : model;
     final uri = Uri.parse(
-      '${AppConstants.geminiBaseUrl}/models/$cleanModel:generateContent?key=${Uri.encodeQueryComponent(key)}',
+      '${AppConstants.geminiBaseUrl}/models/$cleanModel:generateContent',
     );
 
     final parts = <Map<String, dynamic>>[
@@ -109,7 +109,12 @@ class AiHttpAdapters {
     final res = await _client
         .post(
           uri,
-          headers: const {'Content-Type': 'application/json'},
+          // Key goes in a header, never the URL: http.ClientException
+          // stringifies the URI, and those messages are shown in the UI.
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key,
+          },
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 60));

@@ -273,7 +273,18 @@ class AppController extends ChangeNotifier {
           _instanceLimits = limits;
         } catch (e) {
           _activeAccountKey = target.key;
-          _authError = l10n.authErrorExpiredSession(e.toString());
+          if (_isAuthRejection(e)) {
+            _authError = l10n.authErrorExpiredSession(e.toString());
+          } else {
+            // Network/server trouble (offline, timeout, 5xx) is not an expired
+            // session: stay signed in with the stored profile so the timeline
+            // can show its own error + retry instead of bouncing to login.
+            _session = target.session;
+            _currentAccount = _accountFromStored(target);
+            _instanceLimits =
+                await storage.loadCachedInstanceLimits(target.instanceUrl) ??
+                    const InstanceLimits();
+          }
         }
       } else {
         final savedSession = await storage.loadSession();
@@ -318,6 +329,22 @@ class AppController extends ChangeNotifier {
     refreshModelsFor(_settings.activeProvider);
   }
 
+  /// True when the server explicitly rejected the stored token.
+  static bool _isAuthRejection(Object error) =>
+      error is MastodonApiException &&
+      (error.statusCode == 401 || error.statusCode == 403);
+
+  /// Minimal offline stand-in for the signed-in account, built from the
+  /// profile fields persisted with each [StoredAccount].
+  static MastodonAccount _accountFromStored(StoredAccount stored) =>
+      MastodonAccount(
+        id: stored.accountId,
+        username: stored.username,
+        acct: stored.acct,
+        displayName: stored.displayName,
+        avatar: stored.avatar,
+      );
+
   Future<InstanceLimits> _loadOrFetchInstanceLimits({
     required String instanceUrl,
     required String accessToken,
@@ -328,6 +355,9 @@ class AppController extends ChangeNotifier {
       instanceUrl: instanceUrl,
       accessToken: accessToken,
     );
+    // Never cache the defaults used when the server couldn't be reached;
+    // otherwise one failed fetch would pin the wrong limits for the whole TTL.
+    if (fetched == null) return const InstanceLimits();
     await storage.saveCachedInstanceLimits(instanceUrl, fetched);
     return fetched;
   }

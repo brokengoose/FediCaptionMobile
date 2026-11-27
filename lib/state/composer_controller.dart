@@ -86,6 +86,17 @@ class ComposerController extends ChangeNotifier {
   String _language = '';
   List<ComposerAttachment> _attachments = [];
 
+  /// Media already uploaded during an earlier (failed) publish attempt,
+  /// keyed by attachment `localId`.
+  final Map<
+      String,
+      ({
+        String id,
+        String accessToken,
+        String filePath,
+        String description,
+      })> _uploadedMedia = {};
+
   bool _isLoadingSource = false;
   bool _isCheckingBias = false;
   bool _isPublishing = false;
@@ -365,7 +376,7 @@ class ComposerController extends ChangeNotifier {
       );
 
       AccessibilityAnnouncer.announce(
-        loc.composerAnnounceAltReady(index + 1),
+        loc.composerAnnounceAltReady(_positionOf(localId, index)),
       );
     } catch (e) {
       final latest = _findAttachment(localId);
@@ -378,9 +389,16 @@ class ComposerController extends ChangeNotifier {
         ),
       );
       AccessibilityAnnouncer.announce(
-        loc.composerAnnounceAltError(index + 1),
+        loc.composerAnnounceAltError(_positionOf(localId, index)),
       );
     }
+  }
+
+  /// 1-based position of [localId] for announcements, re-resolved after async
+  /// work so removing an earlier attachment doesn't misnumber the result.
+  int _positionOf(String localId, int fallbackIndex) {
+    final i = _attachments.indexWhere((a) => a.localId == localId);
+    return (i >= 0 ? i : fallbackIndex) + 1;
   }
 
   /// Auto-generates alt-text for all attachments that currently lack alt-text.
@@ -521,17 +539,34 @@ class ComposerController extends ChangeNotifier {
             'description': att.altText.trim(),
           });
         } else if (att.filePath != null) {
-          final uploaded = await app.mastodon.uploadMedia(
-            instanceUrl: session.instanceUrl,
-            accessToken: session.accessToken,
-            filePath: att.filePath!,
-            description: att.altText.trim(),
-          );
-          mediaIds.add(uploaded.id);
-          mediaAttributes.add({
-            'id': uploaded.id,
-            'description': att.altText.trim(),
-          });
+          final description = att.altText.trim();
+          // Reuse an upload from a previous failed publish attempt so a retry
+          // doesn't re-send the file and orphan the first upload. Alt-text
+          // edits since then invalidate it (upload description would be stale).
+          final prior = _uploadedMedia[att.localId];
+          final String mediaId;
+          if (prior != null &&
+              prior.accessToken == session.accessToken &&
+              prior.filePath == att.filePath &&
+              prior.description == description) {
+            mediaId = prior.id;
+          } else {
+            final uploaded = await app.mastodon.uploadMedia(
+              instanceUrl: session.instanceUrl,
+              accessToken: session.accessToken,
+              filePath: att.filePath!,
+              description: description,
+            );
+            mediaId = uploaded.id;
+            _uploadedMedia[att.localId] = (
+              id: mediaId,
+              accessToken: session.accessToken,
+              filePath: att.filePath!,
+              description: description,
+            );
+          }
+          mediaIds.add(mediaId);
+          mediaAttributes.add({'id': mediaId, 'description': description});
         }
       }
 

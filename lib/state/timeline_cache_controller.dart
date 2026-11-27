@@ -214,19 +214,35 @@ class TimelineCacheController extends ChangeNotifier {
     if (anyChanged) _safeNotify();
   }
 
-  /// Removes a deleted status across every cached timeline.
+  /// Removes a deleted status across every cached timeline and drops
+  /// notifications that point at it.
   void removeStatusEverywhere(String targetId) {
+    bool matches(MastodonStatus s) =>
+        s.id == targetId || s.displayStatus.id == targetId;
     var changed = false;
     for (final entry in _timelines.entries.toList()) {
-      final filtered = entry.value.statuses
-          .where((s) => s.id != targetId && s.displayStatus.id != targetId)
-          .toList();
+      final filtered =
+          entry.value.statuses.where((s) => !matches(s)).toList();
       if (filtered.length != entry.value.statuses.length) {
         changed = true;
         _timelines[entry.key] = CachedTimelinePage(
           statuses: filtered,
           fetchedAt: entry.value.fetchedAt,
           hasMore: entry.value.hasMore,
+        );
+      }
+    }
+    final notifs = _notifications;
+    if (notifs != null) {
+      final filtered = notifs.notifications
+          .where((n) => n.status == null || !matches(n.status!))
+          .toList();
+      if (filtered.length != notifs.notifications.length) {
+        changed = true;
+        _notifications = CachedNotificationsPage(
+          notifications: List<MastodonNotification>.unmodifiable(filtered),
+          fetchedAt: notifs.fetchedAt,
+          hasMore: notifs.hasMore,
         );
       }
     }

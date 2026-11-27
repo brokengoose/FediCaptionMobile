@@ -4,6 +4,7 @@
 import 'dart:convert';
 
 import '../core/html_utils.dart';
+import '../core/json_coerce.dart';
 import '../core/language/bias_language_pack.dart';
 import '../core/language/language_pack_registry.dart';
 import '../core/language/language_registry.dart';
@@ -299,16 +300,17 @@ class BiasCheckService {
     final cleaned = _extractJsonObject(rawJson);
     final decoded = jsonDecode(cleaned) as Map<String, dynamic>;
 
-    final rawFindings = (decoded['findings'] as List<dynamic>?) ?? const [];
+    final rawFindings = jsonList(decoded['findings']);
     final findings = rawFindings
         .whereType<Map<String, dynamic>>()
         .map(BiasFinding.fromJson)
         .where((f) => f.explanation.trim().isNotEmpty)
         .toList();
 
-    final hasBias = (decoded['has_bias'] as bool? ?? false) || findings.isNotEmpty;
-    final summary = (decoded['summary'] as String?)?.trim();
-    final suggested = (decoded['suggested_alternate_wording'] as String?)?.trim();
+    final hasBias = jsonBool(decoded['has_bias']) || findings.isNotEmpty;
+    final summary = jsonString(decoded['summary'])?.trim();
+    final suggested =
+        jsonString(decoded['suggested_alternate_wording'])?.trim();
 
     return BiasCheckResult(
       hasBias: hasBias,

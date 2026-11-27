@@ -144,9 +144,12 @@ class AiModelCatalog {
     if (trimmed.isEmpty) return const [];
 
     final uri = Uri.parse(
-      '${AppConstants.geminiBaseUrl}/models?key=${Uri.encodeQueryComponent(trimmed)}',
+      '${AppConstants.geminiBaseUrl}/models',
     );
-    final res = await _client.get(uri).timeout(const Duration(seconds: 12));
+    // Key in a header so it can't leak via exception messages that include the URI.
+    final res = await _client
+        .get(uri, headers: {'x-goog-api-key': trimmed})
+        .timeout(const Duration(seconds: 12));
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw AiProviderException('Gemini models error (${res.statusCode})');
     }
