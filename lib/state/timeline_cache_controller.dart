@@ -144,31 +144,74 @@ class TimelineCacheController extends ChangeNotifier {
     return capped;
   }
 
+  static MastodonStatus _replaceStatusIn(
+    MastodonStatus existing,
+    MastodonStatus updatedTarget,
+  ) {
+    if (existing.id == updatedTarget.id) {
+      return updatedTarget;
+    }
+    var current = existing;
+    if (existing.reblog != null) {
+      final nextReblog = _replaceStatusIn(existing.reblog!, updatedTarget);
+      if (!identical(nextReblog, existing.reblog)) {
+        current = current.copyWith(reblog: nextReblog);
+      }
+    }
+    if (existing.quotedStatus != null) {
+      final nextQuoted =
+          _replaceStatusIn(existing.quotedStatus!, updatedTarget);
+      if (!identical(nextQuoted, existing.quotedStatus)) {
+        current = current.copyWith(quotedStatus: nextQuoted);
+      }
+    }
+    return current;
+  }
+
   /// Updates a mutated status (boost/favorite/bookmark/edit) across every
-  /// cached timeline without requiring any server refetch.
+  /// cached timeline and notification without requiring a server refetch.
   void updateStatusEverywhere(MastodonStatus updatedTarget) {
-    var changed = false;
+    final target = updatedTarget.displayStatus;
+    var anyChanged = false;
     for (final entry in _timelines.entries.toList()) {
+      var timelineChanged = false;
       final updatedList = entry.value.statuses.map((s) {
-        if (s.id == updatedTarget.id) {
-          changed = true;
-          return updatedTarget;
+        final next = _replaceStatusIn(s, target);
+        if (!identical(next, s)) {
+          timelineChanged = true;
         }
-        if (s.reblog?.id == updatedTarget.id) {
-          changed = true;
-          return s.copyWith(reblog: updatedTarget);
-        }
-        return s;
+        return next;
       }).toList();
-      if (changed) {
+      if (timelineChanged) {
+        anyChanged = true;
         _timelines[entry.key] = CachedTimelinePage(
-          statuses: updatedList,
+          statuses: _capStatuses(updatedList),
           fetchedAt: entry.value.fetchedAt,
           hasMore: entry.value.hasMore,
         );
       }
     }
-    if (changed) _safeNotify();
+    if (_notifications != null) {
+      var notifChanged = false;
+      final updatedNotifs = _notifications!.notifications.map((n) {
+        if (n.status == null) return n;
+        final nextStatus = _replaceStatusIn(n.status!, target);
+        if (!identical(nextStatus, n.status)) {
+          notifChanged = true;
+          return n.copyWith(status: nextStatus);
+        }
+        return n;
+      }).toList();
+      if (notifChanged) {
+        anyChanged = true;
+        _notifications = CachedNotificationsPage(
+          notifications: List<MastodonNotification>.unmodifiable(updatedNotifs),
+          fetchedAt: _notifications!.fetchedAt,
+          hasMore: _notifications!.hasMore,
+        );
+      }
+    }
+    if (anyChanged) _safeNotify();
   }
 
   /// Removes a deleted status across every cached timeline.

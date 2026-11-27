@@ -48,6 +48,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void initState() {
     super.initState();
     _actions = StatusActionHandler(app: widget.app);
+    widget.app.timelineCache.addListener(_onTimelineCacheChanged);
     _scrollController.addListener(_onScroll);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _loadOrUseCache();
@@ -56,8 +57,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    widget.app.timelineCache.removeListener(_onTimelineCacheChanged);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onTimelineCacheChanged() {
+    if (!mounted) return;
+    final cached = widget.app.timelineCache.notifications;
+    if (cached != null && !identical(cached.notifications, _notifications)) {
+      setState(() {
+        _notifications = cached.notifications;
+        _hasMore = cached.hasMore;
+      });
+    }
   }
 
   GlobalKey _keyForNotification(String id) =>

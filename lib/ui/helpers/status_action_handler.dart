@@ -22,17 +22,25 @@ class StatusActionHandler {
 
   final AppController app;
 
-  /// Replaces a status (or wrapped boosted status) inside [list] after an action or edit.
+  /// Replaces a status (or wrapped boosted/quoted status) inside [list] after an action or edit.
   static List<MastodonStatus> replaceInList(
     List<MastodonStatus> list,
     MastodonStatus updatedTarget,
   ) {
+    final target = updatedTarget.displayStatus;
     return list.map((s) {
-      if (s.id == updatedTarget.id) return updatedTarget;
-      if (s.reblog?.id == updatedTarget.id) {
-        return s.copyWith(reblog: updatedTarget);
+      if (s.id == target.id) return target;
+      var updated = s;
+      if (s.reblog?.id == target.id) {
+        updated = updated.copyWith(reblog: target);
       }
-      return s;
+      if (s.quotedStatus?.displayStatus.id == target.id) {
+        final nextQuote = s.quotedStatus!.isBoost
+            ? s.quotedStatus!.copyWith(reblog: target)
+            : target;
+        updated = updated.copyWith(quotedStatus: nextQuote);
+      }
+      return updated;
     }).toList();
   }
 

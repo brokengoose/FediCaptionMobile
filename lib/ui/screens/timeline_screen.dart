@@ -50,6 +50,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     _actions = StatusActionHandler(app: widget.app);
     _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
     widget.app.addListener(_onAppChanged);
+    widget.app.timelineCache.addListener(_onTimelineCacheChanged);
     _scrollController.addListener(_onScroll);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _loadOrUseCache();
@@ -182,6 +183,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
     if (widget.app.timelineRefreshNonce != _lastSeenRefreshNonce) {
       _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
       _refreshIncremental(silentAnnouncement: true);
+    }
+  }
+
+  void _onTimelineCacheChanged() {
+    if (!mounted) return;
+    final cached = widget.app.timelineCache.timelineFor(widget.timelineType);
+    if (cached != null && !identical(cached.statuses, _statuses)) {
+      setState(() {
+        _statuses = cached.statuses;
+        _hasMore = cached.hasMore;
+      });
     }
   }
 
@@ -387,6 +399,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    widget.app.timelineCache.removeListener(_onTimelineCacheChanged);
     widget.app.removeListener(_onAppChanged);
     _scrollController.dispose();
     super.dispose();
@@ -483,7 +496,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
               onToggleBoost: _toggleBoost,
               onToggleFavorite: _toggleFavorite,
               onToggleBookmark: _toggleBookmark,
-              onEdit: (st) => _actions.openEdit(context, st),
+              onEdit: (st) async {
+                final edited = await _actions.openEdit(context, st);
+                if (edited != null) _replaceStatus(edited.displayStatus);
+              },
               onDelete: _deleteStatus,
             ),
           );

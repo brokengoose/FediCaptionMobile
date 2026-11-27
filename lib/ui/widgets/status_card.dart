@@ -119,7 +119,11 @@ class _StatusCardState extends State<StatusCard> {
     final statusChanged =
         oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
             oldWidget.status.displayStatus.contentHtml !=
-                widget.status.displayStatus.contentHtml;
+                widget.status.displayStatus.contentHtml ||
+            oldWidget.status.displayStatus.spoilerText !=
+                widget.status.displayStatus.spoilerText ||
+            oldWidget.status.displayStatus.editedAt !=
+                widget.status.displayStatus.editedAt;
     if (oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
         (oldWidget.enableReadAloud && !widget.enableReadAloud)) {
       final oldKey = 'post_full_${oldWidget.status.displayStatus.id}';

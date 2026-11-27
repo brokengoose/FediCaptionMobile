@@ -4,16 +4,21 @@
 import 'dart:async';
 
 import 'package:edge_gen_ai/edge_gen_ai.dart';
+import 'package:fedicaption_mobile/app.dart';
 import 'package:fedicaption_mobile/core/theme/app_theme.dart';
 import 'package:fedicaption_mobile/models/ai_models.dart';
 import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/bias_models.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
+import 'package:fedicaption_mobile/models/update_info.dart';
 import 'package:fedicaption_mobile/services/on_device_ai_service.dart';
+import 'package:fedicaption_mobile/services/storage_service.dart';
+import 'package:fedicaption_mobile/services/update_check_service.dart';
 import 'package:fedicaption_mobile/state/app_controller.dart';
 import 'package:fedicaption_mobile/ui/helpers/status_action_handler.dart';
 import 'package:fedicaption_mobile/ui/screens/ai_setup_screen.dart';
 import 'package:fedicaption_mobile/ui/screens/image_viewer_screen.dart';
+import 'package:fedicaption_mobile/ui/screens/login_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/bias_review_sheet.dart';
 import 'package:fedicaption_mobile/ui/widgets/cached_network_image_provider.dart';
 import 'package:fedicaption_mobile/ui/widgets/linkified_text.dart';
@@ -44,6 +49,36 @@ class _FakeOnDeviceAiService extends OnDeviceAiService {
     }
     return status;
   }
+}
+
+class _InMemoryStorageService extends StorageService {
+  AppSettings _settings = const AppSettings();
+  AiCredentials _credentials = const AiCredentials();
+
+  @override
+  Future<AppSettings> loadSettings() async => _settings;
+
+  @override
+  Future<void> saveSettings(AppSettings settings) async {
+    _settings = settings;
+  }
+
+  @override
+  Future<AiCredentials> loadAiCredentials() async => _credentials;
+
+  @override
+  Future<void> saveAiCredentials(AiCredentials creds) async {
+    _credentials = creds;
+  }
+
+  @override
+  Future<MastodonSession?> loadSession() async => null;
+}
+
+class _NoOpUpdateCheckService extends UpdateCheckService {
+  @override
+  Future<UpdateInfo?> checkForUpdate({String currentVersion = ''}) async =>
+      null;
 }
 
 void main() {
@@ -269,6 +304,31 @@ void main() {
       expect(controller.settings.activeProvider, AiProviderType.none);
       expect(find.text('No AI Selected'), findsOneWidget);
       expect(find.text('Continue with No AI'), findsOneWidget);
+    });
+
+    testWidgets(
+        'FediCaptionApp shows AI setup first, then Mastodon login after completion',
+        (tester) async {
+      final controller = AppController(
+        storageService: _InMemoryStorageService(),
+        onDeviceAiService: _FakeOnDeviceAiService(),
+        updateCheckService: _NoOpUpdateCheckService(),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(FediCaptionApp(controller: controller));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AiSetupScreen), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+
+      await tester.ensureVisible(find.text('Save AI Settings & Continue'));
+      await tester.tap(find.text('Save AI Settings & Continue'));
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.aiSetupCompleted, isTrue);
+      expect(find.byType(AiSetupScreen), findsNothing);
+      expect(find.byType(LoginScreen), findsOneWidget);
     });
   });
 

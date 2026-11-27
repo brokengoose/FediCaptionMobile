@@ -30,7 +30,7 @@
 - **On-Demand Timeline Descriptions & Full-Post Read Aloud**: Clearly displays `ALT TEXT PROVIDED` vs `NO ALT TEXT` on timeline and quoted posts with **Describe with AI** / **Re-Describe with AI** and per-media **Read Aloud**. Opening any individual post (`ThreadScreen`) also shows a top-of-post **Read Aloud** button that reads the Content Warning, post text, all media alt-text descriptions (AI / translated / author), and embedded quoted posts together.
 
 ### 2. Supported AI Providers & Smart First-Time Setup Wizard
-- Guided first-time **AI Setup Wizard** shown right after signing in to Mastodon automatically probes whether OS on-device AI is available or downloadable on the current device — defaulting to **On-Device AI** when supported (e.g. eligible iPhone, Pixel/Samsung, or Apple Silicon Mac) and **No AI** otherwise (e.g. Intel Macs, Windows, Linux, or unsupported hardware), while allowing manual switching to any provider:
+- Guided first-time **AI Setup Wizard** shown on first launch before Mastodon account setup automatically probes whether OS on-device AI is available or downloadable on the current device — defaulting to **On-Device AI** when supported (e.g. eligible iPhone, Pixel/Samsung, or Apple Silicon Mac) and **No AI** otherwise (e.g. Intel Macs, Windows, Linux, or unsupported hardware), while allowing manual switching to any provider:
   - **On-Device AI** *(zero network calls)* via `edge_gen_ai`:
     - **Apple Foundation Models (Apple Intelligence)** on iOS 26+/27+ and Apple Silicon macOS 26+
     - **Google Gemini Nano** via ML Kit GenAI & Android AICore on Pixel 8+ and supported Samsung flagships (with R8 ProGuard keep rules and in-app model download provisioning)

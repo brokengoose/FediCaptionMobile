@@ -143,7 +143,7 @@ class AppController extends ChangeNotifier {
   bool get isAuthenticating => _isAuthenticating;
   String? get authError => _authError;
   bool get isAuthenticated => _session != null && _currentAccount != null;
-  bool get needsAiSetup => isAuthenticated && !_settings.aiSetupCompleted;
+  bool get needsAiSetup => !_settings.aiSetupCompleted;
 
   MastodonSession? get session => _session;
   MastodonAccount? get currentAccount => _currentAccount;
@@ -636,6 +636,14 @@ class AppController extends ChangeNotifier {
     timelineCache.markAllStale();
     _timelineRefreshNonce++;
     _safeNotify();
+  }
+
+  /// Propagates a newly edited status immediately across timeline,
+  /// notification, and quote caches so stale pre-edit text is replaced.
+  void applyEditedStatus(MastodonStatus updated) {
+    final target = updated.displayStatus;
+    timelineCache.updateStatusEverywhere(target);
+    quoteCache.updateStatus(target);
   }
 
   String _buildOAuthLandingHtml() {

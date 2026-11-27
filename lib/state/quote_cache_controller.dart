@@ -65,6 +65,33 @@ class QuoteCacheController extends ChangeNotifier {
     }
   }
 
+  /// Overwrites any cached quote entry matching [updated] by status ID or
+  /// canonical URL/URI so edited quoted posts show updated content immediately.
+  void updateStatus(MastodonStatus updated) {
+    final target = updated.displayStatus;
+    var changed = false;
+
+    for (final key in _cache.keys.toList()) {
+      final cached = _cache[key];
+      if (cached != null && cached.displayStatus.id == target.id) {
+        _cache[key] = target;
+        changed = true;
+      }
+    }
+
+    for (final candidate in [target.permalinkUrl, target.uri]) {
+      final key = _normalizeKey(candidate);
+      if (key.isNotEmpty && _cache.containsKey(key)) {
+        _cache[key] = target;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      _safeNotify();
+    }
+  }
+
   bool _seedSingle(MastodonStatus status) {
     var changed = false;
     for (final candidate in [status.permalinkUrl, status.uri]) {

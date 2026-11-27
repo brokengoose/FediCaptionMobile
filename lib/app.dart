@@ -57,10 +57,10 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
           supportedLocales: AppLocalizations.supportedLocales,
           home: _app.isInitializing
               ? const _SplashScreen()
-              : (!_app.isAuthenticated
-                  ? LoginScreen(app: _app)
-                  : (_app.needsAiSetup
-                      ? AiSetupScreen(app: _app)
+              : (_app.needsAiSetup
+                  ? AiSetupScreen(app: _app)
+                  : (!_app.isAuthenticated
+                      ? LoginScreen(app: _app)
                       : HomeShell(app: _app))),
         );
       },

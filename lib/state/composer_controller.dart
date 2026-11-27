@@ -562,7 +562,11 @@ class ComposerController extends ChangeNotifier {
         AccessibilityAnnouncer.announce(loc.composerAnnouncePublished);
       }
 
-      app.notifyTimelinesShouldRefresh();
+      if (isEditing) {
+        app.applyEditedStatus(saved.displayStatus);
+      } else {
+        app.notifyTimelinesShouldRefresh();
+      }
       return saved;
     } catch (e) {
       _errorMessage = e.toString();

@@ -497,6 +497,18 @@ class MastodonNotification {
     }
   }
 
+  MastodonNotification copyWith({
+    MastodonStatus? status,
+  }) {
+    return MastodonNotification(
+      id: id,
+      type: type,
+      createdAt: createdAt,
+      account: account,
+      status: status ?? this.status,
+    );
+  }
+
   factory MastodonNotification.fromJson(Map<String, dynamic> json) {
     final rawStatus = json['status'] as Map<String, dynamic>?;
     return MastodonNotification(

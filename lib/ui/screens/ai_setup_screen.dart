@@ -9,7 +9,7 @@ import '../../models/ai_models.dart';
 import '../../state/app_controller.dart';
 import '../widgets/ai_provider_config_section.dart';
 
-/// First-time onboarding screen shown right after the user signs in to Mastodon,
+/// First-time onboarding screen shown on initial launch before Mastodon account setup,
 /// letting them configure an AI provider (on-device, cloud API, local LAN server,
 /// and alphabetically sorted model drop-down) or choose **No AI**.
 class AiSetupScreen extends StatefulWidget {

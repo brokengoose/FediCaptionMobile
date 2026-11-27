@@ -192,7 +192,12 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
                             _onQueryChanged();
                           }
                         },
-                        onEdit: (st) => _actions.openEdit(context, st),
+                        onEdit: (st) async {
+                          final edited = await _actions.openEdit(context, st);
+                          if (edited != null && mounted) {
+                            _onQueryChanged();
+                          }
+                        },
                         onDelete: (st) async {
                           final deleted =
                               await _actions.confirmAndDelete(context, st);
