@@ -41,16 +41,22 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
   }
 
   String? _lastQuery;
+  Timer? _searchDebounce;
+  Timer? _announceDebounce;
 
   void _onQueryChanged() {
     // The controller also notifies on cursor/selection moves; only re-run the
     // (full-cache) search when the text actually changed.
     if (_queryController.text == _lastQuery) return;
-    _refreshResults();
+    _searchDebounce?.cancel();
+    if (_queryController.text.trim().isEmpty) {
+      _refreshResults();
+      _announceDebounce?.cancel();
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 120), _refreshResults);
     _scheduleResultAnnouncement();
   }
-
-  Timer? _announceDebounce;
 
   /// Re-runs the search; safe to call after awaits (no-op once disposed).
   void _refreshResults() {
@@ -108,6 +114,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _searchDebounce?.cancel();
     _announceDebounce?.cancel();
     _queryController.removeListener(_onQueryChanged);
     _queryController.dispose();

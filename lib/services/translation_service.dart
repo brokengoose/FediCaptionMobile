@@ -316,22 +316,16 @@ class TranslationService {
     }
 
     // 3. Fallback on Android (and iOS if Apple Translation was unavailable/failed):
-    //    google_mlkit_translation.
+    //    google_mlkit_translation (reuses one OnDeviceTranslator across fields).
     Object? mlKitError;
     if (_isAndroid || _isIos) {
       try {
-        return await _translateFieldsWithRunner(
+        return await _translatePostWithMlKit(
           text: trimmedText,
           spoilerText: trimmedSpoiler,
           altTexts: cleanedAlts,
           sourceLanguage: src,
           targetLanguage: tgt,
-          engineName: 'ML Kit Translation',
-          translateField: (input) => _runMlKitTranslate(
-            text: input,
-            sourceLanguage: src,
-            targetLanguage: tgt,
-          ),
         );
       } catch (e) {
         mlKitError = e;
@@ -629,16 +623,26 @@ class TranslationService {
     return translated.trim();
   }
 
-  Future<String> _runMlKitTranslate({
+  Future<PostTranslationResult> _translatePostWithMlKit({
     required String text,
+    required String spoilerText,
+    required Map<String, String> altTexts,
     required String sourceLanguage,
     required String targetLanguage,
   }) async {
     if (_mlKitTranslate != null) {
-      return _mlKitTranslate(
+      return _translateFieldsWithRunner(
         text: text,
+        spoilerText: spoilerText,
+        altTexts: altTexts,
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
+        engineName: 'ML Kit Translation',
+        translateField: (input) => _mlKitTranslate(
+          text: input,
+          sourceLanguage: sourceLanguage,
+          targetLanguage: targetLanguage,
+        ),
       );
     }
 
@@ -672,11 +676,21 @@ class TranslationService {
       targetLanguage: tgtLang,
     );
     try {
-      final translated = await translator.translateText(text);
-      if (translated.trim().isEmpty) {
-        throw StateError('ML Kit Translation returned an empty response.');
-      }
-      return translated.trim();
+      return await _translateFieldsWithRunner(
+        text: text,
+        spoilerText: spoilerText,
+        altTexts: altTexts,
+        sourceLanguage: sourceLanguage,
+        targetLanguage: targetLanguage,
+        engineName: 'ML Kit Translation',
+        translateField: (input) async {
+          final translated = await translator.translateText(input);
+          if (translated.trim().isEmpty) {
+            throw StateError('ML Kit Translation returned an empty response.');
+          }
+          return translated.trim();
+        },
+      );
     } finally {
       await translator.close();
     }

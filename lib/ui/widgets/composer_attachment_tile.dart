@@ -356,10 +356,15 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
 
     Widget content;
     if (att.previewBytes != null) {
-      content = Image.memory(att.previewBytes!, fit: BoxFit.cover);
+      content = Image.memory(
+        att.previewBytes!,
+        cacheWidth: 192,
+        fit: BoxFit.cover,
+      );
     } else if (!att.isVideo && att.filePath != null) {
       content = Image.file(
         File(att.filePath!),
+        cacheWidth: 192,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => const Icon(Icons.image_outlined),
       );

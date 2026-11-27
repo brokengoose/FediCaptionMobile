@@ -282,9 +282,14 @@ class _ComposerScreenState extends State<ComposerScreen> {
     final fedi = context.fediColors;
     final l10n = context.l10n;
 
+    final replyContextCard = widget.replyToStatus != null
+        ? _ReplyContextCard(app: widget.app, status: widget.replyToStatus!)
+        : null;
+
     return ListenableBuilder(
       listenable: _controller,
-      builder: (context, _) {
+      child: replyContextCard,
+      builder: (context, replyChild) {
         final remaining = _controller.remainingCharacters;
         final overLimit = _controller.isOverCharacterLimit;
         final limits = _controller.limits;
@@ -348,12 +353,10 @@ class _ComposerScreenState extends State<ComposerScreen> {
                       child: LinearProgressIndicator(),
                     ),
 
-                  // Full post being replied to
-                  if (widget.replyToStatus != null) ...[
-                    _ReplyContextCard(
-                      app: widget.app,
-                      status: widget.replyToStatus!,
-                    ),
+                  // Full post being replied to (passed via ListenableBuilder.child
+                  // so typing doesn't rebuild or re-parse parent post HTML).
+                  if (replyChild != null) ...[
+                    replyChild,
                     const SizedBox(height: 12),
                   ],
 

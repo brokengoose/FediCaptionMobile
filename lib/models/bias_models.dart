@@ -62,13 +62,6 @@ class BiasCheckResult {
 
   /// True when the result came from the deterministic local heuristic fallback.
   final bool usedLocalFallback;
-
-  static const BiasCheckResult clean = BiasCheckResult(
-    hasBias: false,
-    summary: 'No racial or gender bias detected.',
-    checkedComponents: [],
-    findings: [],
-  );
 }
 
 /// Extracted metadata and text excerpt from an external URL in the post.

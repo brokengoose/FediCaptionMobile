@@ -165,18 +165,6 @@ class MediaCacheService {
     _memoryCache.clear();
   }
 
-  Future<void> clearAll() async {
-    _memoryCache.clear();
-    final dir = await _getCacheDirectory();
-    if (dir != null && await dir.exists()) {
-      try {
-        await dir.delete(recursive: true);
-      } catch (_) {
-        // Ignore cleanup failure.
-      }
-    }
-  }
-
   void dispose() {
     if (_ownsClient) {
       _client.close();

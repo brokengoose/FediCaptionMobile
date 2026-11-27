@@ -59,6 +59,8 @@ class TimelineCacheController extends ChangeNotifier {
   final int notificationsPageSize;
 
   final Map<TimelineType, CachedTimelinePage> _timelines = {};
+  final Map<String, ({MastodonStatus status, String haystack})>
+  _searchHaystackCache = {};
   CachedNotificationsPage? _notifications;
   bool _disposed = false;
 
@@ -479,13 +481,23 @@ class TimelineCacheController extends ChangeNotifier {
 
     final matches = <MastodonStatus>[];
     for (final status in uniqueById.values) {
-      final haystack = _buildSearchHaystack(status);
+      final haystack = _cachedSearchHaystack(status);
       if (terms.every(haystack.contains)) {
         matches.add(status);
       }
     }
     matches.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return matches;
+  }
+
+  String _cachedSearchHaystack(MastodonStatus status) {
+    final cached = _searchHaystackCache[status.id];
+    if (cached != null && identical(cached.status, status)) {
+      return cached.haystack;
+    }
+    final haystack = _buildSearchHaystack(status);
+    _searchHaystackCache[status.id] = (status: status, haystack: haystack);
+    return haystack;
   }
 
   static String _buildSearchHaystack(MastodonStatus status) {
@@ -518,6 +530,7 @@ class TimelineCacheController extends ChangeNotifier {
 
   void clear() {
     _timelines.clear();
+    _searchHaystackCache.clear();
     _notifications = null;
     _safeNotify();
   }
@@ -531,6 +544,7 @@ class TimelineCacheController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _searchHaystackCache.clear();
     super.dispose();
   }
 }
