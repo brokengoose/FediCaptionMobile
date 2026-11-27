@@ -14,6 +14,7 @@ import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import '../../services/translation_service.dart';
 import '../../state/app_controller.dart';
+import 'accessible_button_semantics.dart';
 import 'accessible_tip.dart';
 import 'linkified_text.dart';
 import 'media_attachment_card.dart';
@@ -310,7 +311,13 @@ class _StatusCardState extends State<StatusCard> {
     final hasCw = target.spoilerText.trim().isNotEmpty;
     final cwRevealed = widget.cwRevealedOverride ?? _cwRevealed;
 
-    return Card(
+    // Expose keyboard (j/k) selection to screen readers, not just as a border.
+    // `null` when unselected so posts aren't announced as "not selected".
+    return Semantics(
+      container: true,
+      selected: widget.isKeyboardSelected ? true : null,
+      child: Card(
+      semanticContainer: false,
       shape: widget.isKeyboardSelected
           ? RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -329,11 +336,11 @@ class _StatusCardState extends State<StatusCard> {
             if (outer.isBoost)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Semantics(
-                  button: true,
+                child: AccessibleButtonSemantics(
                   label: l10n.statusBoostedSemantics(
                     outer.account.effectiveDisplayName,
                   ),
+                  onTap: () => widget.onOpenProfile(outer.account),
                   child: AccessibleTip(
                     message: l10n.statusBoostedTip(
                       outer.account.effectiveDisplayName,
@@ -401,27 +408,28 @@ class _StatusCardState extends State<StatusCard> {
                   final speechText = _buildPostReadAloudText(l10n);
                   if (speechText.isEmpty) return const SizedBox.shrink();
                   final isSpeaking = widget.app.tts.isSpeakingKey(_postTtsKey);
+                  void toggleReadAloud() => widget.app.tts.toggleSpeak(
+                        key: _postTtsKey,
+                        text: speechText,
+                        languageName: _resolveReadAloudLanguage(),
+                        speechRate: widget.app.settings.ttsSpeechRate,
+                      );
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
-                      child: Semantics(
-                        button: true,
+                      child: AccessibleButtonSemantics(
                         toggled: isSpeaking,
                         label: isSpeaking
                             ? l10n.statusStopReadingPostSemantics
                             : l10n.statusReadAloudPostSemantics,
+                        onTap: toggleReadAloud,
                         child: AccessibleTip(
                           message: isSpeaking
                               ? l10n.statusStopReadingPostTip
                               : l10n.statusReadAloudPostTip,
                           child: FilledButton.tonalIcon(
-                            onPressed: () => widget.app.tts.toggleSpeak(
-                              key: _postTtsKey,
-                              text: speechText,
-                              languageName: _resolveReadAloudLanguage(),
-                              speechRate: widget.app.settings.ttsSpeechRate,
-                            ),
+                            onPressed: toggleReadAloud,
                             icon: Icon(
                               isSpeaking ? Icons.stop : Icons.volume_up,
                               size: 18,
@@ -643,6 +651,7 @@ class _StatusCardState extends State<StatusCard> {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -675,10 +684,10 @@ class _ActionIcon extends StatelessWidget {
         ? (activeColor ?? scheme.primary)
         : (this.color ?? scheme.onSurfaceVariant);
 
-    return Semantics(
-      button: true,
+    return AccessibleButtonSemantics(
       selected: active,
       label: semanticLabel,
+      onTap: onPressed,
       child: AccessibleTip(
         message: semanticLabel,
         child: InkWell(

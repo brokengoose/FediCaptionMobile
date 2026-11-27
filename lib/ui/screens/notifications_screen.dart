@@ -366,8 +366,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
           final isSelected = _selectedIndex == index;
 
-          return Card(
+          return Semantics(
             key: _keyForNotification(item.id),
+            container: true,
+            selected: isSelected ? true : null,
+            child: Card(
+            semanticContainer: false,
             shape: isSelected
                 ? RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -468,6 +472,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ],
                 ],
               ),
+            ),
             ),
           );
         },

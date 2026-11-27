@@ -13,6 +13,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/accessible_button_semantics.dart';
 import '../widgets/accessible_tip.dart';
 import '../widgets/account_switcher_sheet.dart';
 import '../widgets/update_banner.dart';
@@ -251,12 +252,12 @@ class _HomeShellState extends State<HomeShell> {
             // Upper-left logged-in profile header: tapping immediately shows My Published Posts
             title: account == null
                 ? Text(selectedFullTitle)
-                : Semantics(
-                    button: true,
+                : AccessibleButtonSemantics(
                     label: l10n.homeProfileHeaderSemantics(
                       account.effectiveDisplayName,
                       activeHandle,
                     ),
+                    onTap: () => _selectTimeline(TimelineType.myPosts),
                     child: AccessibleTip(
                       message: l10n.homeProfileHeaderTip(activeHandle),
                       child: InkWell(
@@ -311,9 +312,12 @@ class _HomeShellState extends State<HomeShell> {
                 hasMultipleAccounts
                     ? Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Semantics(
-                          button: true,
+                        child: AccessibleButtonSemantics(
                           label: l10n.accountsSwitchTooltip(activeHandle),
+                          onTap: () => AccountSwitcherSheet.show(
+                            context,
+                            widget.app,
+                          ),
                           child: AccessibleTip(
                             message: l10n.accountsSwitchTooltip(activeHandle),
                             child: OutlinedButton(

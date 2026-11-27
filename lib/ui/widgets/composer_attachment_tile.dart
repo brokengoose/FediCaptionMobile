@@ -11,6 +11,7 @@ import '../../l10n/model_localizations.dart';
 import '../../models/ai_models.dart';
 import '../../models/composer_attachment.dart';
 import '../../services/tts_service.dart';
+import 'accessible_button_semantics.dart';
 
 /// Per-attachment editor card in the composer:
 /// - Status badge (`AI Scanning...`, `Alt-Text Ready`, `Missing Alt-Text`, or `Error`)
@@ -262,6 +263,14 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
               listenable: widget.tts,
               builder: (context, _) {
                 final isSpeaking = widget.tts.isSpeakingKey(ttsKey);
+                final VoidCallback? toggleReadAloud = att.altText.trim().isEmpty
+                    ? null
+                    : () => widget.tts.toggleSpeak(
+                          key: ttsKey,
+                          text: att.altText,
+                          languageName: widget.language,
+                          speechRate: widget.ttsSpeechRate,
+                        );
                 return Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -276,23 +285,23 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                               : l10n.composerRescanButton,
                         ),
                       ),
-                    OutlinedButton.icon(
-                      onPressed: att.altText.trim().isEmpty
-                          ? null
-                          : () => widget.tts.toggleSpeak(
-                                key: ttsKey,
-                                text: att.altText,
-                                languageName: widget.language,
-                                speechRate: widget.ttsSpeechRate,
-                              ),
-                      icon: Icon(
-                        isSpeaking ? Icons.stop : Icons.volume_up,
-                        size: 18,
-                      ),
-                      label: Text(
-                        isSpeaking
-                            ? l10n.mediaStopReadingButton
-                            : l10n.mediaReadAloudButton,
+                    AccessibleButtonSemantics(
+                      toggled: isSpeaking,
+                      label: isSpeaking
+                          ? l10n.mediaStopReadingSemantics
+                          : l10n.mediaReadAloudSemantics,
+                      onTap: toggleReadAloud,
+                      child: OutlinedButton.icon(
+                        onPressed: toggleReadAloud,
+                        icon: Icon(
+                          isSpeaking ? Icons.stop : Icons.volume_up,
+                          size: 18,
+                        ),
+                        label: Text(
+                          isSpeaking
+                              ? l10n.mediaStopReadingButton
+                              : l10n.mediaReadAloudButton,
+                        ),
                       ),
                     ),
                   ],

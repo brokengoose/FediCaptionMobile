@@ -593,6 +593,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchClearTooltip => 'Clear search';
 
   @override
+  String searchAnnounceResults(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matching cached posts',
+      one: '1 matching cached post',
+      zero: 'No matching cached posts',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String searchEmptyTitle(int count) {
     return 'Offline Local Search ($count cached posts)';
   }
@@ -1350,6 +1362,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get videoPlayerMuteTooltip => 'Mute';
+
+  @override
+  String get videoPlayerSeekSemantics => 'Playback position';
+
+  @override
+  String get videoPlayerSeekHint =>
+      'Use left and right arrow keys to skip 5 seconds';
+
+  @override
+  String videoPlayerPositionValue(String position, String duration) {
+    return '$position of $duration';
+  }
 
   @override
   String get composerCheckingBias => 'Checking Bias…';

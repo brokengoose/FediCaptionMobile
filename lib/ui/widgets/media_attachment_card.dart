@@ -11,6 +11,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../screens/image_viewer_screen.dart';
 import '../screens/video_player_screen.dart';
+import 'accessible_button_semantics.dart';
 import 'accessible_tip.dart';
 import 'cached_network_image_provider.dart';
 import 'linkified_text.dart';
@@ -83,6 +84,41 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
         final ttsKey = 'timeline_media_${att.id}';
         final isSpeaking = widget.app.tts.isSpeakingKey(ttsKey);
 
+        void openFullScreen() {
+          final fullUrl = att.url.isNotEmpty ? att.url : att.bestPreviewUrl;
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => att.isVideo
+                  ? VideoPlayerScreen(
+                      videoUrl: fullUrl,
+                      altText: effectiveAlt,
+                      isGifv: att.type == 'gifv',
+                    )
+                  : ImageViewerScreen(imageUrl: fullUrl, altText: effectiveAlt),
+            ),
+          );
+        }
+
+        void toggleAltExpanded() =>
+            setState(() => _altExpanded = !_altExpanded);
+
+        final VoidCallback? describe = isDescribing
+            ? null
+            : () => widget.app.describeTimelineMedia(
+                  att,
+                  postContext: widget.postContext,
+                );
+
+        void toggleReadAloud() => widget.app.tts.toggleSpeak(
+              key: ttsKey,
+              text: effectiveAlt,
+              // AI captions are generated in the app's caption language.
+              languageName: aiAlt == null
+                  ? (widget.readAloudLanguage ?? widget.app.settings.language)
+                  : widget.app.settings.language,
+              speechRate: widget.app.settings.ttsSpeechRate,
+            );
+
         return Container(
           margin: const EdgeInsets.only(top: 8),
           decoration: BoxDecoration(
@@ -97,9 +133,9 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (att.bestPreviewUrl.isNotEmpty || att.isVideo)
-                Semantics(
+                AccessibleButtonSemantics(
                   image: !att.isVideo,
-                  button: true,
+                  onTap: openFullScreen,
                   label: hasAnyAlt
                       ? (att.isVideo
                           ? l10n.mediaVideoWithAltSemantics(effectiveAlt)
@@ -112,31 +148,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                         ? l10n.mediaVideoOpenTip
                         : l10n.mediaImageOpenTip,
                     child: InkWell(
-                      onTap: () {
-                      final fullUrl = att.url.isNotEmpty
-                          ? att.url
-                          : att.bestPreviewUrl;
-                      if (att.isVideo) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => VideoPlayerScreen(
-                              videoUrl: fullUrl,
-                              altText: effectiveAlt,
-                              isGifv: att.type == 'gifv',
-                            ),
-                          ),
-                        );
-                      } else {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ImageViewerScreen(
-                              imageUrl: fullUrl,
-                              altText: effectiveAlt,
-                            ),
-                          ),
-                        );
-                      }
-                    },
+                      onTap: openFullScreen,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
@@ -235,16 +247,14 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                       ),
                     ),
                     if (hasAnyAlt)
-                      Semantics(
-                        button: true,
+                      AccessibleButtonSemantics(
                         toggled: _altExpanded,
                         label: _altExpanded
                             ? l10n.mediaCollapseAltSemantics
                             : l10n.mediaExpandAltSemantics,
+                        onTap: toggleAltExpanded,
                         child: TextButton.icon(
-                          onPressed: () {
-                            setState(() => _altExpanded = !_altExpanded);
-                          },
+                          onPressed: toggleAltExpanded,
                           style: TextButton.styleFrom(
                             foregroundColor: att.hasAltText
                                 ? fedi.altPresentFg
@@ -324,9 +334,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                     runSpacing: 8,
                     children: [
                       if (widget.app.settings.isAiEnabled)
-                        Semantics(
-                          button: true,
-                          enabled: !isDescribing,
+                        AccessibleButtonSemantics(
+                          onTap: describe,
                           label: isDescribing
                               ? l10n.mediaDescribingSemantics
                               : (aiAlt != null || att.hasAltText
@@ -335,12 +344,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           child: AccessibleTip(
                             message: l10n.mediaDescribeTip,
                             child: OutlinedButton.icon(
-                              onPressed: isDescribing
-                                  ? null
-                                  : () => widget.app.describeTimelineMedia(
-                                        att,
-                                        postContext: widget.postContext,
-                                      ),
+                              onPressed: describe,
                               icon: isDescribing
                                   ? const SizedBox(
                                       width: 16,
@@ -361,26 +365,18 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           ),
                         ),
                       if (hasAnyAlt)
-                        Semantics(
-                          button: true,
+                        AccessibleButtonSemantics(
                           toggled: isSpeaking,
                           label: isSpeaking
                               ? l10n.mediaStopReadingSemantics
                               : l10n.mediaReadAloudSemantics,
+                          onTap: toggleReadAloud,
                           child: AccessibleTip(
                             message: isSpeaking
                                 ? l10n.mediaStopReadingTip
                                 : l10n.mediaReadAloudTip,
                             child: OutlinedButton.icon(
-                              onPressed: () => widget.app.tts.toggleSpeak(
-                                key: ttsKey,
-                                text: effectiveAlt,
-                                languageName: aiAlt == null
-                                    ? (widget.readAloudLanguage ??
-                                        widget.app.settings.language)
-                                    : widget.app.settings.language,
-                                speechRate: widget.app.settings.ttsSpeechRate,
-                              ),
+                              onPressed: toggleReadAloud,
                               icon: Icon(
                                 isSpeaking ? Icons.stop : Icons.volume_up,
                                 size: 18,

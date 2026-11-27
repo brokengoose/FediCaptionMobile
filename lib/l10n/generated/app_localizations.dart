@@ -1091,6 +1091,12 @@ abstract class AppLocalizations {
   /// **'Clear search'**
   String get searchClearTooltip;
 
+  /// No description provided for @searchAnnounceResults.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No matching cached posts} =1{1 matching cached post} other{{count} matching cached posts}}'**
+  String searchAnnounceResults(int count);
+
   /// No description provided for @searchEmptyTitle.
   ///
   /// In en, this message translates to:
@@ -2094,6 +2100,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mute'**
   String get videoPlayerMuteTooltip;
+
+  /// No description provided for @videoPlayerSeekSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback position'**
+  String get videoPlayerSeekSemantics;
+
+  /// No description provided for @videoPlayerSeekHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use left and right arrow keys to skip 5 seconds'**
+  String get videoPlayerSeekHint;
+
+  /// No description provided for @videoPlayerPositionValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{position} of {duration}'**
+  String videoPlayerPositionValue(String position, String duration);
 
   /// No description provided for @composerCheckingBias.
   ///

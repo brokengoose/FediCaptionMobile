@@ -132,6 +132,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  static const Duration _seekStep = Duration(seconds: 5);
+
+  Duration _clampPosition(Duration target) {
+    final duration = _controller?.value.duration ?? Duration.zero;
+    if (target < Duration.zero) return Duration.zero;
+    if (duration > Duration.zero && target > duration) return duration;
+    return target;
+  }
+
+  Future<void> _seekBy(Duration delta) async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    await c.seekTo(_clampPosition(c.value.position + delta));
+  }
+
   String _formatDuration(Duration d) {
     final totalSeconds = d.inSeconds;
     final minutes = totalSeconds ~/ 60;
@@ -147,6 +162,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         FocusManager.instance.primaryFocus == _rootFocus) {
       _togglePlayPause();
       return KeyEventResult.handled;
+    }
+    // Left/Right seek from anywhere in the player: the visual scrubber is
+    // pointer-only, so this is the keyboard equivalent.
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        _seekBy(_seekStep);
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        _seekBy(-_seekStep);
+        return KeyEventResult.handled;
+      }
     }
     return KeyEventResult.ignored;
   }
@@ -264,14 +291,42 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        VideoProgressIndicator(
-                          c,
-                          allowScrubbing: true,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          colors: VideoProgressColors(
-                            playedColor: Theme.of(context).colorScheme.primary,
-                            bufferedColor: Colors.white38,
-                            backgroundColor: Colors.white24,
+                        // Screen-reader slider: swipe up/down (or increase/
+                        // decrease actions) skips 5 seconds.
+                        Semantics(
+                          container: true,
+                          slider: true,
+                          label: l10n.videoPlayerSeekSemantics,
+                          hint: l10n.videoPlayerSeekHint,
+                          value: l10n.videoPlayerPositionValue(
+                            _formatDuration(c.value.position),
+                            _formatDuration(c.value.duration),
+                          ),
+                          increasedValue: l10n.videoPlayerPositionValue(
+                            _formatDuration(
+                              _clampPosition(c.value.position + _seekStep),
+                            ),
+                            _formatDuration(c.value.duration),
+                          ),
+                          decreasedValue: l10n.videoPlayerPositionValue(
+                            _formatDuration(
+                              _clampPosition(c.value.position - _seekStep),
+                            ),
+                            _formatDuration(c.value.duration),
+                          ),
+                          onIncrease: () => _seekBy(_seekStep),
+                          onDecrease: () => _seekBy(-_seekStep),
+                          excludeSemantics: true,
+                          child: VideoProgressIndicator(
+                            c,
+                            allowScrubbing: true,
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            colors: VideoProgressColors(
+                              playedColor:
+                                  Theme.of(context).colorScheme.primary,
+                              bufferedColor: Colors.white38,
+                              backgroundColor: Colors.white24,
+                            ),
                           ),
                         ),
                         Row(

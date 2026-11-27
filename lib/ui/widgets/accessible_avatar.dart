@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
 import '../../l10n/l10n.dart';
+import 'accessible_button_semantics.dart';
 import 'accessible_tip.dart';
 import 'cached_network_image_provider.dart';
 
@@ -58,9 +59,9 @@ class AccessibleAvatar extends StatelessWidget {
 
     final tipText = semanticLabel ??
         context.l10n.avatarViewProfileSemantics(displayName);
-    return Semantics(
-      button: true,
+    return AccessibleButtonSemantics(
       label: tipText,
+      onTap: onTap,
       child: AccessibleTip(
         message: tipText,
         child: InkWell(

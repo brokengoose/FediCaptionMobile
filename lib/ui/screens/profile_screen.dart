@@ -12,6 +12,7 @@ import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
 import '../helpers/status_action_handler.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/accessible_button_semantics.dart';
 import '../widgets/linkified_text.dart';
 import '../widgets/status_card.dart';
 
@@ -96,6 +97,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (next >= _statuses.length - 3 && !_isLoadingMore && _hasMore) {
       _loadMore();
     }
+
+    // Same screen-reader feedback as the main timeline's j/k navigation.
+    final target = status.displayStatus;
+    final snippet = target.plainText.trim();
+    final preview =
+        snippet.length > 90 ? '${snippet.substring(0, 90)}…' : snippet;
+    AccessibilityAnnouncer.announce(
+      context.l10n.timelineAnnouncePostSelection(
+        next + 1,
+        _statuses.length,
+        target.account.effectiveDisplayName,
+        preview,
+      ),
+    );
   }
 
   bool _handleKeyEvent(KeyEvent event) {
@@ -414,9 +429,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               children: [
                 Expanded(
-                  child: Semantics(
-                    button: true,
+                  child: AccessibleButtonSemantics(
                     toggled: rel?.following == true,
+                    onTap: _isUpdatingFollow ? null : _toggleSubscribe,
                     label: rel?.following == true
                         ? l10n.profileUnsubscribeSemantics(
                             account.effectiveDisplayName,
@@ -446,9 +461,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Semantics(
-                  button: true,
+                AccessibleButtonSemantics(
                   toggled: rel?.notifying == true,
+                  onTap: (_isUpdatingFollow || rel?.following != true)
+                      ? null
+                      : _toggleNotifyBell,
                   label: rel?.notifying == true
                       ? l10n.profileDisableNotifySemantics(
                           account.effectiveDisplayName,

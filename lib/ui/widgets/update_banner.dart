@@ -54,7 +54,10 @@ class UpdateBanner extends StatelessWidget {
             Icon(Icons.system_update_alt, color: fedi.updateBannerFg),
             const SizedBox(width: 10),
             Expanded(
-              child: Column(
+              // The banner's container label already announces both lines;
+              // exclude the visible copies so they aren't read twice.
+              child: ExcludeSemantics(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -71,6 +74,7 @@ class UpdateBanner extends StatelessWidget {
                         ),
                   ),
                 ],
+                ),
               ),
             ),
             TextButton(

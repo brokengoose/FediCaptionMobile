@@ -1,9 +1,12 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/accessibility_announcer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
@@ -47,7 +50,10 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
     // (full-cache) search when the text actually changed.
     if (_queryController.text == _lastQuery) return;
     _refreshResults();
+    _scheduleResultAnnouncement();
   }
+
+  Timer? _announceDebounce;
 
   /// Re-runs the search; safe to call after awaits (no-op once disposed).
   void _refreshResults() {
@@ -55,6 +61,19 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
     setState(() {
       _lastQuery = _queryController.text;
       _results = widget.app.timelineCache.searchLocal(_lastQuery!);
+    });
+  }
+
+  /// Tells screen-reader users how many posts match once they pause typing
+  /// (announcing on every keystroke would talk over their typing echo).
+  void _scheduleResultAnnouncement() {
+    _announceDebounce?.cancel();
+    if (_queryController.text.trim().isEmpty) return;
+    _announceDebounce = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      AccessibilityAnnouncer.announce(
+        context.l10n.searchAnnounceResults(_results.length),
+      );
     });
   }
 
@@ -92,6 +111,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _announceDebounce?.cancel();
     _queryController.removeListener(_onQueryChanged);
     _queryController.dispose();
     _scrollController.dispose();

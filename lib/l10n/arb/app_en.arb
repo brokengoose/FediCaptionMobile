@@ -293,6 +293,12 @@
     }
   },
   "searchClearTooltip": "Clear search",
+  "searchAnnounceResults": "{count, plural, =0{No matching cached posts} =1{1 matching cached post} other{{count} matching cached posts}}",
+  "@searchAnnounceResults": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "searchEmptyTitle": "Offline Local Search ({count} cached posts)",
   "@searchEmptyTitle": {
     "placeholders": {
@@ -900,6 +906,15 @@
   "videoPlayerPlayTooltip": "Play",
   "videoPlayerUnmuteTooltip": "Unmute",
   "videoPlayerMuteTooltip": "Mute",
+  "videoPlayerSeekSemantics": "Playback position",
+  "videoPlayerSeekHint": "Use left and right arrow keys to skip 5 seconds",
+  "videoPlayerPositionValue": "{position} of {duration}",
+  "@videoPlayerPositionValue": {
+    "placeholders": {
+      "position": {"type": "String"},
+      "duration": {"type": "String"}
+    }
+  },
 
   "composerCheckingBias": "Checking Bias…",
   "composerSaving": "Saving…",
