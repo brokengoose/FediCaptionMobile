@@ -69,6 +69,31 @@ class _InMemorySecureStorage extends Fake implements FlutterSecureStorage {
   }
 }
 
+/// Secure storage whose reads fail for keys containing [failingKeyPart]
+/// (e.g. an Android Keystore `BadPaddingException` after a backup restore).
+class _FlakySecureStorage extends _InMemorySecureStorage {
+  _FlakySecureStorage(this.failingKeyPart);
+
+  final String failingKeyPart;
+  bool failReads = true;
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (failReads && key.contains(failingKeyPart)) {
+      throw Exception('BadPaddingException: keystore entry unreadable');
+    }
+    return super.read(key: key);
+  }
+}
+
 class _FakeMastodonService extends MastodonService {
   final Map<String, MastodonAccount> accountsByCreds = {};
   final Map<String, InstanceLimits> limitsByInstance = {};
@@ -455,6 +480,64 @@ void main() {
         expect(find.text('@bob@infosec.exchange'), findsAtLeastNWidgets(2));
       },
     );
+  });
+
+  group('StorageService account metadata safety', () {
+    StoredAccount acct(String host, String id, String name) => StoredAccount(
+      key: StoredAccount.buildKey('https://$host', id),
+      instanceUrl: 'https://$host',
+      accessToken: 'tok-$name',
+      accountId: id,
+      username: name,
+      acct: name,
+      displayName: name,
+    );
+
+    test(
+      'an unreadable token hides only that account and never wipes others',
+      () async {
+        final secure = _FlakySecureStorage('infosec');
+        final storage = StorageService(
+          secureStorage: secure,
+          enableLinuxKeyringFallback: false,
+        );
+        final alice = acct('mastodon.social', '1', 'alice');
+        final bob = acct('infosec.exchange', '2', 'bob');
+        final carol = acct('hachyderm.io', '3', 'carol');
+
+        // Seed alice + bob while reads still work for both.
+        secure.failReads = false;
+        await storage.saveAccount(alice);
+        await storage.saveAccount(bob);
+        secure.failReads = true;
+
+        expect((await storage.loadAccounts()).map((a) => a.key), [alice.key]);
+
+        // Writes while bob's token is unreadable must keep bob's metadata.
+        await storage.saveAccount(carol);
+        await storage.removeAccount(alice.key);
+
+        secure.failReads = false;
+        expect((await storage.loadAccounts()).map((a) => a.key), [
+          bob.key,
+          carol.key,
+        ]);
+      },
+    );
+
+    test('concurrent saves do not lose each other', () async {
+      final storage = StorageService(
+        secureStorage: _InMemorySecureStorage(),
+        enableLinuxKeyringFallback: false,
+      );
+      final accounts = [
+        for (var i = 0; i < 5; i++) acct('host$i.example', '$i', 'user$i'),
+      ];
+
+      await Future.wait([for (final a in accounts) storage.saveAccount(a)]);
+
+      expect(await storage.loadAccounts(), hasLength(5));
+    });
   });
 
   group('Startup resilience', () {
