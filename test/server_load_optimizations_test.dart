@@ -192,6 +192,36 @@ void main() {
         ['30', '10'],
       );
     });
+
+    test('removeStatusEverywhere also drops notifications about the deleted post', () {
+      final cache = TimelineCacheController();
+      addTearDown(cache.dispose);
+      final post = _status('40');
+      final other = _status('41');
+      MastodonNotification notif(String id, String type, MastodonStatus? s) =>
+          MastodonNotification(
+            id: id,
+            type: type,
+            createdAt: DateTime.utc(2026, 11, 27),
+            account: post.account,
+            status: s,
+          );
+      cache.putNotifications(
+        [
+          notif('n1', 'favourite', post),
+          notif('n2', 'follow', null),
+          notif('n3', 'mention', other),
+        ],
+        hasMore: false,
+      );
+
+      cache.removeStatusEverywhere('40');
+
+      expect(
+        cache.notifications!.notifications.map((n) => n.id),
+        ['n2', 'n3'],
+      );
+    });
   });
 
   group('QuoteCacheController & MastodonService optimizations', () {

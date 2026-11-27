@@ -90,11 +90,18 @@ class _FakeMastodonService extends MastodonService {
     homeFeedByToken[accessToken] = homeStatuses;
   }
 
+  /// When set, every verifyCredentials call throws this (simulates offline).
+  Object? verifyError;
+
+  /// When true, fetchInstanceLimits reports failure (`null`).
+  bool failInstanceLimits = false;
+
   @override
   Future<MastodonAccount> verifyCredentials({
     required String instanceUrl,
     required String accessToken,
   }) async {
+    if (verifyError != null) throw verifyError!;
     final account = accountsByCreds[_credKey(instanceUrl, accessToken)];
     if (account == null) {
       throw const MastodonApiException('Invalid token', statusCode: 401);
@@ -103,10 +110,11 @@ class _FakeMastodonService extends MastodonService {
   }
 
   @override
-  Future<InstanceLimits> fetchInstanceLimits({
+  Future<InstanceLimits?> fetchInstanceLimits({
     required String instanceUrl,
     String? accessToken,
   }) async {
+    if (failInstanceLimits) return null;
     final norm = MastodonService.normalizeInstanceUrl(instanceUrl);
     return limitsByInstance[norm] ?? const InstanceLimits();
   }
@@ -440,6 +448,89 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('@bob@infosec.exchange'), findsAtLeastNWidgets(2));
+    });
+  });
+
+  group('Startup resilience', () {
+    const alice = MastodonAccount(
+      id: '10',
+      username: 'alice',
+      acct: 'alice',
+      displayName: 'Alice Social',
+      avatar: '',
+    );
+
+    Future<(StorageService, _FakeMastodonService)> seedSignedIn() async {
+      final storage = StorageService(
+        secureStorage: _InMemorySecureStorage(),
+        enableLinuxKeyringFallback: false,
+      );
+      final mastodon = _FakeMastodonService()
+        ..registerAccount(
+          instanceUrl: 'https://mastodon.social',
+          accessToken: 'tok-alice',
+          account: alice,
+        );
+      await storage.saveAccount(
+        StoredAccount.fromSessionAndAccount(
+          session: const MastodonSession(
+            instanceUrl: 'https://mastodon.social',
+            accessToken: 'tok-alice',
+          ),
+          account: alice,
+        ),
+        setActive: true,
+      );
+      return (storage, mastodon);
+    }
+
+    AppController build(StorageService storage, MastodonService mastodon) {
+      final c = AppController(
+        storageService: storage,
+        mastodonService: mastodon,
+        onDeviceAiService: _StubOnDeviceAiService(),
+        updateCheckService: _NoOpUpdateCheckService(),
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test('network failure at launch keeps the stored account signed in', () async {
+      final (storage, mastodon) = await seedSignedIn();
+      mastodon.verifyError = Exception('SocketException: Network unreachable');
+
+      final app = build(storage, mastodon);
+      await app.initialize();
+
+      expect(app.isAuthenticated, isTrue);
+      expect(app.authError, isNull);
+      expect(app.activeAccountFullHandle, '@alice@mastodon.social');
+    });
+
+    test('401 at launch is still treated as an expired session', () async {
+      final (storage, mastodon) = await seedSignedIn();
+      mastodon.verifyError =
+          const MastodonApiException('The access token is invalid', statusCode: 401);
+
+      final app = build(storage, mastodon);
+      await app.initialize();
+
+      expect(app.isAuthenticated, isFalse);
+      expect(app.authError, isNotNull);
+    });
+
+    test('failed instance-limits fetch is not cached', () async {
+      final (storage, mastodon) = await seedSignedIn();
+      mastodon.failInstanceLimits = true;
+
+      final app = build(storage, mastodon);
+      await app.initialize();
+
+      expect(app.isAuthenticated, isTrue);
+      expect(
+        await storage.loadCachedInstanceLimits('https://mastodon.social'),
+        isNull,
+      );
     });
   });
 }

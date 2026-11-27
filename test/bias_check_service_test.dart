@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:convert';
+
 import 'package:fedicaption_mobile/models/ai_models.dart';
 import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/bias_models.dart';
@@ -95,6 +97,90 @@ void main() {
         result.suggestedAlternateWording,
         'Quit complaining about the rain.',
       );
+    });
+
+    test('tolerates loosely typed AI JSON instead of silently falling back', () async {
+      // has_bias as a string and a numeric excerpt used to throw on `as` casts,
+      // discarding the AI result in favour of the local heuristics.
+      final aiJson = jsonEncode({
+        'has_bias': 'true',
+        'summary': 'Possible bias.',
+        'findings': [
+          {
+            'location': 'Post Text',
+            'bias_type': 'Implicit Gender Bias',
+            'explanation': 'Assumes the engineer is a man.',
+            'excerpt': 42,
+          },
+        ],
+        'suggested_alternate_wording': null,
+      });
+      final aiClient = MockClient((_) async {
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {'text': aiJson},
+                  ],
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final service = BiasCheckService(
+        aiProviderService: AiProviderService(client: aiClient),
+        linkPreviewFetcher: LinkPreviewFetcher(client: aiClient),
+        mastodonService: MastodonService(client: aiClient),
+      );
+
+      final result = await service.checkDraft(
+        input: const BiasCheckInput(
+          postText: 'Ask the engineer what he thinks.',
+        ),
+        settings: const AppSettings(activeProvider: AiProviderType.gemini),
+        credentials: const AiCredentials(geminiApiKey: 'key'),
+      );
+
+      expect(result.usedLocalFallback, isFalse);
+      expect(result.hasBias, isTrue);
+      expect(result.summary, 'Possible bias.');
+      expect(
+        result.findings.single.excerpt,
+        '42',
+      );
+    });
+
+    test('sends the Gemini API key in a header, never in the URL', () async {
+      final seen = <http.BaseRequest>[];
+      final aiClient = MockClient((request) async {
+        seen.add(request);
+        return http.Response('{"candidates":[]}', 500);
+      });
+      final service = BiasCheckService(
+        aiProviderService: AiProviderService(client: aiClient),
+        linkPreviewFetcher: LinkPreviewFetcher(client: aiClient),
+        mastodonService: MastodonService(client: aiClient),
+      );
+
+      await service.checkDraft(
+        input: const BiasCheckInput(postText: 'Hello'),
+        settings: const AppSettings(activeProvider: AiProviderType.gemini),
+        credentials: const AiCredentials(geminiApiKey: 'secret-gemini-key'),
+      );
+
+      final gemini = seen.where(
+        (r) => r.url.host.contains('generativelanguage'),
+      );
+      expect(gemini, isNotEmpty);
+      for (final r in gemini) {
+        expect(r.url.toString(), isNot(contains('secret-gemini-key')));
+        expect(r.headers['x-goog-api-key'], 'secret-gemini-key');
+      }
     });
   });
 }
