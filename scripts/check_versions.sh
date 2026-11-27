@@ -6,7 +6,7 @@
 #   - VERSION                         (CI artifact names)
 #   - pubspec.yaml `version:`         (store/build metadata; "+build" ignored)
 #   - lib/core/constants.dart         (AppConstants.appVersion, update check)
-#   - the pushed tag, when given      (e.g. v1.2.3 -> 1.2.3)
+#   - the pushed tag, when given      (e.g. v1.2.3 or v1.2.3-beta.1 -> 1.2.3)
 #
 # Usage: scripts/check_versions.sh [tag]
 set -euo pipefail
@@ -31,8 +31,12 @@ done
 
 if [[ $# -ge 1 && -n "$1" ]]; then
   tag_version="${1#v}"
+  tag_core="${tag_version%%-*}"
   report "git tag" "$tag_version"
-  if [[ "$tag_version" != "$file_version" ]]; then status=1; fi
+  # Pre-release tags (e.g. v1.0.0-beta.4) share the base VERSION (1.0.0).
+  if [[ "$tag_version" != "$file_version" && "$tag_core" != "$file_version" ]]; then
+    status=1
+  fi
 fi
 
 if [[ $status -ne 0 ]]; then
