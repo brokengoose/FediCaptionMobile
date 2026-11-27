@@ -11,6 +11,8 @@ import 'package:fedicaption_mobile/services/image_upload_optimizer.dart';
 import 'package:fedicaption_mobile/services/link_preview_fetcher.dart';
 import 'package:fedicaption_mobile/services/mastodon_service.dart';
 import 'package:fedicaption_mobile/services/media_cache_service.dart';
+import 'package:fedicaption_mobile/services/tts_service.dart';
+import 'package:fedicaption_mobile/state/app_controller.dart';
 import 'package:fedicaption_mobile/state/quote_cache_controller.dart';
 import 'package:fedicaption_mobile/state/timeline_cache_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -228,6 +230,73 @@ void main() {
         ]);
       },
     );
+
+    test('removeStatusEverywhere clears deleted quoted posts across timelines, notifications, and QuoteCacheController', () {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final app = AppController(ttsService: TtsService(isLinuxOverride: true));
+      addTearDown(app.dispose);
+
+      final quoted = _status(
+        '70',
+        url: 'https://example.social/@alice/70',
+        contentHtml: '<p>Quoted target</p>',
+      );
+      final quotingPost = MastodonStatus(
+        id: '71',
+        createdAt: DateTime.utc(2026, 11, 27),
+        account: quoted.account,
+        contentHtml: '<p>Quoting</p>',
+        quotedStatus: quoted,
+      );
+      final rebloggedQuotingPost = MastodonStatus(
+        id: '72',
+        createdAt: DateTime.utc(2026, 11, 27),
+        account: quoted.account,
+        contentHtml: '',
+        reblog: quotingPost,
+      );
+      final notif = MastodonNotification(
+        id: 'n71',
+        type: 'mention',
+        createdAt: DateTime.utc(2026, 11, 27),
+        account: quoted.account,
+        status: quotingPost,
+      );
+
+      app.timelineCache.putTimeline(TimelineType.home, [
+        quotingPost,
+        rebloggedQuotingPost,
+      ], hasMore: false);
+      app.timelineCache.putNotifications([notif], hasMore: false);
+      app.quoteCache.seedStatuses([quoted]);
+      expect(
+        app.quoteCache.cachedStatus('https://example.social/@alice/70'),
+        isNotNull,
+      );
+
+      app.removeStatusEverywhere('70');
+
+      final updatedHome = app.timelineCache
+          .timelineFor(TimelineType.home)!
+          .statuses;
+      expect(updatedHome, hasLength(2));
+      expect(updatedHome[0].quotedStatus, isNull);
+      expect(updatedHome[1].reblog!.quotedStatus, isNull);
+      expect(
+        app
+            .timelineCache
+            .notifications!
+            .notifications
+            .single
+            .status!
+            .quotedStatus,
+        isNull,
+      );
+      expect(
+        app.quoteCache.hasResolved('https://example.social/@alice/70'),
+        isFalse,
+      );
+    });
   });
 
   group('QuoteCacheController & MastodonService optimizations', () {

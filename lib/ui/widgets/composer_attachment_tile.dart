@@ -194,6 +194,43 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
               ],
             ),
 
+            if (att.metadataNotStripped) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                liveRegion: true,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: fedi.biasWarningBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: fedi.isHighContrast
+                        ? Border.all(color: fedi.biasWarningFg)
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
+                        color: fedi.biasWarningFg,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.composerAttachmentMetadataWarning,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: fedi.biasWarningFg),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
             if (att.errorMessage != null && att.errorMessage!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(

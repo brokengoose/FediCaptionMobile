@@ -34,6 +34,7 @@ class ComposerAttachment {
     this.detailLevel = CaptionDetailLevel.descriptive,
     this.status = AttachmentStatus.missingAltText,
     this.errorMessage,
+    this.metadataNotStripped = false,
   });
 
   /// Unique client-side identifier for list stability.
@@ -61,6 +62,9 @@ class ComposerAttachment {
   final AttachmentStatus status;
   final String? errorMessage;
 
+  /// True when EXIF/GPS metadata stripping failed and the original file is used.
+  final bool metadataNotStripped;
+
   bool get isExistingRemote => remoteMediaId != null && filePath == null;
   bool get hasAltText => altText.trim().isNotEmpty;
 
@@ -80,6 +84,7 @@ class ComposerAttachment {
     AttachmentStatus? status,
     String? errorMessage,
     bool clearError = false,
+    bool? metadataNotStripped,
   }) {
     return ComposerAttachment(
       localId: localId ?? this.localId,
@@ -96,6 +101,7 @@ class ComposerAttachment {
       detailLevel: detailLevel ?? this.detailLevel,
       status: status ?? this.status,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      metadataNotStripped: metadataNotStripped ?? this.metadataNotStripped,
     );
   }
 }

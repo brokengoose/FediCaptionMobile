@@ -2384,6 +2384,48 @@ abstract class AppLocalizations {
   /// **'Not signed in to Mastodon.'**
   String get composerErrorNotSignedIn;
 
+  /// No description provided for @composerErrorPickMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not attach media: {error}'**
+  String composerErrorPickMedia(String error);
+
+  /// No description provided for @composerDiscardDraftTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard draft?'**
+  String get composerDiscardDraftTitle;
+
+  /// No description provided for @composerDiscardEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard edits?'**
+  String get composerDiscardEditTitle;
+
+  /// No description provided for @composerDiscardDraftBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your unsaved post changes will be lost.'**
+  String get composerDiscardDraftBody;
+
+  /// No description provided for @composerKeepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Editing'**
+  String get composerKeepEditing;
+
+  /// No description provided for @composerDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get composerDiscard;
+
+  /// No description provided for @composerAttachmentMetadataWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Original file kept — EXIF/location metadata could not be stripped automatically.'**
+  String get composerAttachmentMetadataWarning;
+
   /// No description provided for @composerAnnounceScanningVideo.
   ///
   /// In en, this message translates to:

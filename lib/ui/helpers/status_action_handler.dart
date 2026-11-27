@@ -233,7 +233,7 @@ class StatusActionHandler {
         accessToken: session.accessToken,
         statusId: target.id,
       );
-      app.timelineCache.removeStatusEverywhere(target.id);
+      app.removeStatusEverywhere(target.id);
       AccessibilityAnnouncer.announce(l10n.actionAnnounceDeleted);
       return true;
     } catch (e) {

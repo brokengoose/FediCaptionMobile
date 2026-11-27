@@ -87,8 +87,9 @@ __declspec(dllexport) void fedicaption_free(void* ptr) {
 }
 
 // Verifies a peer X.509 DER certificate against the native Windows CryptoAPI
-// SSL chain policy (including Windows Auto-Root Update, enterprise/AV roots,
-// AIA intermediate certificate fetching, and exact hostname matching).
+// SSL chain policy using local/cached stores and certificates (cache-only URL
+// retrieval avoids blocking the UI isolate on network AIA/CRL fetches), with
+// exact hostname matching.
 // Returns 1 if Windows trusts the certificate for |host_utf8|, else 0.
 __declspec(dllexport) int32_t fedicaption_verify_windows_cert(
     const uint8_t* der, int32_t der_len, const uint8_t* host_utf8,
@@ -122,10 +123,12 @@ __declspec(dllexport) int32_t fedicaption_verify_windows_cert(
   chain_para.RequestedUsage.dwType = USAGE_MATCH_TYPE_AND;
   chain_para.RequestedUsage.Usage.cUsageIdentifier = 1;
   chain_para.RequestedUsage.Usage.rgpszUsageIdentifier = server_auth_usages;
+  chain_para.dwUrlRetrievalTimeout = 1500;
 
   PCCERT_CHAIN_CONTEXT chain_ctx = nullptr;
   BOOL chain_ok = ::CertGetCertificateChain(
-      nullptr, cert, nullptr, nullptr, &chain_para, CERT_CHAIN_CACHE_END_CERT,
+      nullptr, cert, nullptr, nullptr, &chain_para,
+      CERT_CHAIN_CACHE_END_CERT | CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL,
       nullptr, &chain_ctx);
   if (!chain_ok || !chain_ctx) {
     ::CertFreeCertificateContext(cert);
