@@ -202,7 +202,7 @@ class MastodonService {
     required String currentUserId,
     String? maxId,
     String? sinceId,
-    int limit = 25,
+    int limit = AppConstants.timelinePageSize,
   }) async {
     final query = <String, String>{
       'limit': '$limit',
@@ -247,7 +247,7 @@ class MastodonService {
     required String accessToken,
     String? maxId,
     String? sinceId,
-    int limit = 30,
+    int limit = AppConstants.notificationsPageSize,
   }) async {
     final list = await _getJsonList(
       instanceUrl: instanceUrl,
@@ -300,7 +300,7 @@ class MastodonService {
     required String accessToken,
     required String accountId,
     String? maxId,
-    int limit = 25,
+    int limit = AppConstants.timelinePageSize,
   }) async {
     final list = await _getJsonList(
       instanceUrl: instanceUrl,

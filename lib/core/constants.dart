@@ -40,6 +40,10 @@ class AppConstants {
   static const int defaultMaxMediaAttachments = 4;
   static const int defaultAltTextLimit = 1500;
 
+  // Page sizes requested from Mastodon list endpoints.
+  static const int timelinePageSize = 25;
+  static const int notificationsPageSize = 30;
+
   // Inline video size threshold for Google Gemini (18 MB raw bytes)
   static const int geminiInlineVideoMaxBytes = 18 * 1024 * 1024;
 

@@ -3,6 +3,7 @@
 
 import 'package:flutter/foundation.dart';
 
+import '../core/constants.dart';
 import '../models/mastodon_models.dart';
 
 /// Cached snapshot for a single Mastodon timeline tab.
@@ -41,11 +42,21 @@ class TimelineCacheController extends ChangeNotifier {
     this.defaultTtl = const Duration(minutes: 5),
     this.maxStatusesPerTimeline = 200,
     this.maxNotifications = 200,
+    this.pageSize = AppConstants.timelinePageSize,
+    this.notificationsPageSize = AppConstants.notificationsPageSize,
   });
 
   final Duration defaultTtl;
+
+  /// Soft caps: applied to fresh loads and refreshes, but never to explicit
+  /// scroll-back (see [appendOlderTimeline]).
   final int maxStatusesPerTimeline;
   final int maxNotifications;
+
+  /// Page sizes requested from the server; a `since_id` refresh that returns
+  /// a full page may have more posts between it and the cached head.
+  final int pageSize;
+  final int notificationsPageSize;
 
   final Map<TimelineType, CachedTimelinePage> _timelines = {};
   CachedNotificationsPage? _notifications;
@@ -85,10 +96,17 @@ class TimelineCacheController extends ChangeNotifier {
 
   /// Prepends incremental `since_id` results onto an existing cached timeline,
   /// deduplicating by outer status ID.
+  ///
+  /// A full page ([pageSize] or more) means newer posts may exist between this
+  /// page and the cached head, so the cache is replaced instead of merged (a
+  /// merge would silently hide that gap). Growth is trimmed from the bottom,
+  /// never below what the user has already scrolled back through, and any
+  /// trim re-enables pagination.
   List<MastodonStatus> mergeNewerTimeline(
     TimelineType type,
     List<MastodonStatus> newer, {
     DateTime? fetchedAt,
+    int? pageSize,
   }) {
     final existing = _timelines[type];
     if (existing == null || existing.statuses.isEmpty) {
@@ -98,6 +116,10 @@ class TimelineCacheController extends ChangeNotifier {
         hasMore: newer.length >= 15,
         fetchedAt: fetchedAt,
       );
+      return _timelines[type]!.statuses;
+    }
+    if (newer.length >= (pageSize ?? this.pageSize)) {
+      putTimeline(type, newer, hasMore: true, fetchedAt: fetchedAt);
       return _timelines[type]!.statuses;
     }
 
@@ -110,11 +132,17 @@ class TimelineCacheController extends ChangeNotifier {
       if (seenIds.add(s.id)) merged.add(s);
     }
 
-    final capped = _capStatuses(merged);
+    final limit = existing.statuses.length > maxStatusesPerTimeline
+        ? existing.statuses.length
+        : maxStatusesPerTimeline;
+    final trimmed = merged.length > limit;
+    final capped = List<MastodonStatus>.unmodifiable(
+      trimmed ? merged.sublist(0, limit) : merged,
+    );
     _timelines[type] = CachedTimelinePage(
       statuses: capped,
       fetchedAt: fetchedAt ?? DateTime.now(),
-      hasMore: existing.hasMore,
+      hasMore: existing.hasMore || trimmed,
     );
     _safeNotify();
     return capped;
@@ -129,19 +157,21 @@ class TimelineCacheController extends ChangeNotifier {
     final existing = _timelines[type];
     final current = existing?.statuses ?? const <MastodonStatus>[];
     final seenIds = <String>{for (final s in current) s.id};
-    final merged = <MastodonStatus>[
+    // Not capped: the user explicitly scrolled back, and capping here would
+    // drop the page just loaded, so `max_id` never advances and infinite
+    // scroll stalls at the cap. Fresh loads/refreshes re-apply the cap.
+    final merged = List<MastodonStatus>.unmodifiable(<MastodonStatus>[
       ...current,
       for (final s in older)
         if (seenIds.add(s.id)) s,
-    ];
-    final capped = _capStatuses(merged);
+    ]);
     _timelines[type] = CachedTimelinePage(
-      statuses: capped,
+      statuses: merged,
       fetchedAt: existing?.fetchedAt ?? DateTime.now(),
       hasMore: hasMore,
     );
     _safeNotify();
-    return capped;
+    return merged;
   }
 
   static MastodonStatus _replaceStatusIn(
@@ -187,7 +217,8 @@ class TimelineCacheController extends ChangeNotifier {
       if (timelineChanged) {
         anyChanged = true;
         _timelines[entry.key] = CachedTimelinePage(
-          statuses: _capStatuses(updatedList),
+          // Same length as before; never re-cap (would truncate scroll-back).
+          statuses: List<MastodonStatus>.unmodifiable(updatedList),
           fetchedAt: entry.value.fetchedAt,
           hasMore: entry.value.hasMore,
         );
@@ -276,9 +307,11 @@ class TimelineCacheController extends ChangeNotifier {
     DateTime? fetchedAt,
   }) {
     _notifications = CachedNotificationsPage(
-      notifications: items.length > maxNotifications
-          ? items.sublist(0, maxNotifications)
-          : List<MastodonNotification>.unmodifiable(items),
+      notifications: List<MastodonNotification>.unmodifiable(
+        items.length > maxNotifications
+            ? items.sublist(0, maxNotifications)
+            : items,
+      ),
       fetchedAt: fetchedAt ?? DateTime.now(),
       hasMore: hasMore,
     );
@@ -288,6 +321,7 @@ class TimelineCacheController extends ChangeNotifier {
   List<MastodonNotification> mergeNewerNotifications(
     List<MastodonNotification> newer, {
     DateTime? fetchedAt,
+    int? pageSize,
   }) {
     final existing = _notifications;
     if (existing == null || existing.notifications.isEmpty) {
@@ -296,6 +330,11 @@ class TimelineCacheController extends ChangeNotifier {
         hasMore: newer.length >= 15,
         fetchedAt: fetchedAt,
       );
+      return _notifications!.notifications;
+    }
+    // Full page: possible gap to the cached head (see mergeNewerTimeline).
+    if (newer.length >= (pageSize ?? notificationsPageSize)) {
+      putNotifications(newer, hasMore: true, fetchedAt: fetchedAt);
       return _notifications!.notifications;
     }
 
@@ -307,13 +346,17 @@ class TimelineCacheController extends ChangeNotifier {
     for (final n in existing.notifications) {
       if (seenIds.add(n.id)) merged.add(n);
     }
-    final capped = merged.length > maxNotifications
-        ? merged.sublist(0, maxNotifications)
-        : merged;
+    final limit = existing.notifications.length > maxNotifications
+        ? existing.notifications.length
+        : maxNotifications;
+    final trimmed = merged.length > limit;
+    final capped = List<MastodonNotification>.unmodifiable(
+      trimmed ? merged.sublist(0, limit) : merged,
+    );
     _notifications = CachedNotificationsPage(
       notifications: capped,
       fetchedAt: fetchedAt ?? DateTime.now(),
-      hasMore: existing.hasMore,
+      hasMore: existing.hasMore || trimmed,
     );
     _safeNotify();
     return capped;
@@ -326,21 +369,21 @@ class TimelineCacheController extends ChangeNotifier {
     final existing = _notifications;
     final current = existing?.notifications ?? const <MastodonNotification>[];
     final seenIds = <String>{for (final n in current) n.id};
-    final merged = <MastodonNotification>[
-      ...current,
-      for (final n in older)
-        if (seenIds.add(n.id)) n,
-    ];
-    final capped = merged.length > maxNotifications
-        ? merged.sublist(0, maxNotifications)
-        : merged;
+    // Not capped: explicit scroll-back (see appendOlderTimeline).
+    final merged = List<MastodonNotification>.unmodifiable(
+      <MastodonNotification>[
+        ...current,
+        for (final n in older)
+          if (seenIds.add(n.id)) n,
+      ],
+    );
     _notifications = CachedNotificationsPage(
-      notifications: capped,
+      notifications: merged,
       fetchedAt: existing?.fetchedAt ?? DateTime.now(),
       hasMore: hasMore,
     );
     _safeNotify();
-    return capped;
+    return merged;
   }
 
   /// Total count of distinct cached statuses currently searchable offline.
