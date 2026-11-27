@@ -1,7 +1,6 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
-import 'package:fedicaption_mobile/models/app_settings.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
 import 'package:fedicaption_mobile/state/timeline_cache_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,7 +42,6 @@ void main() {
       cache = TimelineCacheController(
         maxStatusesPerTimeline: 50,
         maxNotifications: 50,
-        pageSize: 25,
       );
     });
     tearDown(() => cache.dispose());
