@@ -22,8 +22,16 @@ enum TimelineType {
 
 /// Mastodon post visibility options.
 enum PostVisibility {
-  public('public', 'Public', 'Visible to everyone and shown in public timelines'),
-  unlisted('unlisted', 'Unlisted', 'Visible to everyone, but omitted from public timelines'),
+  public(
+    'public',
+    'Public',
+    'Visible to everyone and shown in public timelines',
+  ),
+  unlisted(
+    'unlisted',
+    'Unlisted',
+    'Visible to everyone, but omitted from public timelines',
+  ),
   private('private', 'Followers Only', 'Visible only to your followers'),
   direct('direct', 'Mentioned Only', 'Visible only to mentioned users');
 
@@ -65,15 +73,18 @@ class InstanceLimits {
     final media = config?['media_attachments'] as Map<String, dynamic>?;
     final translation = config?['translation'] as Map<String, dynamic>?;
 
-    final maxChars = _parsePositiveInt(statuses?['max_characters']) ??
+    final maxChars =
+        _parsePositiveInt(statuses?['max_characters']) ??
         _parsePositiveInt(json['max_toot_chars']) ??
         _parsePositiveInt(json['max_characters']) ??
         AppConstants.defaultMaxCharacters;
 
-    final maxMedia = _parsePositiveInt(statuses?['max_media_attachments']) ??
+    final maxMedia =
+        _parsePositiveInt(statuses?['max_media_attachments']) ??
         AppConstants.defaultMaxMediaAttachments;
 
-    final altLimit = _parsePositiveInt(media?['description_limit']) ??
+    final altLimit =
+        _parsePositiveInt(media?['description_limit']) ??
         AppConstants.defaultAltTextLimit;
 
     final translationEnabled = translation?['enabled'] == true;
@@ -139,10 +150,12 @@ class MastodonAccount {
       username: (json['username'] as String?) ?? '',
       acct: (json['acct'] as String?) ?? (json['username'] as String?) ?? '',
       displayName: (json['display_name'] as String?) ?? '',
-      avatar: (json['avatar_static'] as String?) ??
+      avatar:
+          (json['avatar_static'] as String?) ??
           (json['avatar'] as String?) ??
           '',
-      header: (json['header_static'] as String?) ??
+      header:
+          (json['header_static'] as String?) ??
           (json['header'] as String?) ??
           '',
       note: (json['note'] as String?) ?? '',
@@ -184,10 +197,9 @@ class MastodonMediaAttachment {
     final small = meta?['small'] as Map<String, dynamic>?;
     final original = meta?['original'] as Map<String, dynamic>?;
     final rawAspect = (small?['aspect'] ?? original?['aspect']) as num?;
-    final aspect =
-        rawAspect != null && rawAspect.isFinite && rawAspect > 0
-            ? rawAspect.toDouble()
-            : null;
+    final aspect = rawAspect != null && rawAspect.isFinite && rawAspect > 0
+        ? rawAspect.toDouble()
+        : null;
     return MastodonMediaAttachment(
       id: (json['id'] ?? '').toString(),
       type: (json['type'] as String?) ?? 'unknown',
@@ -217,13 +229,13 @@ class MastodonMention {
   /// Creates a lightweight [MastodonAccount] stub for immediately navigating to
   /// `ProfileScreen` before full profile metadata finishes loading.
   MastodonAccount toStubAccount() => MastodonAccount(
-        id: id,
-        username: username,
-        acct: acct,
-        displayName: username,
-        avatar: '',
-        url: url,
-      );
+    id: id,
+    username: username,
+    acct: acct,
+    displayName: username,
+    avatar: '',
+    url: url,
+  );
 
   factory MastodonMention.fromJson(Map<String, dynamic> json) {
     return MastodonMention(
@@ -355,7 +367,8 @@ class MastodonStatus {
     if (rawQuote != null) {
       if (rawQuote['quoted_status'] is Map<String, dynamic>) {
         quotedStatusJson = rawQuote['quoted_status'] as Map<String, dynamic>;
-      } else if (rawQuote['id'] != null && rawQuote['account'] is Map<String, dynamic>) {
+      } else if (rawQuote['id'] != null &&
+          rawQuote['account'] is Map<String, dynamic>) {
         quotedStatusJson = rawQuote;
       }
     }
@@ -363,7 +376,8 @@ class MastodonStatus {
 
     return MastodonStatus(
       id: (json['id'] ?? '').toString(),
-      createdAt: DateTime.tryParse((json['created_at'] as String?) ?? '') ??
+      createdAt:
+          DateTime.tryParse((json['created_at'] as String?) ?? '') ??
           DateTime.now().toUtc(),
       account: MastodonAccount.fromJson(
         (json['account'] as Map<String, dynamic>?) ?? const {},
@@ -497,9 +511,7 @@ class MastodonNotification {
     }
   }
 
-  MastodonNotification copyWith({
-    MastodonStatus? status,
-  }) {
+  MastodonNotification copyWith({MastodonStatus? status}) {
     return MastodonNotification(
       id: id,
       type: type,
@@ -514,7 +526,8 @@ class MastodonNotification {
     return MastodonNotification(
       id: (json['id'] ?? '').toString(),
       type: (json['type'] as String?) ?? 'unknown',
-      createdAt: DateTime.tryParse((json['created_at'] as String?) ?? '') ??
+      createdAt:
+          DateTime.tryParse((json['created_at'] as String?) ?? '') ??
           DateTime.now().toUtc(),
       account: MastodonAccount.fromJson(
         (json['account'] as Map<String, dynamic>?) ?? const {},
@@ -526,10 +539,7 @@ class MastodonNotification {
 
 /// Ancestor and descendant posts forming a conversation thread around a focal status.
 class MastodonContext {
-  const MastodonContext({
-    required this.ancestors,
-    required this.descendants,
-  });
+  const MastodonContext({required this.ancestors, required this.descendants});
 
   final List<MastodonStatus> ancestors;
   final List<MastodonStatus> descendants;

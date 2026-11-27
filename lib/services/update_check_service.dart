@@ -11,8 +11,8 @@ import '../models/update_info.dart';
 /// Checks GitHub for newer releases (and falls back to the `VERSION` file on `main`).
 class UpdateCheckService {
   UpdateCheckService({http.Client? client})
-      : _client = client ?? http.Client(),
-        _ownsClient = client == null;
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
 
   final http.Client _client;
   final bool _ownsClient;
@@ -81,7 +81,8 @@ class UpdateCheckService {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final decoded = jsonDecode(res.body) as Map<String, dynamic>;
         final tagName = (decoded['tag_name'] as String?)?.trim() ?? '';
-        final htmlUrl = (decoded['html_url'] as String?)?.trim() ??
+        final htmlUrl =
+            (decoded['html_url'] as String?)?.trim() ??
             '${AppConstants.repositoryUrl}/releases';
         final notes = (decoded['body'] as String?)?.trim();
         if (tagName.isNotEmpty && isNewerVersion(tagName, currentVersion)) {

@@ -13,9 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _FailingSecureStorage extends Fake implements FlutterSecureStorage {
   PlatformException _error() => PlatformException(
-        code: 'libsecret_unavailable',
-        message: 'No Secret Service daemon running',
-      );
+    code: 'libsecret_unavailable',
+    message: 'No Secret Service daemon running',
+  );
 
   @override
   Future<String?> read({
@@ -64,89 +64,85 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test(
-      'saves, loads, and clears MastodonSession and AiCredentials when libsecret throws',
-      () async {
-        final storage = StorageService(
-          secureStorage: _FailingSecureStorage(),
-          enableLinuxKeyringFallback: true,
-        );
+    test('saves, loads, and clears MastodonSession and AiCredentials when libsecret throws', () async {
+      final storage = StorageService(
+        secureStorage: _FailingSecureStorage(),
+        enableLinuxKeyringFallback: true,
+      );
 
-        expect(await storage.loadSession(), isNull);
+      expect(await storage.loadSession(), isNull);
 
-        const session = MastodonSession(
-          instanceUrl: 'https://infosec.exchange',
-          accessToken: 'secret-token-123',
-        );
-        await storage.saveSession(session);
+      const session = MastodonSession(
+        instanceUrl: 'https://infosec.exchange',
+        accessToken: 'secret-token-123',
+      );
+      await storage.saveSession(session);
 
-        final loadedSession = await storage.loadSession();
-        expect(loadedSession?.instanceUrl, 'https://infosec.exchange');
-        expect(loadedSession?.accessToken, 'secret-token-123');
+      final loadedSession = await storage.loadSession();
+      expect(loadedSession?.instanceUrl, 'https://infosec.exchange');
+      expect(loadedSession?.accessToken, 'secret-token-123');
 
-        const creds = AiCredentials(
-          geminiApiKey: 'gem-key',
-          openAiApiKey: 'oai-key',
-          anthropicApiKey: 'ant-key',
-          localApiKey: 'loc-key',
-        );
-        await storage.saveAiCredentials(creds);
+      const creds = AiCredentials(
+        geminiApiKey: 'gem-key',
+        openAiApiKey: 'oai-key',
+        anthropicApiKey: 'ant-key',
+        localApiKey: 'loc-key',
+      );
+      await storage.saveAiCredentials(creds);
 
-        final loadedCreds = await storage.loadAiCredentials();
-        expect(loadedCreds.geminiApiKey, 'gem-key');
-        expect(loadedCreds.openAiApiKey, 'oai-key');
-        expect(loadedCreds.anthropicApiKey, 'ant-key');
-        expect(loadedCreds.localApiKey, 'loc-key');
+      final loadedCreds = await storage.loadAiCredentials();
+      expect(loadedCreds.geminiApiKey, 'gem-key');
+      expect(loadedCreds.openAiApiKey, 'oai-key');
+      expect(loadedCreds.anthropicApiKey, 'ant-key');
+      expect(loadedCreds.localApiKey, 'loc-key');
 
-        await storage.clearSession();
-        expect(await storage.loadSession(), isNull);
+      await storage.clearSession();
+      expect(await storage.loadSession(), isNull);
 
-        // AI credentials remain intact after session clear.
-        final credsAfterSessionClear = await storage.loadAiCredentials();
-        expect(credsAfterSessionClear.geminiApiKey, 'gem-key');
-      },
-    );
+      // AI credentials remain intact after session clear.
+      final credsAfterSessionClear = await storage.loadAiCredentials();
+      expect(credsAfterSessionClear.geminiApiKey, 'gem-key');
+    });
 
-    test(
-      'persists InstanceLimits.translationEnabled and treats legacy cache without key as miss',
-      () async {
-        final storage = StorageService(
-          secureStorage: _FailingSecureStorage(),
-          enableLinuxKeyringFallback: true,
-        );
+    test('persists InstanceLimits.translationEnabled and treats legacy cache without key as miss', () async {
+      final storage = StorageService(
+        secureStorage: _FailingSecureStorage(),
+        enableLinuxKeyringFallback: true,
+      );
 
-        const limits = InstanceLimits(
-          maxCharacters: 800,
-          maxMediaAttachments: 4,
-          altTextLimit: 1500,
-          instanceTitle: 'infosec.exchange',
-          translationEnabled: true,
-        );
-        await storage.saveCachedInstanceLimits('https://infosec.exchange', limits);
+      const limits = InstanceLimits(
+        maxCharacters: 800,
+        instanceTitle: 'infosec.exchange',
+        translationEnabled: true,
+      );
+      await storage.saveCachedInstanceLimits(
+        'https://infosec.exchange',
+        limits,
+      );
 
-        final loaded =
-            await storage.loadCachedInstanceLimits('https://infosec.exchange');
-        expect(loaded, isNotNull);
-        expect(loaded!.maxCharacters, 800);
-        expect(loaded.translationEnabled, isTrue);
+      final loaded = await storage.loadCachedInstanceLimits(
+        'https://infosec.exchange',
+      );
+      expect(loaded, isNotNull);
+      expect(loaded!.maxCharacters, 800);
+      expect(loaded.translationEnabled, isTrue);
 
-        // Legacy entry without 'translation_enabled' triggers a fresh fetch.
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(
-          'instance_limits_v1_https___mastodon_social',
-          jsonEncode({
-            'fetched_at_ms': DateTime.now().millisecondsSinceEpoch,
-            'max_characters': 500,
-            'max_media_attachments': 4,
-            'alt_text_limit': 1500,
-            'instance_title': 'Mastodon',
-          }),
-        );
-        expect(
-          await storage.loadCachedInstanceLimits('https://mastodon.social'),
-          isNull,
-        );
-      },
-    );
+      // Legacy entry without 'translation_enabled' triggers a fresh fetch.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'instance_limits_v1_https___mastodon_social',
+        jsonEncode({
+          'fetched_at_ms': DateTime.now().millisecondsSinceEpoch,
+          'max_characters': 500,
+          'max_media_attachments': 4,
+          'alt_text_limit': 1500,
+          'instance_title': 'Mastodon',
+        }),
+      );
+      expect(
+        await storage.loadCachedInstanceLimits('https://mastodon.social'),
+        isNull,
+      );
+    });
   });
 }

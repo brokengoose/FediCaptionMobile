@@ -23,6 +23,20 @@ class MastodonApiException implements Exception {
   String toString() => message;
 }
 
+/// Upload accepted, but the server hadn't finished processing it (typically a
+/// long video) before polling gave up. [mediaId] stays valid, so callers can
+/// retry publishing with it later instead of re-uploading.
+class MediaStillProcessingException extends MastodonApiException {
+  const MediaStillProcessingException(this.mediaId)
+    : super(
+        'The server is still processing this media. '
+        'Wait a moment, then try publishing again.',
+        statusCode: 206,
+      );
+
+  final String mediaId;
+}
+
 /// Client credentials issued when registering FediCaption via `POST /api/v1/apps`.
 class OAuthAppCredentials {
   const OAuthAppCredentials({
@@ -37,18 +51,35 @@ class OAuthAppCredentials {
 /// Complete Mastodon REST API client supporting OAuth 2.0, dynamic instance limits,
 /// timelines, profiles, relationships, media uploads, and editing own posts with alt-text.
 class MastodonService {
-  MastodonService({http.Client? client})
-      : _client = client ?? http.Client(),
-        _ownsClient = client == null;
+  MastodonService({
+    http.Client? client,
+    this._mediaPollBackoff = _defaultMediaPollBackoff,
+    this._mediaPollAttempts = 15,
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null;
 
   final http.Client _client;
   final bool _ownsClient;
 
+  /// Progressive backoff between `GET /api/v1/media/:id` polls while the server
+  /// processes an upload (reduces pressure on Sidekiq video workers); the last
+  /// entry repeats. Injectable so tests don't sleep.
+  static const List<Duration> _defaultMediaPollBackoff = [
+    Duration(milliseconds: 1500),
+    Duration(milliseconds: 2000),
+    Duration(milliseconds: 2500),
+    Duration(milliseconds: 3000),
+    Duration(milliseconds: 4000),
+    Duration(milliseconds: 5000),
+  ];
+  final List<Duration> _mediaPollBackoff;
+  final int _mediaPollAttempts;
+
   static const Duration _profileCacheTtl = Duration(minutes: 3);
   final Map<String, ({MastodonAccount account, DateTime fetchedAt})>
-      _accountCache = {};
+  _accountCache = {};
   final Map<String, ({MastodonRelationship? relationship, DateTime fetchedAt})>
-      _relationshipCache = {};
+  _relationshipCache = {};
 
   /// Clears short-lived in-memory profile/relationship caches (e.g. on logout).
   void clearSessionCaches() {
@@ -166,7 +197,10 @@ class MastodonService {
   }
 
   /// Queries dynamic server limits from `GET /api/v2/instance` with fallback to `GET /api/v1/instance`.
-  Future<InstanceLimits> fetchInstanceLimits({
+  ///
+  /// Returns `null` when neither endpoint could be read, so callers can fall
+  /// back to defaults without mistaking them for the server's real limits.
+  Future<InstanceLimits?> fetchInstanceLimits({
     required String instanceUrl,
     String? accessToken,
   }) async {
@@ -187,7 +221,7 @@ class MastodonService {
         // Try fallback endpoint.
       }
     }
-    return const InstanceLimits();
+    return null;
   }
 
   /// Fetches statuses for any supported [TimelineType] with optional `maxId`
@@ -199,7 +233,7 @@ class MastodonService {
     required String currentUserId,
     String? maxId,
     String? sinceId,
-    int limit = 25,
+    int limit = AppConstants.timelinePageSize,
   }) async {
     final query = <String, String>{
       'limit': '$limit',
@@ -244,7 +278,7 @@ class MastodonService {
     required String accessToken,
     String? maxId,
     String? sinceId,
-    int limit = 30,
+    int limit = AppConstants.notificationsPageSize,
   }) async {
     final list = await _getJsonList(
       instanceUrl: instanceUrl,
@@ -297,7 +331,7 @@ class MastodonService {
     required String accessToken,
     required String accountId,
     String? maxId,
-    int limit = 25,
+    int limit = AppConstants.timelinePageSize,
   }) async {
     final list = await _getJsonList(
       instanceUrl: instanceUrl,
@@ -341,8 +375,10 @@ class MastodonService {
     final rel = (list.isEmpty || list.first is! Map<String, dynamic>)
         ? null
         : MastodonRelationship.fromJson(list.first as Map<String, dynamic>);
-    _relationshipCache[cacheKey] =
-        (relationship: rel, fetchedAt: DateTime.now());
+    _relationshipCache[cacheKey] = (
+      relationship: rel,
+      fetchedAt: DateTime.now(),
+    );
     return rel;
   }
 
@@ -357,13 +393,15 @@ class MastodonService {
       instanceUrl: instanceUrl,
       path: '/api/v1/accounts/$accountId/follow',
       accessToken: accessToken,
-      body: {if (notify != null) 'notify': notify},
+      body: {'notify': ?notify},
       errorContext: 'Failed to follow user',
     );
     final rel = MastodonRelationship.fromJson(decoded);
     final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
-    _relationshipCache[cacheKey] =
-        (relationship: rel, fetchedAt: DateTime.now());
+    _relationshipCache[cacheKey] = (
+      relationship: rel,
+      fetchedAt: DateTime.now(),
+    );
     return rel;
   }
 
@@ -381,8 +419,10 @@ class MastodonService {
     );
     final rel = MastodonRelationship.fromJson(decoded);
     final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
-    _relationshipCache[cacheKey] =
-        (relationship: rel, fetchedAt: DateTime.now());
+    _relationshipCache[cacheKey] = (
+      relationship: rel,
+      fetchedAt: DateTime.now(),
+    );
     return rel;
   }
 
@@ -431,8 +471,9 @@ class MastodonService {
         baseUri.host.toLowerCase() != targetUri.host.toLowerCase()) {
       return null;
     }
-    final segments =
-        targetUri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    final segments = targetUri.pathSegments
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
     if (segments.length < 2) return null;
     final last = segments.last;
     if (!RegExp(r'^\d{6,}$').hasMatch(last)) return null;
@@ -516,7 +557,9 @@ class MastodonService {
       req.fields['description'] = description.trim();
     }
 
-    final streamed = await _client.send(req).timeout(const Duration(seconds: 90));
+    final streamed = await _client
+        .send(req)
+        .timeout(const Duration(seconds: 90));
     final res = await http.Response.fromStream(streamed);
     _ensureSuccess(res, 'Failed to upload media');
 
@@ -529,41 +572,39 @@ class MastodonService {
         base: base,
         accessToken: accessToken,
         mediaId: attachment.id,
-        fallback: attachment,
       );
     }
 
     return attachment;
   }
 
+  /// Polls until async media processing finishes. Never returns an
+  /// unprocessed attachment: publishing one fails with Mastodon's 422
+  /// "not finished processing", so callers get a clear error instead.
   Future<MastodonMediaAttachment> _waitForMediaProcessing({
     required String base,
     required String accessToken,
     required String mediaId,
-    required MastodonMediaAttachment fallback,
   }) async {
-    // Progressive backoff reduces polling pressure on Sidekiq video workers.
-    const delaysMs = [1500, 2000, 2500, 3000, 4000, 5000];
-    for (var attempt = 0; attempt < 15; attempt++) {
-      final delayMs =
-          delaysMs[attempt < delaysMs.length ? attempt : delaysMs.length - 1];
-      await Future<void>.delayed(Duration(milliseconds: delayMs));
+    for (var attempt = 0; attempt < _mediaPollAttempts; attempt++) {
+      final delay =
+          _mediaPollBackoff[attempt < _mediaPollBackoff.length
+              ? attempt
+              : _mediaPollBackoff.length - 1];
+      await Future<void>.delayed(delay);
       final res = await _client
           .get(
             Uri.parse('$base/api/v1/media/$mediaId'),
             headers: _authHeaders(accessToken),
           )
           .timeout(const Duration(seconds: 15));
-      if (res.statusCode == 200) {
-        return MastodonMediaAttachment.fromJson(
-          jsonDecode(res.body) as Map<String, dynamic>,
-        );
-      }
-      if (res.statusCode != 206) {
-        break;
-      }
+      if (res.statusCode == 206) continue; // Still processing.
+      _ensureSuccess(res, 'Media processing failed');
+      return MastodonMediaAttachment.fromJson(
+        jsonDecode(res.body) as Map<String, dynamic>,
+      );
     }
-    return fallback;
+    throw MediaStillProcessingException(mediaId);
   }
 
   /// Publishes a new status (`POST /api/v1/statuses`).
@@ -615,7 +656,9 @@ class MastodonService {
       'spoiler_text': (spoilerText ?? '').trim(),
       if (language != null && language.trim().isNotEmpty)
         'language': language.trim(),
-      if (mediaIds.isNotEmpty) 'media_ids': mediaIds,
+      // Always sent on edit: Mastodon only touches attachments when the key
+      // is present, so omitting an empty list would keep removed media.
+      'media_ids': mediaIds,
       if (mediaAttributes.isNotEmpty) 'media_attributes': mediaAttributes,
     };
 
@@ -656,14 +699,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
     required bool currentlyFavourited,
-  }) =>
-      _postStatusAction(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-        statusId: statusId,
-        action: currentlyFavourited ? 'unfavourite' : 'favourite',
-        errorContext: 'Failed to update favorite',
-      );
+  }) => _postStatusAction(
+    instanceUrl: instanceUrl,
+    accessToken: accessToken,
+    statusId: statusId,
+    action: currentlyFavourited ? 'unfavourite' : 'favourite',
+    errorContext: 'Failed to update favorite',
+  );
 
   /// Boosts (`reblog`) or unboosts [statusId] depending on [currentlyReblogged].
   Future<MastodonStatus> toggleReblog({
@@ -671,14 +713,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
     required bool currentlyReblogged,
-  }) =>
-      _postStatusAction(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-        statusId: statusId,
-        action: currentlyReblogged ? 'unreblog' : 'reblog',
-        errorContext: 'Failed to update boost',
-      );
+  }) => _postStatusAction(
+    instanceUrl: instanceUrl,
+    accessToken: accessToken,
+    statusId: statusId,
+    action: currentlyReblogged ? 'unreblog' : 'reblog',
+    errorContext: 'Failed to update boost',
+  );
 
   /// Bookmarks or unbookmarks [statusId] depending on [currentlyBookmarked].
   Future<MastodonStatus> toggleBookmark({
@@ -686,14 +727,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
     required bool currentlyBookmarked,
-  }) =>
-      _postStatusAction(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-        statusId: statusId,
-        action: currentlyBookmarked ? 'unbookmark' : 'bookmark',
-        errorContext: 'Failed to update bookmark',
-      );
+  }) => _postStatusAction(
+    instanceUrl: instanceUrl,
+    accessToken: accessToken,
+    statusId: statusId,
+    action: currentlyBookmarked ? 'unbookmark' : 'bookmark',
+    errorContext: 'Failed to update bookmark',
+  );
 
   /// Translates a status via the connected Mastodon instance's built-in
   /// translation API (`POST /api/v1/statuses/:id/translate`).
@@ -733,8 +773,10 @@ class MastodonService {
         statusCode: res.statusCode,
       );
     }
-    final contentType =
-        (res.headers['content-type'] ?? 'image/jpeg').split(';').first.trim();
+    final contentType = (res.headers['content-type'] ?? 'image/jpeg')
+        .split(';')
+        .first
+        .trim();
     return (bytes: res.bodyBytes, mimeType: contentType);
   }
 
@@ -758,10 +800,7 @@ class MastodonService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final res = await _client
-        .get(
-          _buildUri(instanceUrl, path),
-          headers: _authHeaders(accessToken),
-        )
+        .get(_buildUri(instanceUrl, path), headers: _authHeaders(accessToken))
         .timeout(timeout);
     _ensureSuccess(res, errorContext);
     return jsonDecode(res.body) as Map<String, dynamic>;
@@ -837,9 +876,9 @@ class MastodonService {
   };
 
   Map<String, String> _authHeaders(String accessToken) => {
-        ..._baseHeaders,
-        'Authorization': 'Bearer $accessToken',
-      };
+    ..._baseHeaders,
+    'Authorization': 'Bearer $accessToken',
+  };
 
   void _ensureSuccess(http.Response res, String fallbackMessage) {
     if (res.statusCode >= 200 && res.statusCode < 300) return;

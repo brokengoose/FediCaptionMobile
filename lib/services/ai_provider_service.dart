@@ -27,10 +27,11 @@ class AiProviderService {
     http.Client? client,
     VideoFrameExtractor? videoFrameExtractor,
     OnDeviceAiService? onDeviceAiService,
-  })  : _client = client ?? http.Client(),
-        _ownsClient = client == null,
-        _videoFrameExtractor = videoFrameExtractor ?? const VideoFrameExtractor(),
-        _onDeviceAi = onDeviceAiService ?? OnDeviceAiService() {
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       _videoFrameExtractor =
+           videoFrameExtractor ?? const VideoFrameExtractor(),
+       _onDeviceAi = onDeviceAiService ?? OnDeviceAiService() {
     _catalog = AiModelCatalog(_client);
     _adapters = AiHttpAdapters(_client);
   }
@@ -43,8 +44,9 @@ class AiProviderService {
   late final AiHttpAdapters _adapters;
 
   /// Sorts model options alphabetically (case-insensitive by display name, then ID).
-  static List<AiModelOption> sortAlphabetically(Iterable<AiModelOption> models) =>
-      AiModelCatalog.sortAlphabetically(models);
+  static List<AiModelOption> sortAlphabetically(
+    Iterable<AiModelOption> models,
+  ) => AiModelCatalog.sortAlphabetically(models);
 
   /// Sensible fallback vision models (sorted alphabetically) when offline or
   /// before API credentials are provided.
@@ -57,12 +59,11 @@ class AiProviderService {
     required AiProviderType provider,
     required AppSettings settings,
     required AiCredentials credentials,
-  }) =>
-      _catalog.fetchAvailableModels(
-        provider: provider,
-        settings: settings,
-        credentials: credentials,
-      );
+  }) => _catalog.fetchAvailableModels(
+    provider: provider,
+    settings: settings,
+    credentials: credentials,
+  );
 
   /// Builds the screen-reader accessibility prompt for images and videos.
   String buildAltTextPrompt({
@@ -74,17 +75,16 @@ class AiProviderService {
     String? postContext,
     String? customInstructions,
     required int maxLength,
-  }) =>
-      AiPromptBuilder.buildAltTextPrompt(
-        isVideo: isVideo,
-        isInlineVideo: isInlineVideo,
-        frameCount: frameCount,
-        detailLevel: detailLevel,
-        language: language,
-        postContext: postContext,
-        customInstructions: customInstructions,
-        maxLength: maxLength,
-      );
+  }) => AiPromptBuilder.buildAltTextPrompt(
+    isVideo: isVideo,
+    isInlineVideo: isInlineVideo,
+    frameCount: frameCount,
+    detailLevel: detailLevel,
+    language: language,
+    postContext: postContext,
+    customInstructions: customInstructions,
+    maxLength: maxLength,
+  );
 
   /// Generates an accessible alt-text description for an image or video,
   /// automatically enforcing the mandatory prefix and server character limit.
@@ -131,8 +131,10 @@ class AiProviderService {
     );
 
     if (settings.activeProvider == AiProviderType.onDevice) {
-      final imageFrames =
-          mediaPayloads.where((m) => !m.isVideo).map((m) => m.bytes).toList();
+      final imageFrames = mediaPayloads
+          .where((m) => !m.isVideo)
+          .map((m) => m.bytes)
+          .toList();
       if (imageFrames.isEmpty) {
         throw const AiProviderException(
           'On-device AI requires extracted image frames to describe this media.',
@@ -276,8 +278,8 @@ class AiProviderService {
         MediaBinaryPayload(
           bytes: bytes,
           mimeType:
-              mimeType ?? MediaUtils.guessMimeType(localFilePath, isVideo: false),
-          isVideo: false,
+              mimeType ??
+              MediaUtils.guessMimeType(localFilePath, isVideo: false),
         ),
       ];
     }
@@ -292,7 +294,8 @@ class AiProviderService {
         MediaBinaryPayload(
           bytes: bytes,
           mimeType:
-              mimeType ?? MediaUtils.guessMimeType(localFilePath, isVideo: true),
+              mimeType ??
+              MediaUtils.guessMimeType(localFilePath, isVideo: true),
           isVideo: true,
         ),
       ];

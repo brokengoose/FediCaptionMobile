@@ -9,7 +9,11 @@ import 'mastodon_models.dart';
 
 /// Shared policy mode for both Accessibility Rules (alt-text) and Bias Rules.
 enum PolicyMode {
-  warn('warn', 'Warn (Default)', 'Warn before posting, with an option to continue anyway.'),
+  warn(
+    'warn',
+    'Warn (Default)',
+    'Warn before posting, with an option to continue anyway.',
+  ),
   require('require', 'Require', 'Block posting until resolved.'),
   off('off', 'Off', 'Do not check or warn before posting.');
 
@@ -116,14 +120,16 @@ class AppSettings {
       if (second.length == 4) {
         return Locale.fromSubtags(
           languageCode: languageCode,
-          scriptCode: second[0].toUpperCase() + second.substring(1).toLowerCase(),
+          scriptCode:
+              second[0].toUpperCase() + second.substring(1).toLowerCase(),
         );
       }
       return Locale(languageCode, second.toUpperCase());
     }
     return Locale.fromSubtags(
       languageCode: languageCode,
-      scriptCode: parts[1][0].toUpperCase() + parts[1].substring(1).toLowerCase(),
+      scriptCode:
+          parts[1][0].toUpperCase() + parts[1].substring(1).toLowerCase(),
       countryCode: parts[2].toUpperCase(),
     );
   }
@@ -214,27 +220,27 @@ class AppSettings {
   }
 
   Map<String, dynamic> toJson() => {
-        'activeProvider': activeProvider.id,
-        'onDeviceModel': onDeviceModel,
-        'geminiModel': geminiModel,
-        'openAiModel': openAiModel,
-        'openAiBaseUrl': openAiBaseUrl,
-        'anthropicModel': anthropicModel,
-        'localModel': localModel,
-        'localBaseUrl': localBaseUrl,
-        'defaultDetailLevel': defaultDetailLevel.id,
-        'videoKeyframeCount': videoKeyframeCount,
-        'autoGenerate': autoGenerate,
-        'includePostContext': includePostContext,
-        'language': language,
-        'customInstructions': customInstructions,
-        'altTextPolicy': altTextPolicy.id,
-        'biasPolicy': biasPolicy.id,
-        'themePreference': themePreference.id,
-        'aiSetupCompleted': aiSetupCompleted,
-        'ttsSpeechRate': ttsSpeechRate,
-        'appLocale': appLocale,
-      };
+    'activeProvider': activeProvider.id,
+    'onDeviceModel': onDeviceModel,
+    'geminiModel': geminiModel,
+    'openAiModel': openAiModel,
+    'openAiBaseUrl': openAiBaseUrl,
+    'anthropicModel': anthropicModel,
+    'localModel': localModel,
+    'localBaseUrl': localBaseUrl,
+    'defaultDetailLevel': defaultDetailLevel.id,
+    'videoKeyframeCount': videoKeyframeCount,
+    'autoGenerate': autoGenerate,
+    'includePostContext': includePostContext,
+    'language': language,
+    'customInstructions': customInstructions,
+    'altTextPolicy': altTextPolicy.id,
+    'biasPolicy': biasPolicy.id,
+    'themePreference': themePreference.id,
+    'aiSetupCompleted': aiSetupCompleted,
+    'ttsSpeechRate': ttsSpeechRate,
+    'appLocale': appLocale,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     final keyframeCount = json['videoKeyframeCount'] as int? ?? 4;
@@ -251,26 +257,29 @@ class AppSettings {
       geminiModel: (json['geminiModel'] as String?) ?? 'gemini-2.5-flash',
       openAiModel: (json['openAiModel'] as String?) ?? 'gpt-4o-mini',
       openAiBaseUrl:
-          (json['openAiBaseUrl'] as String?) ?? AppConstants.openAiDefaultBaseUrl,
+          (json['openAiBaseUrl'] as String?) ??
+          AppConstants.openAiDefaultBaseUrl,
       anthropicModel:
           (json['anthropicModel'] as String?) ?? 'claude-sonnet-4-20250514',
       localModel: normalizedLocalModel,
       localBaseUrl:
           (json['localBaseUrl'] as String?) ?? AppConstants.localDefaultBaseUrl,
-      defaultDetailLevel:
-          CaptionDetailLevel.fromId(json['defaultDetailLevel'] as String?),
+      defaultDetailLevel: CaptionDetailLevel.fromId(
+        json['defaultDetailLevel'] as String?,
+      ),
       videoKeyframeCount:
           (keyframeCount == 3 || keyframeCount == 4 || keyframeCount == 6)
-              ? keyframeCount
-              : 4,
+          ? keyframeCount
+          : 4,
       autoGenerate: json['autoGenerate'] as bool? ?? true,
       includePostContext: json['includePostContext'] as bool? ?? true,
       language: (json['language'] as String?) ?? 'English',
       customInstructions: (json['customInstructions'] as String?) ?? '',
       altTextPolicy: PolicyMode.fromId(json['altTextPolicy'] as String?),
       biasPolicy: PolicyMode.fromId(json['biasPolicy'] as String?),
-      themePreference:
-          ThemePreference.fromId(json['themePreference'] as String?),
+      themePreference: ThemePreference.fromId(
+        json['themePreference'] as String?,
+      ),
       aiSetupCompleted: json['aiSetupCompleted'] as bool? ?? false,
       ttsSpeechRate: rawRate.clamp(0.25, 1.0),
       appLocale: (rawAppLocale == null || rawAppLocale.isEmpty)
@@ -328,10 +337,7 @@ class AiCredentials {
 
 /// Stored Mastodon account credentials.
 class MastodonSession {
-  const MastodonSession({
-    required this.instanceUrl,
-    required this.accessToken,
-  });
+  const MastodonSession({required this.instanceUrl, required this.accessToken});
 
   final String instanceUrl;
   final String accessToken;
@@ -387,13 +393,14 @@ class StoredAccount {
   String get effectiveDisplayName =>
       displayName.trim().isNotEmpty ? displayName.trim() : username;
 
-  MastodonSession get session => MastodonSession(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-      );
+  MastodonSession get session =>
+      MastodonSession(instanceUrl: instanceUrl, accessToken: accessToken);
 
   static String buildKey(String instanceUrl, String accountId) {
-    final cleanUrl = instanceUrl.trim().replaceAll(RegExp(r'/+$'), '').toLowerCase();
+    final cleanUrl = instanceUrl
+        .trim()
+        .replaceAll(RegExp(r'/+$'), '')
+        .toLowerCase();
     return '$cleanUrl::${accountId.trim()}';
   }
 
@@ -401,8 +408,10 @@ class StoredAccount {
     required MastodonSession session,
     required MastodonAccount account,
   }) {
-    final cleanInstance =
-        session.instanceUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final cleanInstance = session.instanceUrl.trim().replaceAll(
+      RegExp(r'/+$'),
+      '',
+    );
     return StoredAccount(
       key: buildKey(cleanInstance, account.id),
       instanceUrl: cleanInstance,
@@ -437,14 +446,14 @@ class StoredAccount {
   /// Serializes only non-secret account metadata for SharedPreferences.
   /// The access token is stored separately in platform secure storage.
   Map<String, dynamic> toMetadataJson() => {
-        'key': key,
-        'instanceUrl': instanceUrl,
-        'accountId': accountId,
-        'username': username,
-        'acct': acct,
-        'displayName': displayName,
-        'avatar': avatar,
-      };
+    'key': key,
+    'instanceUrl': instanceUrl,
+    'accountId': accountId,
+    'username': username,
+    'acct': acct,
+    'displayName': displayName,
+    'avatar': avatar,
+  };
 
   static StoredAccount? fromMetadataJson(
     Map<String, dynamic> json, {

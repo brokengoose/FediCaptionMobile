@@ -1,0 +1,308 @@
+// Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
+// SPDX-License-Identifier: MIT
+
+import 'dart:ui' show Tristate;
+
+import 'package:fedicaption_mobile/models/mastodon_models.dart';
+import 'package:fedicaption_mobile/models/update_info.dart';
+import 'package:fedicaption_mobile/state/app_controller.dart';
+import 'package:fedicaption_mobile/ui/widgets/accessible_button_semantics.dart';
+import 'package:fedicaption_mobile/ui/widgets/media_attachment_card.dart';
+import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
+import 'package:fedicaption_mobile/ui/widgets/update_banner.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'helpers/test_app.dart';
+
+const _alice = MastodonAccount(
+  id: 'a',
+  username: 'alice',
+  acct: 'alice@example.social',
+  displayName: 'Alice',
+  avatar: '',
+);
+
+MastodonStatus _post({String spoilerText = '', bool withMedia = false}) {
+  return MastodonStatus(
+    id: '1',
+    createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    account: _alice,
+    contentHtml: '<p>Hello world</p>',
+    url: 'https://example.social/@alice/1',
+    spoilerText: spoilerText,
+    repliesCount: 3,
+    mediaAttachments: withMedia
+        ? const [
+            MastodonMediaAttachment(
+              id: 'm1',
+              type: 'image',
+              url: 'https://example.social/full.jpg',
+              previewUrl: 'https://example.social/preview.jpg',
+              description: 'A cat asleep on a keyboard',
+            ),
+          ]
+        : const [],
+  );
+}
+
+Widget _card(
+  AppController app,
+  MastodonStatus status, {
+  bool selected = false,
+}) {
+  return localizedTestApp(
+    home: Scaffold(
+      body: SingleChildScrollView(
+        child: StatusCard(
+          status: status,
+          app: app,
+          isKeyboardSelected: selected,
+          onOpenProfile: (_) {},
+          onOpenThread: (_) {},
+          onReply: (_) {},
+          onToggleBoost: (_) async {},
+          onToggleFavorite: (_) async {},
+          onToggleBookmark: (_) async {},
+        ),
+      ),
+    ),
+  );
+}
+
+SemanticsOwner _semanticsOwner(WidgetTester tester) =>
+    tester.binding.renderViews.first.owner!.semanticsOwner!;
+
+/// Walks the live semantics tree and returns human-readable problems:
+/// - a button node without a tap action that wraps an activatable descendant
+///   (the "dead duplicate button" a screen reader lands on first);
+/// - a button whose label merged in extra visible text (read twice).
+List<String> _buttonProblems(WidgetTester tester) {
+  final problems = <String>[];
+  bool hasTappableDescendant(SemanticsNode node) {
+    var found = false;
+    node.visitChildren((child) {
+      final d = child.getSemanticsData();
+      if (d.hasAction(SemanticsAction.tap) || hasTappableDescendant(child)) {
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    return found;
+  }
+
+  void visit(SemanticsNode node) {
+    final d = node.getSemanticsData();
+    if (d.flagsCollection.isButton) {
+      if (!d.hasAction(SemanticsAction.tap) && hasTappableDescendant(node)) {
+        problems.add('dead wrapper button: "${d.label}"');
+      }
+      if (d.label.contains('\n')) {
+        problems.add(
+          'merged/doubled label: "${d.label.replaceAll('\n', ' | ')}"',
+        );
+      }
+    }
+    node.visitChildren((c) {
+      visit(c);
+      return true;
+    });
+  }
+
+  visit(_semanticsOwner(tester).rootSemanticsNode!);
+  return problems;
+}
+
+void main() {
+  group('Screen-reader semantics', () {
+    testWidgets('StatusCard exposes one clean, activatable node per control', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      await tester.pumpWidget(_card(app, _post(spoilerText: 'Spoiler')));
+      await tester.pump();
+
+      expect(_buttonProblems(tester), isEmpty);
+      expect(
+        tester.getSemantics(
+          find.bySemanticsLabel('Show content behind content warning'),
+        ),
+        isSemantics(isButton: true, hasTapAction: true),
+      );
+      expect(
+        tester.getSemantics(
+          find.bySemanticsLabel('Reply to Alice (3 replies)'),
+        ),
+        isSemantics(isButton: true, hasTapAction: true),
+      );
+      expect(
+        tester.getSemantics(
+          find.bySemanticsLabel(
+            'Alice, @alice@example.social. Tap to view posts.',
+          ),
+        ),
+        isSemantics(isButton: true, hasTapAction: true),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('revealed post with media has no dead or doubled buttons', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      await tester.pumpWidget(_card(app, _post(withMedia: true)));
+      await tester.pump();
+
+      expect(_buttonProblems(tester), isEmpty);
+      expect(
+        tester.getSemantics(
+          find.bySemanticsLabel(RegExp('^Image: A cat asleep')),
+        ),
+        isSemantics(isButton: true, isImage: true, hasTapAction: true),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('keyboard-selected post is announced as selected', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      await tester.pumpWidget(_card(app, _post(), selected: true));
+      await tester.pump();
+
+      final selectedNodes = <SemanticsNode>[];
+      void visit(SemanticsNode n) {
+        if (n.getSemanticsData().flagsCollection.isSelected ==
+            Tristate.isTrue) {
+          selectedNodes.add(n);
+        }
+        n.visitChildren((c) {
+          visit(c);
+          return true;
+        });
+      }
+
+      visit(_semanticsOwner(tester).rootSemanticsNode!);
+      expect(selectedNodes, isNotEmpty);
+      handle.dispose();
+    });
+
+    testWidgets('MediaAttachmentCard read-aloud button reports toggled state', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final app = AppController();
+      addTearDown(app.dispose);
+
+      await tester.pumpWidget(
+        localizedTestApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MediaAttachmentCard(
+                attachment: _post(withMedia: true).mediaAttachments.single,
+                app: app,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(_buttonProblems(tester), isEmpty);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Read alt text aloud')),
+        isSemantics(isButton: true, hasTapAction: true, hasToggledState: true),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('UpdateBanner announces its text once', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        localizedTestApp(
+          home: Scaffold(
+            body: UpdateBanner(
+              update: const UpdateInfo(
+                latestVersion: '2.0.0',
+                currentVersion: '1.0.0',
+                releaseUrl: 'https://example.org/release',
+              ),
+              onDismiss: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final banner = tester.getSemantics(find.byType(UpdateBanner));
+      expect(banner.getSemanticsData().label.contains('\n'), isFalse);
+      handle.dispose();
+    });
+
+    testWidgets(
+      'AccessibleButtonSemantics forwards taps and reports disabled',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        var taps = 0;
+        await tester.pumpWidget(
+          localizedTestApp(
+            home: Scaffold(
+              body: Column(
+                children: [
+                  AccessibleButtonSemantics(
+                    label: 'Do thing',
+                    toggled: true,
+                    onTap: () => taps++,
+                    child: TextButton(
+                      onPressed: () => taps++,
+                      child: const Text('Thing'),
+                    ),
+                  ),
+                  const AccessibleButtonSemantics(
+                    label: 'Disabled thing',
+                    onTap: null,
+                    child: TextButton(onPressed: null, child: Text('Nope')),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        final node = tester.getSemantics(find.bySemanticsLabel('Do thing'));
+        expect(
+          node,
+          matchesSemantics(
+            label: 'Do thing',
+            isButton: true,
+            hasEnabledState: true,
+            isEnabled: true,
+            isFocusable: true,
+            hasToggledState: true,
+            isToggled: true,
+            hasTapAction: true,
+          ),
+        );
+        _semanticsOwner(tester).performAction(node.id, SemanticsAction.tap);
+        expect(taps, 1);
+
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Disabled thing')),
+          isSemantics(isButton: true, isEnabled: false, hasTapAction: false),
+        );
+        handle.dispose();
+      },
+    );
+  });
+}

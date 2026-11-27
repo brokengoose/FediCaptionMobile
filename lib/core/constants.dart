@@ -22,7 +22,8 @@ class AppConstants {
   // OAuth 2.0 configuration
   static const String oauthClientName = 'FediCaption Mobile';
   static const String oauthCallbackScheme = 'fedicaption';
-  static const String oauthRedirectUri = '$oauthCallbackScheme://oauth-callback';
+  static const String oauthRedirectUri =
+      '$oauthCallbackScheme://oauth-callback';
   static const int desktopLoopbackOAuthPort = 43823;
   static const String desktopLoopbackOAuthOrigin =
       'http://127.0.0.1:$desktopLoopbackOAuthPort';
@@ -38,6 +39,10 @@ class AppConstants {
   static const int defaultMaxCharacters = 500;
   static const int defaultMaxMediaAttachments = 4;
   static const int defaultAltTextLimit = 1500;
+
+  // Page sizes requested from Mastodon list endpoints.
+  static const int timelinePageSize = 25;
+  static const int notificationsPageSize = 30;
 
   // Inline video size threshold for Google Gemini (18 MB raw bytes)
   static const int geminiInlineVideoMaxBytes = 18 * 1024 * 1024;

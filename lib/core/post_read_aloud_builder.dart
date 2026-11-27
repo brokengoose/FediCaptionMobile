@@ -31,7 +31,10 @@ class PostReadAloudBuilder {
       segments.add(l10n.statusReadAloudContentWarning(spoiler));
     }
 
-    final body = _resolveBodyText(target.contentHtml, bodyOverride: bodyOverride);
+    final body = _resolveBodyText(
+      target.contentHtml,
+      bodyOverride: bodyOverride,
+    );
     if (body.isNotEmpty) {
       segments.add(body);
     }
@@ -82,7 +85,9 @@ class PostReadAloudBuilder {
       return bodyOverride.trim();
     }
     final quoteMatch = HtmlUtils.extractLeadingQuote(contentHtml);
-    final bodyHtml = quoteMatch != null ? quoteMatch.remainingHtml : contentHtml;
+    final bodyHtml = quoteMatch != null
+        ? quoteMatch.remainingHtml
+        : contentHtml;
     return HtmlUtils.htmlToPlainText(bodyHtml).trim();
   }
 

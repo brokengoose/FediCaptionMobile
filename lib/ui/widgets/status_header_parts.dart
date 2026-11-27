@@ -10,6 +10,7 @@ import '../../core/time_utils.dart';
 import '../../l10n/l10n.dart';
 import '../../models/mastodon_models.dart';
 import 'accessible_avatar.dart';
+import 'accessible_button_semantics.dart';
 import 'accessible_tip.dart';
 
 /// Shared author header row (clickable avatar, display name, handle, and
@@ -39,14 +40,22 @@ class StatusAuthorHeader extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
     final l10n = context.l10n;
-    final compactTime =
-        TimeUtils.formatRelativeCompact(status.createdAt, l10n: l10n);
-    final verboseTime =
-        TimeUtils.formatRelativeAccessible(status.createdAt, l10n: l10n);
+    final compactTime = TimeUtils.formatRelativeCompact(
+      status.createdAt,
+      l10n: l10n,
+    );
+    final verboseTime = TimeUtils.formatRelativeAccessible(
+      status.createdAt,
+      l10n: l10n,
+    );
+    final VoidCallback? openPermalink = status.permalinkUrl.isNotEmpty
+        ? () => _openPermalink(status.permalinkUrl)
+        : null;
 
     return Row(
-      crossAxisAlignment:
-          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: compact
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         AccessibleAvatar(
           imageUrl: status.account.avatar,
@@ -56,12 +65,12 @@ class StatusAuthorHeader extends StatelessWidget {
         ),
         SizedBox(width: compact ? 6 : 8),
         Expanded(
-          child: Semantics(
-            button: true,
+          child: AccessibleButtonSemantics(
             label: l10n.statusHeaderSemantics(
               status.account.effectiveDisplayName,
               status.account.handle,
             ),
+            onTap: () => onOpenProfile(status.account),
             child: AccessibleTip(
               message: l10n.avatarViewProfileSemantics(
                 status.account.effectiveDisplayName,
@@ -79,18 +88,14 @@ class StatusAuthorHeader extends StatelessWidget {
                     children: [
                       Text(
                         status.account.effectiveDisplayName,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
+                        style: Theme.of(context).textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         status.account.handle,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
+                        style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: fedi.subtleText),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -102,17 +107,16 @@ class StatusAuthorHeader extends StatelessWidget {
             ),
           ),
         ),
-        Semantics(
+        AccessibleButtonSemantics(
           link: true,
           label: compact
               ? l10n.statusQuotedTimestampSemantics(verboseTime)
               : l10n.statusTimestampSemantics(verboseTime),
+          onTap: openPermalink,
           child: AccessibleTip(
             message: l10n.statusTimestampTip(verboseTime),
             child: InkWell(
-              onTap: status.permalinkUrl.isNotEmpty
-                  ? () => _openPermalink(status.permalinkUrl)
-                  : null,
+              onTap: openPermalink,
               borderRadius: BorderRadius.circular(8),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
@@ -126,13 +130,14 @@ class StatusAuthorHeader extends StatelessWidget {
                     children: [
                       Text(
                         compactTime,
-                        style: (compact
-                                ? Theme.of(context).textTheme.labelSmall
-                                : Theme.of(context).textTheme.labelMedium)
-                            ?.copyWith(
-                          color: scheme.primary,
-                          decoration: TextDecoration.underline,
-                        ),
+                        style:
+                            (compact
+                                    ? Theme.of(context).textTheme.labelSmall
+                                    : Theme.of(context).textTheme.labelMedium)
+                                ?.copyWith(
+                                  color: scheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
                       ),
                       const SizedBox(width: 2),
                       Icon(
@@ -186,20 +191,21 @@ class ContentWarningBanner extends StatelessWidget {
           Expanded(
             child: Text(
               l10n.cwBannerText(spoilerText),
-              style: (compact
-                      ? Theme.of(context).textTheme.bodySmall
-                      : Theme.of(context).textTheme.bodyMedium)
-                  ?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: fedi.biasWarningFg,
-              ),
+              style:
+                  (compact
+                          ? Theme.of(context).textTheme.bodySmall
+                          : Theme.of(context).textTheme.bodyMedium)
+                      ?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: fedi.biasWarningFg,
+                      ),
             ),
           ),
           const SizedBox(width: 8),
-          Semantics(
-            button: true,
+          AccessibleButtonSemantics(
             toggled: revealed,
             label: revealed ? l10n.cwHideSemantics : l10n.cwShowSemantics,
+            onTap: onToggle,
             child: AccessibleTip(
               message: revealed ? l10n.cwHideTip : l10n.cwShowTip,
               child: compact

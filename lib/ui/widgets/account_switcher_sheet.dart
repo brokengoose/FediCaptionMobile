@@ -14,10 +14,7 @@ import 'accessible_avatar.dart';
 /// active account & server and offering 1-tap switching, adding accounts, or
 /// signing out of individual accounts.
 class AccountSwitcherSheet extends StatelessWidget {
-  const AccountSwitcherSheet({
-    super.key,
-    required this.app,
-  });
+  const AccountSwitcherSheet({super.key, required this.app});
 
   final AppController app;
 
@@ -38,9 +35,8 @@ class AccountSwitcherSheet extends StatelessWidget {
       Navigator.of(context).pop();
     } else {
       final err = app.authError ?? '';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.accountsSwitchError(err))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.accountsSwitchError(err))));
     }
   }
 
@@ -60,10 +56,7 @@ class AccountSwitcherSheet extends StatelessWidget {
     navigator.pop();
     navigator.push(
       MaterialPageRoute<void>(
-        builder: (_) => LoginScreen(
-          app: app,
-          isAddingAccount: true,
-        ),
+        builder: (_) => LoginScreen(app: app, isAddingAccount: true),
       ),
     );
   }
@@ -104,17 +97,13 @@ class AccountSwitcherSheet extends StatelessWidget {
                               header: true,
                               child: Text(
                                 l10n.accountsSheetTitle,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                             ),
                             Text(
                               l10n.accountsSheetSubtitle(accounts.length),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: fedi.subtleText),
                             ),
                           ],
@@ -139,7 +128,9 @@ class AccountSwitcherSheet extends StatelessWidget {
                   const Divider(),
                   const SizedBox(height: 8),
                   FilledButton.tonalIcon(
-                    onPressed: switching ? null : () => _openAddAccount(context),
+                    onPressed: switching
+                        ? null
+                        : () => _openAddAccount(context),
                     icon: const Icon(Icons.person_add_outlined),
                     label: Text(l10n.accountsAddButton),
                   ),
@@ -198,9 +189,7 @@ class _AccountTile extends StatelessWidget {
                 account.effectiveDisplayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
+                style: Theme.of(context).textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
@@ -215,9 +204,9 @@ class _AccountTile extends StatelessWidget {
                 child: Text(
                   l10n.accountsActiveBadge,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: scheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -227,9 +216,7 @@ class _AccountTile extends StatelessWidget {
           account.fullHandle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
+          style: Theme.of(context).textTheme.bodySmall
               ?.copyWith(color: fedi.subtleText),
         ),
         trailing: Row(

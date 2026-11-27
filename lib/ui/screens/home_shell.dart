@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -13,6 +15,7 @@ import '../../models/mastodon_models.dart';
 import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
 import '../widgets/accessible_avatar.dart';
+import '../widgets/accessible_button_semantics.dart';
 import '../widgets/accessible_tip.dart';
 import '../widgets/account_switcher_sheet.dart';
 import '../widgets/update_banner.dart';
@@ -28,10 +31,7 @@ import 'timeline_screen.dart';
 /// - Full timeline switcher (Home, Local, Federated, Notifications, Bookmarks, Favorites, My Published Posts)
 /// - Accessible Compose button and Settings screen access
 class HomeShell extends StatefulWidget {
-  const HomeShell({
-    super.key,
-    required this.app,
-  });
+  const HomeShell({super.key, required this.app});
 
   final AppController app;
 
@@ -69,9 +69,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _openComposer() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ComposerScreen(app: widget.app),
-      ),
+      MaterialPageRoute<void>(builder: (_) => ComposerScreen(app: widget.app)),
     );
   }
 
@@ -85,9 +83,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _openSettings() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(app: widget.app),
-      ),
+      MaterialPageRoute<void>(builder: (_) => SettingsScreen(app: widget.app)),
     );
   }
 
@@ -155,7 +151,7 @@ class _HomeShellState extends State<HomeShell> {
     // `?` shows the Keyboard Shortcuts reference dialog.
     if (key == LogicalKeyboardKey.question ||
         (key == LogicalKeyboardKey.slash && shiftPressed)) {
-      KeyboardShortcutsDialog.show(context);
+      unawaited(KeyboardShortcutsDialog.show(context));
       return true;
     }
 
@@ -230,7 +226,12 @@ class _HomeShellState extends State<HomeShell> {
                       app: widget.app,
                     )
                   : TimelineScreen(
-                      key: ValueKey('timeline_$accountCacheSuffix'),
+                      // Type in the key: each timeline gets a fresh State so
+                      // in-flight loads from the previous type can't write
+                      // into this type's cache or carry over scroll offset.
+                      key: ValueKey(
+                        'timeline_${_selectedTimeline.name}_$accountCacheSuffix',
+                      ),
                       app: widget.app,
                       timelineType: _selectedTimeline,
                     ),
@@ -246,69 +247,72 @@ class _HomeShellState extends State<HomeShell> {
             // Upper-left logged-in profile header: tapping immediately shows My Published Posts
             title: account == null
                 ? Text(selectedFullTitle)
-                : Semantics(
-                    button: true,
+                : AccessibleButtonSemantics(
                     label: l10n.homeProfileHeaderSemantics(
                       account.effectiveDisplayName,
                       activeHandle,
                     ),
+                    onTap: () => _selectTimeline(TimelineType.myPosts),
                     child: AccessibleTip(
                       message: l10n.homeProfileHeaderTip(activeHandle),
                       child: InkWell(
                         onTap: () => _selectTimeline(TimelineType.myPosts),
-                      borderRadius: BorderRadius.circular(10),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minHeight: AppConstants.minTouchTargetSize,
-                        ),
-                        child: Row(
-                          children: [
-                            AccessibleAvatar(
-                              imageUrl: account.avatar,
-                              displayName: account.effectiveDisplayName,
-                              radius: 18,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    selectedFullTitle,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.bold),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    activeHandle,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(color: fedi.subtleText),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                        borderRadius: BorderRadius.circular(10),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: AppConstants.minTouchTargetSize,
+                          ),
+                          child: Row(
+                            children: [
+                              AccessibleAvatar(
+                                imageUrl: account.avatar,
+                                displayName: account.effectiveDisplayName,
+                                radius: 18,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      selectedFullTitle,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      activeHandle,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: fedi.subtleText),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
             actions: [
               if (account != null)
                 hasMultipleAccounts
                     ? Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Semantics(
-                          button: true,
+                        child: AccessibleButtonSemantics(
                           label: l10n.accountsSwitchTooltip(activeHandle),
+                          onTap: () =>
+                              AccountSwitcherSheet.show(context, widget.app),
                           child: AccessibleTip(
                             message: l10n.accountsSwitchTooltip(activeHandle),
                             child: OutlinedButton(
@@ -376,7 +380,9 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ),
               AccessibleTip(
-                message: l10n.homeSettingsTooltip,
+                message: l10n.homeSettingsTooltip(
+                  KeyboardNavHelper.primaryShortcutLabel(context, ','),
+                ),
                 child: IconButton(
                   icon: const Icon(Icons.settings_outlined),
                   onPressed: _openSettings,
@@ -388,110 +394,112 @@ class _HomeShellState extends State<HomeShell> {
               ? null
               : Drawer(
                   child: SafeArea(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  if (account != null)
-                    InkWell(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        _selectTimeline(TimelineType.myPosts);
-                      },
-                      child: DrawerHeader(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            AccessibleAvatar(
-                              imageUrl: account.avatar,
-                              displayName: account.effectiveDisplayName,
-                              radius: 26,
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        if (account != null)
+                          InkWell(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              _selectTimeline(TimelineType.myPosts);
+                            },
+                            child: DrawerHeader(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  AccessibleAvatar(
+                                    imageUrl: account.avatar,
+                                    displayName: account.effectiveDisplayName,
+                                    radius: 26,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    account.effectiveDisplayName,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    activeHandle,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: fedi.subtleText),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              account.effectiveDisplayName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              activeHandle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: fedi.subtleText),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          ),
+                        _drawerItem(
+                          icon: Icons.home_outlined,
+                          selectedIcon: Icons.home,
+                          type: TimelineType.home,
                         ),
-                      ),
+                        _drawerItem(
+                          icon: Icons.groups_outlined,
+                          selectedIcon: Icons.groups,
+                          type: TimelineType.local,
+                        ),
+                        _drawerItem(
+                          icon: Icons.public_outlined,
+                          selectedIcon: Icons.public,
+                          type: TimelineType.federated,
+                        ),
+                        _drawerItem(
+                          icon: Icons.notifications_outlined,
+                          selectedIcon: Icons.notifications,
+                          type: TimelineType.notifications,
+                        ),
+                        const Divider(),
+                        _drawerItem(
+                          icon: Icons.bookmark_outline,
+                          selectedIcon: Icons.bookmark,
+                          type: TimelineType.bookmarks,
+                        ),
+                        _drawerItem(
+                          icon: Icons.star_outline,
+                          selectedIcon: Icons.star,
+                          type: TimelineType.favorites,
+                        ),
+                        _drawerItem(
+                          icon: Icons.article_outlined,
+                          selectedIcon: Icons.article,
+                          type: TimelineType.myPosts,
+                        ),
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.switch_account_outlined),
+                          title: Text(l10n.accountsSwitchOrAddLabel),
+                          subtitle: hasMultipleAccounts
+                              ? Text(activeHandle)
+                              : null,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            unawaited(
+                              AccountSwitcherSheet.show(context, widget.app),
+                            );
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.settings_outlined),
+                          title: Text(l10n.homeDrawerSettings),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => SettingsScreen(app: widget.app),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  _drawerItem(
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    type: TimelineType.home,
                   ),
-                  _drawerItem(
-                    icon: Icons.groups_outlined,
-                    selectedIcon: Icons.groups,
-                    type: TimelineType.local,
-                  ),
-                  _drawerItem(
-                    icon: Icons.public_outlined,
-                    selectedIcon: Icons.public,
-                    type: TimelineType.federated,
-                  ),
-                  _drawerItem(
-                    icon: Icons.notifications_outlined,
-                    selectedIcon: Icons.notifications,
-                    type: TimelineType.notifications,
-                  ),
-                  const Divider(),
-                  _drawerItem(
-                    icon: Icons.bookmark_outline,
-                    selectedIcon: Icons.bookmark,
-                    type: TimelineType.bookmarks,
-                  ),
-                  _drawerItem(
-                    icon: Icons.star_outline,
-                    selectedIcon: Icons.star,
-                    type: TimelineType.favorites,
-                  ),
-                  _drawerItem(
-                    icon: Icons.article_outlined,
-                    selectedIcon: Icons.article,
-                    type: TimelineType.myPosts,
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.switch_account_outlined),
-                    title: Text(l10n.accountsSwitchOrAddLabel),
-                    subtitle: hasMultipleAccounts ? Text(activeHandle) : null,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      AccountSwitcherSheet.show(context, widget.app);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.settings_outlined),
-                    title: Text(l10n.homeDrawerSettings),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => SettingsScreen(app: widget.app),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
+                ),
           body: isWideLayout
               ? Row(
                   children: [
@@ -550,7 +558,9 @@ class _HomeShellState extends State<HomeShell> {
                             child: const Icon(Icons.notifications),
                           ),
                           label: Text(
-                            TimelineType.notifications.localizedShortLabel(l10n),
+                            TimelineType.notifications.localizedShortLabel(
+                              l10n,
+                            ),
                           ),
                         ),
                         NavigationRailDestination(
@@ -595,14 +605,14 @@ class _HomeShellState extends State<HomeShell> {
                       ],
                     ),
                     const VerticalDivider(width: 1),
-                    Expanded(
-                      child: contentColumn,
-                    ),
+                    Expanded(child: contentColumn),
                   ],
                 )
               : contentColumn,
           floatingActionButton: AccessibleTip(
-            message: l10n.homeComposeTip,
+            message: l10n.homeComposeTip(
+              KeyboardNavHelper.primaryShortcutLabel(context, 'N'),
+            ),
             preferBelow: false,
             child: FloatingActionButton.extended(
               onPressed: _openComposer,
@@ -635,7 +645,9 @@ class _HomeShellState extends State<HomeShell> {
                     NavigationDestination(
                       icon: const Icon(Icons.notifications_outlined),
                       selectedIcon: const Icon(Icons.notifications),
-                      label: TimelineType.notifications.localizedShortLabel(l10n),
+                      label: TimelineType.notifications.localizedShortLabel(
+                        l10n,
+                      ),
                     ),
                   ],
                 ),

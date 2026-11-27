@@ -78,9 +78,11 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
     if (!widget.skipInitialRefresh) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        widget.app.refreshOnDeviceAiStatus();
+        unawaited(widget.app.refreshOnDeviceAiStatus());
         if (widget.app.settings.activeProvider != AiProviderType.none) {
-          widget.app.refreshModelsFor(widget.app.settings.activeProvider);
+          unawaited(
+            widget.app.refreshModelsFor(widget.app.settings.activeProvider),
+          );
         }
       });
     }
@@ -88,7 +90,31 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
 
   @override
   void dispose() {
-    _saveDebounce?.cancel();
+    // Flush (not drop) a key/URL typed just before leaving. Snapshot inputs
+    // before the controllers are disposed and save on the next event-loop
+    // turn so AppController listeners aren't notified mid-unmount.
+    if (_saveDebounce?.isActive ?? false) {
+      _saveDebounce!.cancel();
+      final app = widget.app;
+      final credentials = buildCredentials();
+      final openAiUrl = _openAiUrlCtrl.text.trim();
+      final localUrl = _localUrlCtrl.text.trim();
+      unawaited(
+        Future(() async {
+          await app.updateCredentials(credentials);
+          // Merge onto settings as they are at save time so a sibling flush
+          // (e.g. Settings' language field) isn't overwritten by a stale copy.
+          await app.updateSettings(
+            _withBaseUrls(
+              app.settings,
+              openAiUrl: openAiUrl,
+              localUrl: localUrl,
+            ),
+            autoRefreshModels: false,
+          );
+        }),
+      );
+    }
     _geminiKeyCtrl.dispose();
     _openAiKeyCtrl.dispose();
     _openAiUrlCtrl.dispose();
@@ -111,14 +137,25 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
   /// Snapshot of settings merged with the current base URL fields (and optional provider override).
   AppSettings buildSettings({AiProviderType? providerOverride}) {
     final base = widget.app.settings;
-    final openAiUrl = _openAiUrlCtrl.text.trim();
-    final localUrl = _localUrlCtrl.text.trim();
+    return _withBaseUrls(
+      base.copyWith(activeProvider: providerOverride ?? base.activeProvider),
+      openAiUrl: _openAiUrlCtrl.text.trim(),
+      localUrl: _localUrlCtrl.text.trim(),
+    );
+  }
+
+  static AppSettings _withBaseUrls(
+    AppSettings base, {
+    required String openAiUrl,
+    required String localUrl,
+  }) {
     return base.copyWith(
-      activeProvider: providerOverride ?? base.activeProvider,
-      openAiBaseUrl:
-          openAiUrl.isEmpty ? AppConstants.openAiDefaultBaseUrl : openAiUrl,
-      localBaseUrl:
-          localUrl.isEmpty ? AppConstants.localDefaultBaseUrl : localUrl,
+      openAiBaseUrl: openAiUrl.isEmpty
+          ? AppConstants.openAiDefaultBaseUrl
+          : openAiUrl,
+      localBaseUrl: localUrl.isEmpty
+          ? AppConstants.localDefaultBaseUrl
+          : localUrl,
     );
   }
 
@@ -134,10 +171,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
 
   Future<void> _persistInputsAndRefresh(AiProviderType provider) async {
     await widget.app.updateCredentials(buildCredentials());
-    await widget.app.updateSettings(
-      buildSettings(),
-      autoRefreshModels: false,
-    );
+    await widget.app.updateSettings(buildSettings(), autoRefreshModels: false);
     if (provider != AiProviderType.none) {
       await widget.app.refreshModelsFor(provider);
     }
@@ -191,7 +225,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
             AiModelOption(id: selectedModel, displayName: selectedModel),
           );
         }
-        final sortedModels = AiProviderService.sortAlphabetically(dropdownModels);
+        final sortedModels = AiProviderService.sortAlphabetically(
+          dropdownModels,
+        );
         final effectiveModel = sortedModels.any((m) => m.id == selectedModel)
             ? selectedModel
             : (sortedModels.isNotEmpty ? sortedModels.first.id : null);
@@ -214,7 +250,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                   .toList(),
               onChanged: widget.enabled
                   ? (next) {
-                      if (next != null) _handleProviderChange(next);
+                      if (next != null) unawaited(_handleProviderChange(next));
                     }
                   : null,
             ),
@@ -230,7 +266,8 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 label: l10n.aiConfigGeminiApiKeyLabel,
                 hint: l10n.aiConfigGeminiApiKeyHint,
                 l10n: l10n,
-                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.gemini),
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.gemini),
               ),
 
             if (activeProvider == AiProviderType.openai) ...[
@@ -239,7 +276,8 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 enabled: widget.enabled,
                 keyboardType: TextInputType.url,
                 autocorrect: false,
-                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.openai),
                 decoration: InputDecoration(
                   labelText: l10n.aiConfigOpenAiBaseUrlLabel,
                   hintText: AppConstants.openAiDefaultBaseUrl,
@@ -253,7 +291,8 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 label: l10n.aiConfigOpenAiApiKeyLabel,
                 hint: l10n.aiConfigOpenAiApiKeyHint,
                 l10n: l10n,
-                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.openai),
               ),
             ],
 
@@ -309,9 +348,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                     if (widget.showNoAiTitle) ...[
                       Text(
                         l10n.aiConfigNoAiSelectedTitle,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
+                        style: Theme.of(context).textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 6),
@@ -355,12 +392,14 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                       onChanged: widget.enabled
                           ? (modelId) {
                               if (modelId != null) {
-                                widget.app.updateSettings(
-                                  s.withModelForProvider(
-                                    activeProvider,
-                                    modelId,
+                                unawaited(
+                                  widget.app.updateSettings(
+                                    s.withModelForProvider(
+                                      activeProvider,
+                                      modelId,
+                                    ),
+                                    autoRefreshModels: false,
                                   ),
-                                  autoRefreshModels: false,
                                 );
                               }
                             }
@@ -376,7 +415,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                           ? null
                           : () {
                               _saveDebounce?.cancel();
-                              _persistInputsAndRefresh(activeProvider);
+                              unawaited(
+                                _persistInputsAndRefresh(activeProvider),
+                              );
                             },
                       icon: isLoadingModels
                           ? const SizedBox(
@@ -415,9 +456,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
           tooltip: _obscureApiKey
               ? l10n.aiConfigShowApiKey
               : l10n.aiConfigHideApiKey,
-          icon: Icon(
-            _obscureApiKey ? Icons.visibility : Icons.visibility_off,
-          ),
+          icon: Icon(_obscureApiKey ? Icons.visibility : Icons.visibility_off),
           onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
         ),
       ),

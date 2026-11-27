@@ -15,6 +15,7 @@ import '../models/bias_models.dart';
 import '../models/composer_attachment.dart';
 import '../models/mastodon_models.dart';
 import '../services/image_upload_optimizer.dart';
+import '../services/mastodon_service.dart';
 import '../services/video_frame_extractor.dart';
 import 'app_controller.dart';
 
@@ -26,9 +27,9 @@ class ComposerController extends ChangeNotifier {
     this.editingStatus,
     VideoFrameExtractor? videoFrameExtractor,
     ImageUploadOptimizer? imageOptimizer,
-  })  : _videoFrameExtractor =
-            videoFrameExtractor ?? const VideoFrameExtractor(),
-        _imageOptimizer = imageOptimizer ?? const ImageUploadOptimizer() {
+  }) : _videoFrameExtractor =
+           videoFrameExtractor ?? const VideoFrameExtractor(),
+       _imageOptimizer = imageOptimizer ?? const ImageUploadOptimizer() {
     if (replyToStatus != null) {
       final target = replyToStatus!.displayStatus;
       final mention = target.account.handle;
@@ -85,6 +86,14 @@ class ComposerController extends ChangeNotifier {
   PostVisibility _visibility = PostVisibility.public;
   String _language = '';
   List<ComposerAttachment> _attachments = [];
+
+  /// Media already uploaded during an earlier (failed) publish attempt,
+  /// keyed by attachment `localId`.
+  final Map<
+    String,
+    ({String id, String accessToken, String filePath, String description})
+  >
+  _uploadedMedia = {};
 
   bool _isLoadingSource = false;
   bool _isCheckingBias = false;
@@ -161,8 +170,7 @@ class ComposerController extends ChangeNotifier {
         _showContentWarning = true;
       }
     } catch (e) {
-      _errorMessage =
-          app.l10n.composerErrorFallbackEditSource(e.toString());
+      _errorMessage = app.l10n.composerErrorFallbackEditSource(e.toString());
     } finally {
       _isLoadingSource = false;
       _safeNotify();
@@ -195,8 +203,9 @@ class ComposerController extends ChangeNotifier {
     required bool isVideo,
   }) async {
     if (!canAddMoreMedia) {
-      _errorMessage =
-          app.l10n.composerErrorMaxMedia(limits.maxMediaAttachments);
+      _errorMessage = app.l10n.composerErrorMaxMedia(
+        limits.maxMediaAttachments,
+      );
       _safeNotify();
       return;
     }
@@ -225,7 +234,8 @@ class ComposerController extends ChangeNotifier {
       }
     }
 
-    final shouldAutoScan = app.settings.isAiEnabled && app.settings.autoGenerate;
+    final shouldAutoScan =
+        app.settings.isAiEnabled && app.settings.autoGenerate;
     final initial = ComposerAttachment(
       localId: localId,
       isVideo: isVideo,
@@ -262,11 +272,7 @@ class ComposerController extends ChangeNotifier {
       final nextStatus = altText.trim().isNotEmpty
           ? AttachmentStatus.ready
           : AttachmentStatus.missingAltText;
-      return a.copyWith(
-        altText: altText,
-        status: nextStatus,
-        clearError: true,
-      );
+      return a.copyWith(altText: altText, status: nextStatus, clearError: true);
     }).toList();
     _safeNotify();
   }
@@ -290,10 +296,7 @@ class ComposerController extends ChangeNotifier {
     final attachment = _attachments[index];
     _updateAttachment(
       localId,
-      attachment.copyWith(
-        status: AttachmentStatus.scanning,
-        clearError: true,
-      ),
+      attachment.copyWith(status: AttachmentStatus.scanning, clearError: true),
     );
 
     final loc = app.l10n;
@@ -316,7 +319,6 @@ class ComposerController extends ChangeNotifier {
           MediaBinaryPayload(
             bytes: downloaded.bytes,
             mimeType: downloaded.mimeType,
-            isVideo: false,
           ),
         ];
       } else if (attachment.isVideo && attachment.filePath != null) {
@@ -325,8 +327,8 @@ class ComposerController extends ChangeNotifier {
         final size = await file.exists() ? await file.length() : 0;
         final canSendInlineGemini =
             app.settings.activeProvider == AiProviderType.gemini &&
-                size > 0 &&
-                size <= AppConstants.geminiInlineVideoMaxBytes;
+            size > 0 &&
+            size <= AppConstants.geminiInlineVideoMaxBytes;
         if (!canSendInlineGemini) {
           preExtracted = await _videoFrameExtractor.extractKeyframes(
             attachment.filePath!,
@@ -355,8 +357,9 @@ class ComposerController extends ChangeNotifier {
         latest.copyWith(
           altText: caption,
           status: AttachmentStatus.ready,
-          extractedFrames:
-              preExtracted.isNotEmpty ? preExtracted : latest.extractedFrames,
+          extractedFrames: preExtracted.isNotEmpty
+              ? preExtracted
+              : latest.extractedFrames,
           previewBytes: preExtracted.isNotEmpty
               ? preExtracted.first.bytes
               : latest.previewBytes,
@@ -365,7 +368,7 @@ class ComposerController extends ChangeNotifier {
       );
 
       AccessibilityAnnouncer.announce(
-        loc.composerAnnounceAltReady(index + 1),
+        loc.composerAnnounceAltReady(_positionOf(localId, index)),
       );
     } catch (e) {
       final latest = _findAttachment(localId);
@@ -378,9 +381,16 @@ class ComposerController extends ChangeNotifier {
         ),
       );
       AccessibilityAnnouncer.announce(
-        loc.composerAnnounceAltError(index + 1),
+        loc.composerAnnounceAltError(_positionOf(localId, index)),
       );
     }
+  }
+
+  /// 1-based position of [localId] for announcements, re-resolved after async
+  /// work so removing an earlier attachment doesn't misnumber the result.
+  int _positionOf(String localId, int fallbackIndex) {
+    final i = _attachments.indexWhere((a) => a.localId == localId);
+    return (i >= 0 ? i : fallbackIndex) + 1;
   }
 
   /// Auto-generates alt-text for all attachments that currently lack alt-text.
@@ -432,7 +442,9 @@ class ComposerController extends ChangeNotifier {
         settings: app.settings,
         credentials: app.credentials,
         session: app.session,
-        contentLanguageCode: _language.trim().isNotEmpty ? _language.trim() : null,
+        contentLanguageCode: _language.trim().isNotEmpty
+            ? _language.trim()
+            : null,
         responseLanguageCode: app.effectiveLocale.languageCode,
         labels: biasComponentLabelsFrom(loc),
       );
@@ -460,13 +472,7 @@ class ComposerController extends ChangeNotifier {
       if (await file.exists()) {
         if (!att.isVideo) {
           final bytes = await file.readAsBytes();
-          return [
-            MediaBinaryPayload(
-              bytes: bytes,
-              mimeType: att.mimeType,
-              isVideo: false,
-            ),
-          ];
+          return [MediaBinaryPayload(bytes: bytes, mimeType: att.mimeType)];
         } else {
           return _videoFrameExtractor.extractKeyframes(
             att.filePath!,
@@ -484,7 +490,6 @@ class ComposerController extends ChangeNotifier {
             MediaBinaryPayload(
               bytes: downloaded.bytes,
               mimeType: downloaded.mimeType,
-              isVideo: false,
             ),
           ];
         } catch (_) {
@@ -521,17 +526,42 @@ class ComposerController extends ChangeNotifier {
             'description': att.altText.trim(),
           });
         } else if (att.filePath != null) {
-          final uploaded = await app.mastodon.uploadMedia(
-            instanceUrl: session.instanceUrl,
-            accessToken: session.accessToken,
-            filePath: att.filePath!,
-            description: att.altText.trim(),
-          );
-          mediaIds.add(uploaded.id);
-          mediaAttributes.add({
-            'id': uploaded.id,
-            'description': att.altText.trim(),
-          });
+          final description = att.altText.trim();
+          // Reuse an upload from a previous failed publish attempt so a retry
+          // doesn't re-send the file and orphan the first upload. Alt-text
+          // edits since then invalidate it (upload description would be stale).
+          final prior = _uploadedMedia[att.localId];
+          final String mediaId;
+          if (prior != null &&
+              prior.accessToken == session.accessToken &&
+              prior.filePath == att.filePath &&
+              prior.description == description) {
+            mediaId = prior.id;
+          } else {
+            void remember(String id) => _uploadedMedia[att.localId] = (
+              id: id,
+              accessToken: session.accessToken,
+              filePath: att.filePath!,
+              description: description,
+            );
+            try {
+              final uploaded = await app.mastodon.uploadMedia(
+                instanceUrl: session.instanceUrl,
+                accessToken: session.accessToken,
+                filePath: att.filePath!,
+                description: description,
+              );
+              mediaId = uploaded.id;
+              remember(mediaId);
+            } on MediaStillProcessingException catch (e) {
+              // Uploaded but still processing: keep the id so retrying later
+              // publishes it instead of uploading the file again.
+              remember(e.mediaId);
+              rethrow;
+            }
+          }
+          mediaIds.add(mediaId);
+          mediaAttributes.add({'id': mediaId, 'description': description});
         }
       }
 
@@ -553,7 +583,9 @@ class ComposerController extends ChangeNotifier {
           instanceUrl: session.instanceUrl,
           accessToken: session.accessToken,
           statusText: textController.text.trim(),
-          spoilerText: _showContentWarning ? spoilerController.text.trim() : null,
+          spoilerText: _showContentWarning
+              ? spoilerController.text.trim()
+              : null,
           visibility: _visibility,
           inReplyToId: replyToStatus?.displayStatus.id,
           language: _language.trim().isEmpty ? null : _language.trim(),

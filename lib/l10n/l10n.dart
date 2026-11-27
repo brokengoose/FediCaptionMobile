@@ -16,7 +16,8 @@ export 'generated/app_localizations_en.dart';
 /// Convenient accessor for [AppLocalizations] inside widgets, falling back to
 /// English if a test pumps a widget without `localizationsDelegates`.
 extension BuildContextL10n on BuildContext {
-  AppLocalizations get l10n => AppLocalizations.of(this) ?? AppLocalizationsEn();
+  AppLocalizations get l10n =>
+      AppLocalizations.of(this) ?? AppLocalizationsEn();
 }
 
 /// Resolves [preferred] (or the current platform locale) against

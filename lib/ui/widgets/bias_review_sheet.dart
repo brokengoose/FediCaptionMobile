@@ -32,8 +32,9 @@ class BiasReviewSheet extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
     final l10n = context.l10n;
-    final hasSuggestion =
-        (result.suggestedAlternateWording ?? '').trim().isNotEmpty;
+    final hasSuggestion = (result.suggestedAlternateWording ?? '')
+        .trim()
+        .isNotEmpty;
     final allowPublishAnyway = policy == PolicyMode.warn;
 
     return SafeArea(
@@ -56,16 +57,15 @@ class BiasReviewSheet extends StatelessWidget {
                         header: true,
                         child: Text(
                           l10n.biasReviewTitle,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
                     IconButton(
-                      onPressed: () => Navigator.of(context)
-                          .pop(BiasReviewAction.editInComposer),
+                      onPressed: () =>
+                          Navigator.of(context)
+                              .pop(BiasReviewAction.editInComposer),
                       tooltip: l10n.biasReviewCloseTooltip,
                       icon: const Icon(Icons.close),
                     ),
@@ -94,9 +94,7 @@ class BiasReviewSheet extends StatelessWidget {
                         children: [
                           Text(
                             l10n.biasReviewSummaryTitle,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
+                            style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: fedi.biasWarningFg,
@@ -105,9 +103,7 @@ class BiasReviewSheet extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             result.summary,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: fedi.biasWarningFg),
                           ),
                           if (result.checkedComponents.isNotEmpty) ...[
@@ -116,9 +112,7 @@ class BiasReviewSheet extends StatelessWidget {
                               l10n.biasReviewCheckedComponents(
                                 result.checkedComponents.join(', '),
                               ),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
+                              style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(color: fedi.biasWarningFg),
                             ),
                           ],
@@ -126,9 +120,7 @@ class BiasReviewSheet extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               l10n.biasReviewLocalFallbackNote,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(color: fedi.biasWarningFg),
                             ),
                           ],
@@ -143,9 +135,7 @@ class BiasReviewSheet extends StatelessWidget {
                       header: true,
                       child: Text(
                         l10n.biasReviewFindingsHeader(result.findings.length),
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -191,9 +181,7 @@ class BiasReviewSheet extends StatelessWidget {
                                 const SizedBox(height: 6),
                                 Text(
                                   l10n.biasReviewExcerpt(finding.excerpt!),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                                  style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         fontStyle: FontStyle.italic,
                                         color: fedi.subtleText,
@@ -217,9 +205,7 @@ class BiasReviewSheet extends StatelessWidget {
                         header: true,
                         child: Text(
                           l10n.biasReviewSuggestedWordingTitle,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -236,10 +222,8 @@ class BiasReviewSheet extends StatelessWidget {
                         ),
                         child: SelectableText(
                           result.suggestedAlternateWording!,
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: fedi.altPresentFg,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: fedi.altPresentFg),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -247,12 +231,15 @@ class BiasReviewSheet extends StatelessWidget {
                         onPressed: () => Navigator.of(context)
                             .pop(BiasReviewAction.useSuggestedAndPublishNow),
                         icon: const Icon(Icons.send),
-                        label: Text(l10n.biasReviewUseSuggestedAndPublishButton),
+                        label: Text(
+                          l10n.biasReviewUseSuggestedAndPublishButton,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       FilledButton.tonalIcon(
-                        onPressed: () => Navigator.of(context)
-                            .pop(BiasReviewAction.useSuggestedInComposer),
+                        onPressed: () =>
+                            Navigator.of(context)
+                                .pop(BiasReviewAction.useSuggestedInComposer),
                         icon: const Icon(Icons.edit_note),
                         label: Text(l10n.biasReviewUseSuggestedButton),
                       ),
@@ -261,8 +248,9 @@ class BiasReviewSheet extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context)
-                          .pop(BiasReviewAction.editInComposer),
+                      onPressed: () =>
+                          Navigator.of(context)
+                              .pop(BiasReviewAction.editInComposer),
                       icon: const Icon(Icons.arrow_back),
                       label: Text(l10n.biasReviewReturnToComposerButton),
                     ),
@@ -270,8 +258,9 @@ class BiasReviewSheet extends StatelessWidget {
                     if (allowPublishAnyway) ...[
                       const SizedBox(height: 8),
                       TextButton(
-                        onPressed: () => Navigator.of(context)
-                            .pop(BiasReviewAction.publishAnyway),
+                        onPressed: () =>
+                            Navigator.of(context)
+                                .pop(BiasReviewAction.publishAnyway),
                         style: TextButton.styleFrom(
                           foregroundColor: scheme.error,
                         ),
@@ -281,9 +270,7 @@ class BiasReviewSheet extends StatelessWidget {
                       const SizedBox(height: 10),
                       Text(
                         l10n.biasReviewRequireNotice,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
+                        style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: scheme.error),
                       ),
                     ],

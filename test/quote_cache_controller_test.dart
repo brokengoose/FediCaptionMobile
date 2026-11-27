@@ -17,64 +17,67 @@ void main() {
   );
 
   Map<String, dynamic> statusJson(String id, String text) => {
-        'id': id,
-        'created_at': '2026-11-20T12:00:00Z',
-        'content': '<p>$text</p>',
-        'account': {
-          'id': '1',
-          'username': 'alice',
-          'acct': 'alice@example.social',
-          'display_name': 'Alice',
-          'avatar': '',
-        },
-      };
+    'id': id,
+    'created_at': '2026-11-20T12:00:00Z',
+    'content': '<p>$text</p>',
+    'account': {
+      'id': '1',
+      'username': 'alice',
+      'acct': 'alice@example.social',
+      'display_name': 'Alice',
+      'avatar': '',
+    },
+  };
 
   group('QuoteCacheController', () {
-    test('caches resolved statuses and supports retry after transient failure', () async {
-      var requests = 0;
-      var failNext = true;
-      final client = MockClient((request) async {
-        requests++;
-        if (failNext) {
-          return http.Response('Service unavailable', 503);
-        }
-        return http.Response(
-          jsonEncode({
-            'statuses': [statusJson('100', 'Recovered quoted post')],
-          }),
-          200,
+    test(
+      'caches resolved statuses and supports retry after transient failure',
+      () async {
+        var requests = 0;
+        var failNext = true;
+        final client = MockClient((request) async {
+          requests++;
+          if (failNext) {
+            return http.Response('Service unavailable', 503);
+          }
+          return http.Response(
+            jsonEncode({
+              'statuses': [statusJson('100', 'Recovered quoted post')],
+            }),
+            200,
+          );
+        });
+
+        final cache = QuoteCacheController(
+          mastodon: MastodonService(client: client),
         );
-      });
+        addTearDown(cache.dispose);
 
-      final cache = QuoteCacheController(
-        mastodon: MastodonService(client: client),
-      );
-      addTearDown(cache.dispose);
+        const url = 'https://example.social/@alice/100';
 
-      const url = 'https://example.social/@alice/100';
+        // Initial attempt fails -> cached as null.
+        final first = await cache.resolve(url, session: session);
+        expect(first, isNull);
+        expect(cache.hasResolved(url), isTrue);
+        expect(requests, 1);
 
-      // Initial attempt fails -> cached as null.
-      final first = await cache.resolve(url, session: session);
-      expect(first, isNull);
-      expect(cache.hasResolved(url), isTrue);
-      expect(requests, 1);
+        // Normal resolve reuses cache without hitting network.
+        final second = await cache.resolve(url, session: session);
+        expect(second, isNull);
+        expect(requests, 1);
 
-      // Normal resolve reuses cache without hitting network.
-      final second = await cache.resolve(url, session: session);
-      expect(second, isNull);
-      expect(requests, 1);
-
-      // Retry bypasses cached null and succeeds.
-      failNext = false;
-      final retried = await cache.resolve(
-        url,
-        session: session,
-        forceRetry: true,
-      );
-      expect(retried, isNotNull);
-      expect(retried!.plainText, 'Recovered quoted post');
-      expect(requests, 2);
-    });
+        // Retry bypasses cached null and succeeds.
+        failNext = false;
+        final retried = await cache.resolve(
+          url,
+          session: session,
+          forceRetry: true,
+        );
+        expect(retried, isNotNull);
+        expect(retried!.plainText, 'Recovered quoted post');
+        expect(requests, 2);
+      },
+    );
 
     test('evicts oldest entries when cache exceeds maxEntries (LRU)', () async {
       final client = MockClient((request) async {

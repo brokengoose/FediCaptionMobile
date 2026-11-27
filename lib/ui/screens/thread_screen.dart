@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -14,11 +16,7 @@ import '../widgets/status_card.dart';
 
 /// Displays a conversation thread (`GET /api/v1/statuses/{id}/context`).
 class ThreadScreen extends StatefulWidget {
-  const ThreadScreen({
-    super.key,
-    required this.app,
-    required this.rootStatus,
-  });
+  const ThreadScreen({super.key, required this.app, required this.rootStatus});
 
   final AppController app;
   final MastodonStatus rootStatus;
@@ -41,10 +39,10 @@ class _ThreadScreenState extends State<ThreadScreen> {
   final Set<String> _expandedCwIds = {};
 
   List<MastodonStatus> get _allOrderedStatuses => [
-        ..._ancestors,
-        _focalStatus,
-        ..._descendants,
-      ];
+    ..._ancestors,
+    _focalStatus,
+    ..._descendants,
+  ];
 
   @override
   void initState() {
@@ -52,7 +50,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
     _actions = StatusActionHandler(app: widget.app);
     _focalStatus = widget.rootStatus.displayStatus;
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    _loadContext();
+    unawaited(_loadContext());
   }
 
   @override
@@ -117,7 +115,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
         final st = _selectedStatus;
         if (st == null) return;
         final posted = await _actions.openReply(context, st);
-        if (posted != null && mounted) _loadContext();
+        if (posted != null && mounted) unawaited(_loadContext());
       },
       onFavorite: () async {
         final st = _selectedStatus?.displayStatus;
@@ -218,7 +216,10 @@ class _ThreadScreenState extends State<ThreadScreen> {
     }
     setState(() {
       _ancestors = StatusActionHandler.removeFromList(_ancestors, target.id);
-      _descendants = StatusActionHandler.removeFromList(_descendants, target.id);
+      _descendants = StatusActionHandler.removeFromList(
+        _descendants,
+        target.id,
+      );
     });
   }
 
@@ -240,21 +241,18 @@ class _ThreadScreenState extends State<ThreadScreen> {
           : null,
       onToggleCw: target.spoilerText.trim().isNotEmpty
           ? () => setState(() {
-                if (!_expandedCwIds.remove(target.id)) {
-                  _expandedCwIds.add(target.id);
-                }
-              })
+              if (!_expandedCwIds.remove(target.id)) {
+                _expandedCwIds.add(target.id);
+              }
+            })
           : null,
       onOpenProfile: (acc) => _actions.openProfile(context, acc),
-      onOpenThread: (st) => _actions.openThread(
-        context,
-        st,
-        skipIfStatusId: _focalStatus.id,
-      ),
+      onOpenThread: (st) =>
+          _actions.openThread(context, st, skipIfStatusId: _focalStatus.id),
       onReply: (st) async {
         final posted = await _actions.openReply(context, st);
         if (posted != null && mounted) {
-          _loadContext();
+          unawaited(_loadContext());
         }
       },
       onToggleBoost: (st) async {
@@ -325,9 +323,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
                   header: true,
                   child: Text(
                     l10n.threadRepliesHeader(_descendants.length),
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
+                    style: Theme.of(context).textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),

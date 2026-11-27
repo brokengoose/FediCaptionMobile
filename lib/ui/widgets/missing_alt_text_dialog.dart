@@ -6,11 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../l10n/l10n.dart';
 import '../../models/app_settings.dart';
 
-enum MissingAltTextAction {
-  autoGenerateWithAi,
-  returnToComposer,
-  postAnyway,
-}
+enum MissingAltTextAction { autoGenerateWithAi, returnToComposer, postAnyway }
 
 /// Dialog shown before publishing when one or more attachments lack alt-text
 /// and Accessibility Rules policy is `warn` or `require`.
@@ -32,8 +28,8 @@ class MissingAltTextDialog extends StatelessWidget {
     final allowPostAnyway = policy == PolicyMode.warn;
     final body = allowPostAnyway
         ? (aiEnabled
-            ? l10n.missingAltTextBodyWarnAi(missingCount)
-            : l10n.missingAltTextBodyWarnManual(missingCount))
+              ? l10n.missingAltTextBodyWarnAi(missingCount)
+              : l10n.missingAltTextBodyWarnManual(missingCount))
         : l10n.missingAltTextBodyRequire(missingCount);
 
     return AlertDialog(
@@ -49,7 +45,8 @@ class MissingAltTextDialog extends StatelessWidget {
         if (aiEnabled)
           FilledButton.icon(
             onPressed: () =>
-                Navigator.of(context).pop(MissingAltTextAction.autoGenerateWithAi),
+                Navigator.of(context)
+                    .pop(MissingAltTextAction.autoGenerateWithAi),
             icon: const Icon(Icons.auto_awesome),
             label: Text(l10n.missingAltTextAutoGenerateButton),
           ),

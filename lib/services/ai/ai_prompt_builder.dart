@@ -29,19 +29,17 @@ class AiPromptBuilder {
     final outputLanguage = trimmedLanguage.isEmpty
         ? 'English'
         : (LanguageRegistry.resolve(trimmedLanguage)?.englishName ??
-            trimmedLanguage);
+              trimmedLanguage);
 
     final prefixBudget = maxLength - pack.captionPrefix.length;
     final bodyMaxChars = prefixBudget > 0 ? prefixBudget : maxLength;
     final forbiddenExamples = pack.forbiddenPrefixExamples.isNotEmpty
         ? pack.forbiddenPrefixExamples
         : [
-            if (pack.captionPrefix.trim().isNotEmpty)
-              pack.captionPrefix.trim(),
+            if (pack.captionPrefix.trim().isNotEmpty) pack.captionPrefix.trim(),
             'Alt text:',
           ];
-    final formattedForbidden =
-        forbiddenExamples.map((e) => '"$e"').join(', ');
+    final formattedForbidden = forbiddenExamples.map((e) => '"$e"').join(', ');
 
     final buffer = StringBuffer();
     buffer.writeln(

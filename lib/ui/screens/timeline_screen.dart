@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -56,16 +58,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
     _loadOrUseCache();
   }
 
-  @override
-  void didUpdateWidget(covariant TimelineScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.timelineType != widget.timelineType) {
-      _selectedIndex = null;
-      _itemKeys.clear();
-      _loadOrUseCache();
-    }
-  }
-
   GlobalKey _keyForStatus(String id) =>
       _itemKeys.putIfAbsent(id, () => GlobalKey());
 
@@ -108,12 +100,13 @@ class _TimelineScreenState extends State<TimelineScreen> {
     });
 
     if (next >= _statuses.length - 3 && !_isLoadingMore && _hasMore) {
-      _loadMore();
+      unawaited(_loadMore());
     }
 
     final snippet = target.plainText.trim();
-    final preview =
-        snippet.length > 90 ? '${snippet.substring(0, 90)}…' : snippet;
+    final preview = snippet.length > 90
+        ? '${snippet.substring(0, 90)}…'
+        : snippet;
     AccessibilityAnnouncer.announce(
       context.l10n.timelineAnnouncePostSelection(
         next + 1,
@@ -156,19 +149,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
       },
       onReply: () {
         final st = _selectedStatus;
-        if (st != null) _actions.openReply(context, st);
+        if (st != null) unawaited(_actions.openReply(context, st));
       },
       onFavorite: () {
         final st = _selectedStatus;
-        if (st != null) _toggleFavorite(st.displayStatus);
+        if (st != null) unawaited(_toggleFavorite(st.displayStatus));
       },
       onBoost: () {
         final st = _selectedStatus;
-        if (st != null) _toggleBoost(st.displayStatus);
+        if (st != null) unawaited(_toggleBoost(st.displayStatus));
       },
       onBookmark: () {
         final st = _selectedStatus;
-        if (st != null) _toggleBookmark(st.displayStatus);
+        if (st != null) unawaited(_toggleBookmark(st.displayStatus));
       },
       onToggleCw: _toggleSelectedCw,
       onOpenProfile: () {
@@ -182,7 +175,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   void _onAppChanged() {
     if (widget.app.timelineRefreshNonce != _lastSeenRefreshNonce) {
       _lastSeenRefreshNonce = widget.app.timelineRefreshNonce;
-      _refreshIncremental(silentAnnouncement: true);
+      unawaited(_refreshIncremental(silentAnnouncement: true));
     }
   }
 
@@ -204,7 +197,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         !_isLoadingMore &&
         _hasMore &&
         _statuses.isNotEmpty) {
-      _loadMore();
+      unawaited(_loadMore());
     }
   }
 
@@ -221,16 +214,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
         _error = null;
       });
       if (!widget.app.timelineCache.isTimelineFresh(widget.timelineType)) {
-        _refreshIncremental(silentAnnouncement: true);
+        unawaited(_refreshIncremental(silentAnnouncement: true));
       }
       return;
     }
-    _loadInitial();
+    unawaited(_loadInitial());
   }
 
   /// Pull-to-refresh / post-publish refresh using `since_id` so Mastodon only
   /// transfers genuinely new posts instead of re-serializing the full page.
   Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     final account = widget.app.currentAccount;
     if (session == null || account == null) return;
@@ -248,7 +244,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         currentUserId: account.id,
         sinceId: _statuses.first.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       if (newer.isNotEmpty) {
         widget.app.quoteCache.seedStatuses(newer);
       }
@@ -271,7 +267,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       if (_statuses.isEmpty) {
         setState(() {
           _error = e.toString();
@@ -282,6 +278,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   Future<void> _loadInitial({bool silentAnnouncement = false}) async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     final account = widget.app.currentAccount;
     if (session == null || account == null) return;
@@ -299,7 +298,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         type: widget.timelineType,
         currentUserId: account.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       widget.app.quoteCache.seedStatuses(items);
       widget.app.timelineCache.putTimeline(
@@ -322,7 +321,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -331,6 +330,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   Future<void> _loadMore() async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     final account = widget.app.currentAccount;
     if (session == null || account == null || _statuses.isEmpty) return;
@@ -344,7 +346,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         currentUserId: account.id,
         maxId: _statuses.last.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       widget.app.quoteCache.seedStatuses(items);
       final combined = widget.app.timelineCache.appendOlderTimeline(
@@ -358,7 +360,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         _hasMore = hasMore;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() => _isLoadingMore = false);
     }
   }
@@ -389,7 +391,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Future<void> _deleteStatus(MastodonStatus target) async {
     final deleted = await _actions.confirmAndDelete(context, target);
     if (deleted && mounted) {
-      widget.app.timelineCache.removeStatusEverywhere(target.id);
       setState(() {
         _statuses = StatusActionHandler.removeFromList(_statuses, target.id);
       });
@@ -482,10 +483,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   : null,
               onToggleCw: target.spoilerText.trim().isNotEmpty
                   ? () => setState(() {
-                        if (!_expandedCwIds.remove(target.id)) {
-                          _expandedCwIds.add(target.id);
-                        }
-                      })
+                      if (!_expandedCwIds.remove(target.id)) {
+                        _expandedCwIds.add(target.id);
+                      }
+                    })
                   : null,
               onOpenProfile: (acc) => _actions.openProfile(context, acc),
               onOpenThread: (st) {

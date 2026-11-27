@@ -21,7 +21,7 @@ MastodonStatus _status({
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 27, 8, 0),
+    createdAt: DateTime.utc(2026, 11, 27, 8),
     account: const MastodonAccount(
       id: 'acc_me',
       username: 'me',
@@ -40,14 +40,16 @@ MastodonStatus _status({
 
 void main() {
   group('Edited status cache propagation', () {
-    test(
-        'TimelineCacheController.updateStatusEverywhere updates timelines, boosts, quoted posts, and notifications',
-        () {
+    test('TimelineCacheController.updateStatusEverywhere updates timelines, boosts, quoted posts, and notifications', () {
       final cache = TimelineCacheController();
       addTearDown(cache.dispose);
 
       final original = _status(id: '100', text: 'Original draft text');
-      final boosted = _status(id: '200', text: 'Boost wrapper', reblog: original);
+      final boosted = _status(
+        id: '200',
+        text: 'Boost wrapper',
+        reblog: original,
+      );
       final quoting = _status(
         id: '300',
         text: 'Quoting the post',
@@ -56,18 +58,15 @@ void main() {
 
       cache.putTimeline(TimelineType.home, [boosted, quoting], hasMore: false);
       cache.putTimeline(TimelineType.myPosts, [original], hasMore: false);
-      cache.putNotifications(
-        [
-          MastodonNotification(
-            id: 'n1',
-            type: 'mention',
-            createdAt: DateTime.utc(2026, 11, 27, 8, 5),
-            account: original.account,
-            status: original,
-          ),
-        ],
-        hasMore: false,
-      );
+      cache.putNotifications([
+        MastodonNotification(
+          id: 'n1',
+          type: 'mention',
+          createdAt: DateTime.utc(2026, 11, 27, 8, 5),
+          account: original.account,
+          status: original,
+        ),
+      ], hasMore: false);
 
       final edited = _status(
         id: '100',
@@ -89,78 +88,80 @@ void main() {
       expect(cache.searchLocal('Original draft'), isEmpty);
     });
 
-    test('QuoteCacheController.updateStatus overwrites previously cached quotes',
-        () {
-      final app = AppController();
-      addTearDown(app.dispose);
-      final QuoteCacheController quoteCache = app.quoteCache;
+    test(
+      'QuoteCacheController.updateStatus overwrites previously cached quotes',
+      () {
+        final app = AppController();
+        addTearDown(app.dispose);
+        final QuoteCacheController quoteCache = app.quoteCache;
 
-      const url = 'https://example.social/@me/100';
-      final original = _status(id: '100', text: 'Original quoted text', url: url);
-      quoteCache.seedStatuses([original]);
-      expect(quoteCache.cachedStatus(url)?.plainText, 'Original quoted text');
+        const url = 'https://example.social/@me/100';
+        final original = _status(
+          id: '100',
+          text: 'Original quoted text',
+          url: url,
+        );
+        quoteCache.seedStatuses([original]);
+        expect(quoteCache.cachedStatus(url)?.plainText, 'Original quoted text');
 
-      var notifyCount = 0;
-      quoteCache.addListener(() => notifyCount++);
+        var notifyCount = 0;
+        quoteCache.addListener(() => notifyCount++);
 
-      final edited = _status(
-        id: '100',
-        text: 'Edited quoted text',
-        url: url,
-        editedAt: DateTime.utc(2026, 11, 27, 8, 15),
-      );
-      quoteCache.updateStatus(edited);
+        final edited = _status(
+          id: '100',
+          text: 'Edited quoted text',
+          url: url,
+          editedAt: DateTime.utc(2026, 11, 27, 8, 15),
+        );
+        quoteCache.updateStatus(edited);
 
-      expect(quoteCache.cachedStatus(url)?.plainText, 'Edited quoted text');
-      expect(notifyCount, 1);
-    });
+        expect(quoteCache.cachedStatus(url)?.plainText, 'Edited quoted text');
+        expect(notifyCount, 1);
+      },
+    );
 
     testWidgets(
-        'TimelineScreen immediately displays edited post text when applyEditedStatus is called',
-        (tester) async {
-      final app = AppController();
-      addTearDown(app.dispose);
+      'TimelineScreen immediately displays edited post text when applyEditedStatus is called',
+      (tester) async {
+        final app = AppController();
+        addTearDown(app.dispose);
 
-      final original = _status(id: '501', text: 'Before editing text');
-      app.timelineCache.putTimeline(
-        TimelineType.home,
-        [original],
-        hasMore: false,
-      );
+        final original = _status(id: '501', text: 'Before editing text');
+        app.timelineCache.putTimeline(TimelineType.home, [
+          original,
+        ], hasMore: false);
 
-      await tester.pumpWidget(
-        localizedTestApp(
-          home: Scaffold(
-            body: TimelineScreen(
-              app: app,
-              timelineType: TimelineType.home,
+        await tester.pumpWidget(
+          localizedTestApp(
+            home: Scaffold(
+              body: TimelineScreen(app: app, timelineType: TimelineType.home),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Before editing text', findRichText: true),
-        findsOneWidget,
-      );
+        expect(
+          find.textContaining('Before editing text', findRichText: true),
+          findsOneWidget,
+        );
 
-      final edited = _status(
-        id: '501',
-        text: 'After editing text',
-        editedAt: DateTime.utc(2026, 11, 27, 8, 20),
-      );
-      app.applyEditedStatus(edited);
-      await tester.pumpAndSettle();
+        final edited = _status(
+          id: '501',
+          text: 'After editing text',
+          editedAt: DateTime.utc(2026, 11, 27, 8, 20),
+        );
+        app.applyEditedStatus(edited);
+        await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Before editing text', findRichText: true),
-        findsNothing,
-      );
-      expect(
-        find.textContaining('After editing text', findRichText: true),
-        findsOneWidget,
-      );
-    });
+        expect(
+          find.textContaining('Before editing text', findRichText: true),
+          findsNothing,
+        );
+        expect(
+          find.textContaining('After editing text', findRichText: true),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

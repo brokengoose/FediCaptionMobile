@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fedicaption_mobile/models/app_settings.dart';
@@ -69,6 +70,31 @@ class _InMemorySecureStorage extends Fake implements FlutterSecureStorage {
   }
 }
 
+/// Secure storage whose reads fail for keys containing [failingKeyPart]
+/// (e.g. an Android Keystore `BadPaddingException` after a backup restore).
+class _FlakySecureStorage extends _InMemorySecureStorage {
+  _FlakySecureStorage(this.failingKeyPart);
+
+  final String failingKeyPart;
+  bool failReads = true;
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (failReads && key.contains(failingKeyPart)) {
+      throw Exception('BadPaddingException: keystore entry unreadable');
+    }
+    return super.read(key: key);
+  }
+}
+
 class _FakeMastodonService extends MastodonService {
   final Map<String, MastodonAccount> accountsByCreds = {};
   final Map<String, InstanceLimits> limitsByInstance = {};
@@ -90,11 +116,36 @@ class _FakeMastodonService extends MastodonService {
     homeFeedByToken[accessToken] = homeStatuses;
   }
 
+  /// When set, every verifyCredentials call throws this (simulates offline).
+  Object? verifyError;
+
+  /// When set, verifyCredentials waits for it (holds an account switch open).
+  Completer<void>? verifyGate;
+
+  /// When set, resolveStatusByUrl waits for it, then returns [resolvedStatus].
+  Completer<void>? resolveGate;
+  MastodonStatus? resolvedStatus;
+
+  @override
+  Future<MastodonStatus?> resolveStatusByUrl({
+    required String instanceUrl,
+    required String accessToken,
+    required String statusUrl,
+  }) async {
+    if (resolveGate != null) await resolveGate!.future;
+    return resolvedStatus;
+  }
+
+  /// When true, fetchInstanceLimits reports failure (`null`).
+  bool failInstanceLimits = false;
+
   @override
   Future<MastodonAccount> verifyCredentials({
     required String instanceUrl,
     required String accessToken,
   }) async {
+    if (verifyGate != null) await verifyGate!.future;
+    if (verifyError != null) throw verifyError!;
     final account = accountsByCreds[_credKey(instanceUrl, accessToken)];
     if (account == null) {
       throw const MastodonApiException('Invalid token', statusCode: 401);
@@ -103,10 +154,11 @@ class _FakeMastodonService extends MastodonService {
   }
 
   @override
-  Future<InstanceLimits> fetchInstanceLimits({
+  Future<InstanceLimits?> fetchInstanceLimits({
     required String instanceUrl,
     String? accessToken,
   }) async {
+    if (failInstanceLimits) return null;
     final norm = MastodonService.normalizeInstanceUrl(instanceUrl);
     return limitsByInstance[norm] ?? const InstanceLimits();
   }
@@ -144,7 +196,7 @@ class _StubTtsService extends TtsService {
 MastodonStatus _samplePost(String id, String text, MastodonAccount author) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 27, 8, 0),
+    createdAt: DateTime.utc(2026, 11, 27, 8),
     account: author,
     contentHtml: '<p>$text</p>',
   );
@@ -156,8 +208,7 @@ void main() {
   });
 
   group('Multi-account support', () {
-    test('StorageService persists multiple accounts with tokens kept strictly in secure storage',
-        () async {
+    test('StorageService persists multiple accounts with tokens kept strictly in secure storage', () async {
       final secure = _InMemorySecureStorage();
       final storage = StorageService(
         secureStorage: secure,
@@ -183,8 +234,8 @@ void main() {
         displayName: 'Bob',
       );
 
-      await storage.saveAccount(alice, setActive: true);
-      await storage.saveAccount(bob, setActive: true);
+      await storage.saveAccount(alice);
+      await storage.saveAccount(bob);
 
       final loaded = await storage.loadAccounts();
       expect(loaded, hasLength(2));
@@ -207,8 +258,7 @@ void main() {
       expect(await storage.loadActiveAccountKey(), alice.key);
     });
 
-    test('AppController supports multiple servers, switching, logout failover, and legacy migration',
-        () async {
+    test('AppController supports multiple servers, switching, logout failover, and legacy migration', () async {
       final secure = _InMemorySecureStorage();
       final storage = StorageService(
         secureStorage: secure,
@@ -235,7 +285,6 @@ void main() {
         instanceUrl: 'https://mastodon.social',
         accessToken: 'tok-alice',
         account: aliceAccount,
-        limits: const InstanceLimits(maxCharacters: 500),
       );
       mastodon.registerAccount(
         instanceUrl: 'https://infosec.exchange',
@@ -264,11 +313,9 @@ void main() {
       expect(controller.instanceLimits.maxCharacters, 500);
 
       // Seed timeline cache for Alice, then sign into Bob on a second server.
-      controller.timelineCache.putTimeline(
-        TimelineType.home,
-        [_samplePost('1', 'Alice post', aliceAccount)],
-        hasMore: false,
-      );
+      controller.timelineCache.putTimeline(TimelineType.home, [
+        _samplePost('1', 'Alice post', aliceAccount),
+      ], hasMore: false);
       expect(
         await controller.loginWithAccessToken(
           rawInstanceUrl: 'infosec.exchange',
@@ -284,11 +331,9 @@ void main() {
       expect(controller.timelineCache.timelineFor(TimelineType.home), isNull);
 
       // Switch back to Alice -> verifies credentials, clears caches, updates active handle & limits.
-      controller.timelineCache.putTimeline(
-        TimelineType.home,
-        [_samplePost('2', 'Bob post', bobAccount)],
-        hasMore: false,
-      );
+      controller.timelineCache.putTimeline(TimelineType.home, [
+        _samplePost('2', 'Bob post', bobAccount),
+      ], hasMore: false);
       final aliceKey = controller.accounts.first.key;
       expect(await controller.switchAccount(aliceKey), isTrue);
       expect(controller.activeAccountFullHandle, '@alice@mastodon.social');
@@ -323,123 +368,407 @@ void main() {
       await migratedController.initialize();
       expect(migratedController.isAuthenticated, isTrue);
       expect(migratedController.accounts, hasLength(1));
-      expect(migratedController.activeAccountFullHandle, '@alice@mastodon.social');
+      expect(
+        migratedController.activeAccountFullHandle,
+        '@alice@mastodon.social',
+      );
     });
 
     testWidgets(
-        'HomeShell highlights active account when multiple logins exist and AccountSwitcherSheet switches servers cleanly',
-        (tester) async {
-      final secure = _InMemorySecureStorage();
+      'HomeShell highlights active account when multiple logins exist and AccountSwitcherSheet switches servers cleanly',
+      (tester) async {
+        final secure = _InMemorySecureStorage();
+        final storage = StorageService(
+          secureStorage: secure,
+          enableLinuxKeyringFallback: false,
+        );
+        final mastodon = _FakeMastodonService();
+
+        const aliceAccount = MastodonAccount(
+          id: '10',
+          username: 'alice',
+          acct: 'alice',
+          displayName: 'Alice Social',
+          avatar: '',
+        );
+        const bobAccount = MastodonAccount(
+          id: '20',
+          username: 'bob',
+          acct: 'bob',
+          displayName: 'Bob Infosec',
+          avatar: '',
+        );
+
+        mastodon.registerAccount(
+          instanceUrl: 'https://mastodon.social',
+          accessToken: 'tok-alice',
+          account: aliceAccount,
+          homeStatuses: [
+            _samplePost('a1', 'Hello from mastodon.social', aliceAccount),
+          ],
+        );
+        mastodon.registerAccount(
+          instanceUrl: 'https://infosec.exchange',
+          accessToken: 'tok-bob',
+          account: bobAccount,
+          homeStatuses: [
+            _samplePost('b1', 'Hello from infosec.exchange', bobAccount),
+          ],
+        );
+
+        final app = AppController(
+          storageService: storage,
+          mastodonService: mastodon,
+          onDeviceAiService: _StubOnDeviceAiService(),
+          updateCheckService: _NoOpUpdateCheckService(),
+          ttsService: _StubTtsService(),
+        );
+        addTearDown(app.dispose);
+
+        await tester.runAsync(() async {
+          await app.loginWithAccessToken(
+            rawInstanceUrl: 'mastodon.social',
+            accessToken: 'tok-alice',
+          );
+          await app.loginWithAccessToken(
+            rawInstanceUrl: 'infosec.exchange',
+            accessToken: 'tok-bob',
+          );
+          await app.switchAccount(app.accounts.first.key);
+        });
+
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.physicalSize = const Size(1200, 800);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(localizedTestApp(home: HomeShell(app: app)));
+        await tester.pumpAndSettle();
+
+        // Active account header and switcher chip show Alice on mastodon.social.
+        expect(find.text('@alice@mastodon.social'), findsAtLeastNWidgets(2));
+        expect(
+          find.textContaining('Hello from mastodon.social', findRichText: true),
+          findsOneWidget,
+        );
+
+        // Open account switcher sheet from AppBar switcher button.
+        await tester.tap(find.byIcon(Icons.unfold_more));
+        await tester.pumpAndSettle();
+
+        final sheetFinder = find.byType(AccountSwitcherSheet);
+        expect(sheetFinder, findsOneWidget);
+        expect(
+          find.descendant(of: sheetFinder, matching: find.text('Active')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: sheetFinder, matching: find.text('Alice Social')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: sheetFinder, matching: find.text('Bob Infosec')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: sheetFinder,
+            matching: find.text('@bob@infosec.exchange'),
+          ),
+          findsOneWidget,
+        );
+
+        // Switch to Bob on infosec.exchange.
+        await tester.tap(
+          find.descendant(of: sheetFinder, matching: find.text('Bob Infosec')),
+        );
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AccountSwitcherSheet), findsNothing);
+        expect(app.activeAccountFullHandle, '@bob@infosec.exchange');
+        expect(
+          find.textContaining(
+            'Hello from infosec.exchange',
+            findRichText: true,
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('@bob@infosec.exchange'), findsAtLeastNWidgets(2));
+      },
+    );
+  });
+
+  group('StorageService account metadata safety', () {
+    StoredAccount acct(String host, String id, String name) => StoredAccount(
+      key: StoredAccount.buildKey('https://$host', id),
+      instanceUrl: 'https://$host',
+      accessToken: 'tok-$name',
+      accountId: id,
+      username: name,
+      acct: name,
+      displayName: name,
+    );
+
+    test(
+      'an unreadable token hides only that account and never wipes others',
+      () async {
+        final secure = _FlakySecureStorage('infosec');
+        final storage = StorageService(
+          secureStorage: secure,
+          enableLinuxKeyringFallback: false,
+        );
+        final alice = acct('mastodon.social', '1', 'alice');
+        final bob = acct('infosec.exchange', '2', 'bob');
+        final carol = acct('hachyderm.io', '3', 'carol');
+
+        // Seed alice + bob while reads still work for both.
+        secure.failReads = false;
+        await storage.saveAccount(alice);
+        await storage.saveAccount(bob);
+        secure.failReads = true;
+
+        expect((await storage.loadAccounts()).map((a) => a.key), [alice.key]);
+
+        // Writes while bob's token is unreadable must keep bob's metadata.
+        await storage.saveAccount(carol);
+        await storage.removeAccount(alice.key);
+
+        secure.failReads = false;
+        expect((await storage.loadAccounts()).map((a) => a.key), [
+          bob.key,
+          carol.key,
+        ]);
+      },
+    );
+
+    test('concurrent saves do not lose each other', () async {
       final storage = StorageService(
-        secureStorage: secure,
+        secureStorage: _InMemorySecureStorage(),
         enableLinuxKeyringFallback: false,
       );
-      final mastodon = _FakeMastodonService();
+      final accounts = [
+        for (var i = 0; i < 5; i++) acct('host$i.example', '$i', 'user$i'),
+      ];
 
-      const aliceAccount = MastodonAccount(
-        id: '10',
-        username: 'alice',
-        acct: 'alice',
-        displayName: 'Alice Social',
-        avatar: '',
-      );
-      const bobAccount = MastodonAccount(
-        id: '20',
-        username: 'bob',
-        acct: 'bob',
-        displayName: 'Bob Infosec',
-        avatar: '',
-      );
+      await Future.wait([for (final a in accounts) storage.saveAccount(a)]);
 
-      mastodon.registerAccount(
-        instanceUrl: 'https://mastodon.social',
-        accessToken: 'tok-alice',
-        account: aliceAccount,
-        homeStatuses: [_samplePost('a1', 'Hello from mastodon.social', aliceAccount)],
-      );
-      mastodon.registerAccount(
-        instanceUrl: 'https://infosec.exchange',
-        accessToken: 'tok-bob',
-        account: bobAccount,
-        homeStatuses: [_samplePost('b1', 'Hello from infosec.exchange', bobAccount)],
-      );
+      expect(await storage.loadAccounts(), hasLength(5));
+    });
+  });
 
+  group('Account switch isolation', () {
+    const alice = MastodonAccount(
+      id: '10',
+      username: 'alice',
+      acct: 'alice',
+      displayName: 'Alice',
+      avatar: '',
+    );
+    const bob = MastodonAccount(
+      id: '20',
+      username: 'bob',
+      acct: 'bob',
+      displayName: 'Bob',
+      avatar: '',
+    );
+
+    Future<(AppController, _FakeMastodonService)> twoAccounts() async {
+      final mastodon = _FakeMastodonService()
+        ..registerAccount(
+          instanceUrl: 'https://mastodon.social',
+          accessToken: 'tok-alice',
+          account: alice,
+        )
+        ..registerAccount(
+          instanceUrl: 'https://infosec.exchange',
+          accessToken: 'tok-bob',
+          account: bob,
+        );
       final app = AppController(
-        storageService: storage,
+        storageService: StorageService(
+          secureStorage: _InMemorySecureStorage(),
+          enableLinuxKeyringFallback: false,
+        ),
         mastodonService: mastodon,
         onDeviceAiService: _StubOnDeviceAiService(),
         updateCheckService: _NoOpUpdateCheckService(),
         ttsService: _StubTtsService(),
       );
       addTearDown(app.dispose);
-
-      await tester.runAsync(() async {
-        await app.loginWithAccessToken(
-          rawInstanceUrl: 'mastodon.social',
-          accessToken: 'tok-alice',
-        );
-        await app.loginWithAccessToken(
-          rawInstanceUrl: 'infosec.exchange',
-          accessToken: 'tok-bob',
-        );
-        await app.switchAccount(app.accounts.first.key);
-      });
-
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(1200, 800);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(localizedTestApp(home: HomeShell(app: app)));
-      await tester.pumpAndSettle();
-
-      // Active account header and switcher chip show Alice on mastodon.social.
-      expect(find.text('@alice@mastodon.social'), findsAtLeastNWidgets(2));
-      expect(
-        find.textContaining('Hello from mastodon.social', findRichText: true),
-        findsOneWidget,
+      await app.loginWithAccessToken(
+        rawInstanceUrl: 'infosec.exchange',
+        accessToken: 'tok-bob',
       );
+      await app.loginWithAccessToken(
+        rawInstanceUrl: 'mastodon.social',
+        accessToken: 'tok-alice',
+      );
+      return (app, mastodon);
+    }
 
-      // Open account switcher sheet from AppBar switcher button.
-      await tester.tap(find.byIcon(Icons.unfold_more));
-      await tester.pumpAndSettle();
+    test('old-account timeline writes during a switch do not leak into the '
+        'new account', () async {
+      final (app, mastodon) = await twoAccounts();
+      expect(app.activeAccountFullHandle, '@alice@mastodon.social');
+      final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
 
-      final sheetFinder = find.byType(AccountSwitcherSheet);
-      expect(sheetFinder, findsOneWidget);
-      expect(
-        find.descendant(of: sheetFinder, matching: find.text('Active')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: sheetFinder, matching: find.text('Alice Social')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: sheetFinder, matching: find.text('Bob Infosec')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: sheetFinder,
-          matching: find.text('@bob@infosec.exchange'),
-        ),
-        findsOneWidget,
-      );
+      mastodon.verifyGate = Completer<void>();
+      final switching = app.switchAccount(bobKey);
+      await Future<void>.delayed(Duration.zero); // now parked on verifyGate
 
-      // Switch to Bob on infosec.exchange.
-      await tester.tap(
-        find.descendant(of: sheetFinder, matching: find.text('Bob Infosec')),
-      );
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await tester.pumpAndSettle();
+      // An Alice screen still mounted mid-switch finishes a page load.
+      app.timelineCache.putTimeline(TimelineType.home, [
+        _samplePost('a1', 'Alice private home feed', alice),
+      ], hasMore: false);
 
-      expect(find.byType(AccountSwitcherSheet), findsNothing);
+      mastodon.verifyGate!.complete();
+      expect(await switching, isTrue);
+
       expect(app.activeAccountFullHandle, '@bob@infosec.exchange');
-      expect(
-        find.textContaining('Hello from infosec.exchange', findRichText: true),
-        findsOneWidget,
+      expect(app.timelineCache.timelineFor(TimelineType.home), isNull);
+    });
+
+    test('a failed switch keeps the current account caches intact', () async {
+      final (app, mastodon) = await twoAccounts();
+      final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+      app.timelineCache.putTimeline(TimelineType.home, [
+        _samplePost('a1', 'Alice home', alice),
+      ], hasMore: false);
+
+      mastodon.verifyError = Exception('offline');
+      expect(await app.switchAccount(bobKey), isFalse);
+
+      expect(app.activeAccountFullHandle, '@alice@mastodon.social');
+      expect(app.timelineCache.timelineFor(TimelineType.home), isNotNull);
+    });
+
+    test(
+      'a quote resolved for the old account is dropped after a switch',
+      () async {
+        final (app, mastodon) = await twoAccounts();
+        final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+        mastodon
+          ..resolveGate = Completer<void>()
+          ..resolvedStatus = _samplePost('q1', 'Quoted via Alice', alice);
+
+        const url = 'https://elsewhere.example/@x/123';
+        final resolving = app.resolveQuotedStatus(url);
+        expect(await app.switchAccount(bobKey), isTrue);
+
+        mastodon.resolveGate!.complete();
+        await resolving;
+
+        expect(app.cachedQuotedStatus(url), isNull);
+        expect(app.hasResolvedQuote(url), isFalse);
+      },
+    );
+
+    test('AI captions are not shared across accounts', () async {
+      final (app, _) = await twoAccounts();
+      final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+      final aliceKey = app.activeAccountKey!;
+
+      app.mediaAi.debugPutDescription('m1', 'Caption made on Alice');
+      await app.mediaAi.debugFlush();
+      expect(await app.switchAccount(bobKey), isTrue);
+      await app.mediaAi.debugFlush();
+      expect(app.aiDescriptionForMedia('m1'), isNull);
+
+      expect(await app.switchAccount(aliceKey), isTrue);
+      await app.mediaAi.debugFlush();
+      expect(app.aiDescriptionForMedia('m1'), 'Caption made on Alice');
+    });
+  });
+
+  group('Startup resilience', () {
+    const alice = MastodonAccount(
+      id: '10',
+      username: 'alice',
+      acct: 'alice',
+      displayName: 'Alice Social',
+      avatar: '',
+    );
+
+    Future<(StorageService, _FakeMastodonService)> seedSignedIn() async {
+      final storage = StorageService(
+        secureStorage: _InMemorySecureStorage(),
+        enableLinuxKeyringFallback: false,
       );
-      expect(find.text('@bob@infosec.exchange'), findsAtLeastNWidgets(2));
+      final mastodon = _FakeMastodonService()
+        ..registerAccount(
+          instanceUrl: 'https://mastodon.social',
+          accessToken: 'tok-alice',
+          account: alice,
+        );
+      await storage.saveAccount(
+        StoredAccount.fromSessionAndAccount(
+          session: const MastodonSession(
+            instanceUrl: 'https://mastodon.social',
+            accessToken: 'tok-alice',
+          ),
+          account: alice,
+        ),
+      );
+      return (storage, mastodon);
+    }
+
+    AppController build(StorageService storage, MastodonService mastodon) {
+      final c = AppController(
+        storageService: storage,
+        mastodonService: mastodon,
+        onDeviceAiService: _StubOnDeviceAiService(),
+        updateCheckService: _NoOpUpdateCheckService(),
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test(
+      'network failure at launch keeps the stored account signed in',
+      () async {
+        final (storage, mastodon) = await seedSignedIn();
+        mastodon.verifyError = Exception(
+          'SocketException: Network unreachable',
+        );
+
+        final app = build(storage, mastodon);
+        await app.initialize();
+
+        expect(app.isAuthenticated, isTrue);
+        expect(app.authError, isNull);
+        expect(app.activeAccountFullHandle, '@alice@mastodon.social');
+      },
+    );
+
+    test('401 at launch is still treated as an expired session', () async {
+      final (storage, mastodon) = await seedSignedIn();
+      mastodon.verifyError = const MastodonApiException(
+        'The access token is invalid',
+        statusCode: 401,
+      );
+
+      final app = build(storage, mastodon);
+      await app.initialize();
+
+      expect(app.isAuthenticated, isFalse);
+      expect(app.authError, isNotNull);
+    });
+
+    test('failed instance-limits fetch is not cached', () async {
+      final (storage, mastodon) = await seedSignedIn();
+      mastodon.failInstanceLimits = true;
+
+      final app = build(storage, mastodon);
+      await app.initialize();
+
+      expect(app.isAuthenticated, isTrue);
+      expect(
+        await storage.loadCachedInstanceLimits('https://mastodon.social'),
+        isNull,
+      );
     });
   });
 }

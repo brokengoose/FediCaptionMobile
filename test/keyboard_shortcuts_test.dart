@@ -21,7 +21,7 @@ MastodonStatus _sampleStatus(
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 23, 12, 0),
+    createdAt: DateTime.utc(2026, 11, 23, 12),
     account: MastodonAccount(
       id: 'acc_$id',
       username: 'user$id',
@@ -36,28 +36,26 @@ MastodonStatus _sampleStatus(
 
 void main() {
   group('Keyboard navigation shortcuts', () {
-    testWidgets('j/k moves post selection and x toggles Content Warning',
-        (tester) async {
+    testWidgets('j/k moves post selection and x toggles Content Warning', (
+      tester,
+    ) async {
       final app = AppController();
       addTearDown(app.dispose);
 
-      app.timelineCache.putTimeline(
-        TimelineType.home,
-        [
-          _sampleStatus('1', text: 'First post secret body', spoiler: 'Spoiler 1'),
-          _sampleStatus('2', text: 'Second post body'),
-        ],
-        hasMore: false,
-      );
+      app.timelineCache.putTimeline(TimelineType.home, [
+        _sampleStatus(
+          '1',
+          text: 'First post secret body',
+          spoiler: 'Spoiler 1',
+        ),
+        _sampleStatus('2', text: 'Second post body'),
+      ], hasMore: false);
 
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light(),
           home: Scaffold(
-            body: TimelineScreen(
-              app: app,
-              timelineType: TimelineType.home,
-            ),
+            body: TimelineScreen(app: app, timelineType: TimelineType.home),
           ),
         ),
       );
@@ -70,7 +68,9 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
       await tester.pumpAndSettle();
 
-      var cards = tester.widgetList<StatusCard>(find.byType(StatusCard)).toList();
+      var cards = tester
+          .widgetList<StatusCard>(find.byType(StatusCard))
+          .toList();
       expect(cards[0].isKeyboardSelected, isTrue);
       expect(cards[1].isKeyboardSelected, isFalse);
 
@@ -96,150 +96,152 @@ void main() {
       expect(cards[1].isKeyboardSelected, isFalse);
     });
 
-    testWidgets('g chords switch timelines and ? opens shortcuts dialog in HomeShell',
-        (tester) async {
-      final app = AppController();
-      addTearDown(app.dispose);
+    testWidgets(
+      'g chords switch timelines and ? opens shortcuts dialog in HomeShell',
+      (tester) async {
+        final app = AppController();
+        addTearDown(app.dispose);
 
-      // Seed cached timelines so tab switching makes zero network calls.
-      for (final type in [
-        TimelineType.home,
-        TimelineType.local,
-        TimelineType.bookmarks,
-      ]) {
-        app.timelineCache.putTimeline(
-          type,
-          [_sampleStatus('1', text: 'Cached ${type.shortLabel} post')],
-          hasMore: false,
+        // Seed cached timelines so tab switching makes zero network calls.
+        for (final type in [
+          TimelineType.home,
+          TimelineType.local,
+          TimelineType.bookmarks,
+        ]) {
+          app.timelineCache.putTimeline(type, [
+            _sampleStatus('1', text: 'Cached ${type.shortLabel} post'),
+          ], hasMore: false);
+        }
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            home: HomeShell(app: app),
+          ),
         );
-      }
+        await tester.pumpAndSettle();
+        expect(find.text('Home Timeline'), findsOneWidget);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: HomeShell(app: app),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Home Timeline'), findsOneWidget);
+        // Press 'g' then 'l' -> Local Timeline.
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+        await tester.pumpAndSettle();
+        expect(find.text('Local Timeline'), findsOneWidget);
 
-      // Press 'g' then 'l' -> Local Timeline.
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
-      await tester.pumpAndSettle();
-      expect(find.text('Local Timeline'), findsOneWidget);
+        // Press 'g' then 'b' -> Bookmarks.
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+        await tester.pumpAndSettle();
+        expect(find.text('Bookmarks'), findsOneWidget);
 
-      // Press 'g' then 'b' -> Bookmarks.
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
-      await tester.pumpAndSettle();
-      expect(find.text('Bookmarks'), findsOneWidget);
+        // Press '?' (Shift + /) -> Keyboard Shortcuts dialog.
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.slash);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pumpAndSettle();
+        expect(find.byType(KeyboardShortcutsDialog), findsOneWidget);
+        expect(find.text('Keyboard Shortcuts'), findsOneWidget);
+        expect(find.text('Next post'), findsOneWidget);
+      },
+    );
 
-      // Press '?' (Shift + /) -> Keyboard Shortcuts dialog.
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.slash);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-      await tester.pumpAndSettle();
-      expect(find.byType(KeyboardShortcutsDialog), findsOneWidget);
-      expect(find.text('Keyboard Shortcuts'), findsOneWidget);
-      expect(find.text('Next post'), findsOneWidget);
-    });
+    testWidgets(
+      'single-letter shortcuts are ignored while typing in a TextField',
+      (tester) async {
+        final controller = TextEditingController();
+        addTearDown(controller.dispose);
+        var shortcutFired = false;
 
-    testWidgets('single-letter shortcuts are ignored while typing in a TextField',
-        (tester) async {
-      final controller = TextEditingController();
-      addTearDown(controller.dispose);
-      var shortcutFired = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: TextField(
-              controller: controller,
-              autofocus: true,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TextField(controller: controller, autofocus: true),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      bool handler(KeyEvent event) {
-        return KeyboardNavHelper.handleStatusFeedKeyEvent(
-          event,
-          isActive: () => true,
-          onNext: () => shortcutFired = true,
         );
-      }
+        await tester.pumpAndSettle();
 
-      HardwareKeyboard.instance.addHandler(handler);
-      addTearDown(() => HardwareKeyboard.instance.removeHandler(handler));
+        bool handler(KeyEvent event) {
+          return KeyboardNavHelper.handleStatusFeedKeyEvent(
+            event,
+            isActive: () => true,
+            onNext: () => shortcutFired = true,
+          );
+        }
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
-      await tester.pump();
+        HardwareKeyboard.instance.addHandler(handler);
+        addTearDown(() => HardwareKeyboard.instance.removeHandler(handler));
 
-      expect(shortcutFired, isFalse);
-    });
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+        await tester.pump();
 
-    testWidgets('AccessibleTip shows explanatory tip on Tab focus and mouse hover',
-        (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AccessibleTip(
-                    message: 'Compose a new Mastodon post',
-                    child: FilledButton(
-                      onPressed: () {},
-                      child: const Text('Compose'),
+        expect(shortcutFired, isFalse);
+      },
+    );
+
+    testWidgets(
+      'AccessibleTip shows explanatory tip on Tab focus and mouse hover',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            home: Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AccessibleTip(
+                      message: 'Compose a new Mastodon post',
+                      child: FilledButton(
+                        onPressed: () {},
+                        child: const Text('Compose'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  AccessibleTip(
-                    message: 'Open Settings & AI Configuration',
-                    child: OutlinedButton(
-                      onPressed: () {},
-                      child: const Text('Settings'),
+                    const SizedBox(height: 16),
+                    AccessibleTip(
+                      message: 'Open Settings & AI Configuration',
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        child: const Text('Settings'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Tab focuses the first button -> shows its tip immediately.
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pumpAndSettle();
-      expect(find.text('Compose a new Mastodon post'), findsOneWidget);
+        // Tab focuses the first button -> shows its tip immediately.
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        expect(find.text('Compose a new Mastodon post'), findsOneWidget);
 
-      // Mouse hover over the second button -> shows its tip after waitDuration.
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      addTearDown(gesture.removePointer);
-      await gesture.addPointer(location: Offset.zero);
-      await gesture.moveTo(tester.getCenter(find.text('Settings')));
-      await tester.pump(const Duration(milliseconds: 500));
-      await tester.pumpAndSettle();
-      expect(find.text('Open Settings & AI Configuration'), findsOneWidget);
-    });
+        // Mouse hover over the second button -> shows its tip after waitDuration.
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        addTearDown(gesture.removePointer);
+        await gesture.addPointer(location: Offset.zero);
+        await gesture.moveTo(tester.getCenter(find.text('Settings')));
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpAndSettle();
+        expect(find.text('Open Settings & AI Configuration'), findsOneWidget);
+      },
+    );
 
-    testWidgets('wide window expands post cards without wide margins',
-        (tester) async {
+    testWidgets('wide window expands post cards without wide margins', (
+      tester,
+    ) async {
       final app = AppController();
       addTearDown(app.dispose);
 
-      app.timelineCache.putTimeline(
-        TimelineType.home,
-        [_sampleStatus('1', text: 'Wide layout post')],
-        hasMore: false,
-      );
+      app.timelineCache.putTimeline(TimelineType.home, [
+        _sampleStatus('1', text: 'Wide layout post'),
+      ], hasMore: false);
 
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(1200, 900);
@@ -264,19 +266,16 @@ void main() {
       expect(widthAt1600, closeTo(widthAt1200 + 400, 4.0));
     });
 
-    testWidgets('Page Down and Page Up scroll TimelineScreen by one page',
-        (tester) async {
+    testWidgets('Page Down and Page Up scroll TimelineScreen by one page', (
+      tester,
+    ) async {
       final app = AppController();
       addTearDown(app.dispose);
 
-      app.timelineCache.putTimeline(
-        TimelineType.home,
-        [
-          for (var i = 1; i <= 20; i++)
-            _sampleStatus('$i', text: 'Timeline post number $i'),
-        ],
-        hasMore: false,
-      );
+      app.timelineCache.putTimeline(TimelineType.home, [
+        for (var i = 1; i <= 20; i++)
+          _sampleStatus('$i', text: 'Timeline post number $i'),
+      ], hasMore: false);
 
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(800, 600);
@@ -287,17 +286,15 @@ void main() {
         MaterialApp(
           theme: AppTheme.light(),
           home: Scaffold(
-            body: TimelineScreen(
-              app: app,
-              timelineType: TimelineType.home,
-            ),
+            body: TimelineScreen(app: app, timelineType: TimelineType.home),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      final scrollable =
-          tester.state<ScrollableState>(find.byType(Scrollable).first);
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
       final viewportHeight = scrollable.position.viewportDimension;
       expect(scrollable.position.pixels, 0.0);
 
@@ -310,51 +307,47 @@ void main() {
       expect(scrollable.position.pixels, closeTo(0.0, 0.5));
     });
 
-    testWidgets('Home key scrolls TimelineScreen back to the newest post at top',
-        (tester) async {
-      final app = AppController();
-      addTearDown(app.dispose);
+    testWidgets(
+      'Home key scrolls TimelineScreen back to the newest post at top',
+      (tester) async {
+        final app = AppController();
+        addTearDown(app.dispose);
 
-      app.timelineCache.putTimeline(
-        TimelineType.home,
-        [
+        app.timelineCache.putTimeline(TimelineType.home, [
           for (var i = 1; i <= 20; i++)
             _sampleStatus('$i', text: 'Timeline post number $i'),
-        ],
-        hasMore: false,
-      );
+        ], hasMore: false);
 
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = const Size(800, 600);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light(),
-          home: Scaffold(
-            body: TimelineScreen(
-              app: app,
-              timelineType: TimelineType.home,
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            home: Scaffold(
+              body: TimelineScreen(app: app, timelineType: TimelineType.home),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final scrollable =
-          tester.state<ScrollableState>(find.byType(Scrollable).first);
+        final scrollable = tester.state<ScrollableState>(
+          find.byType(Scrollable).first,
+        );
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
-      await tester.pumpAndSettle();
-      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
-      await tester.pumpAndSettle();
-      expect(scrollable.position.pixels, greaterThan(500));
+        await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+        await tester.pumpAndSettle();
+        expect(scrollable.position.pixels, greaterThan(500));
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.home);
-      await tester.pumpAndSettle();
-      expect(scrollable.position.pixels, closeTo(0.0, 0.5));
-      expect(find.text('Timeline post number 1'), findsOneWidget);
-    });
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.pumpAndSettle();
+        expect(scrollable.position.pixels, closeTo(0.0, 0.5));
+        expect(find.text('Timeline post number 1'), findsOneWidget);
+      },
+    );
   });
 }

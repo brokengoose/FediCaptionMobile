@@ -51,6 +51,15 @@ class KeyboardNavHelper {
     return (hw.isMetaPressed || hw.isControlPressed) && !hw.isAltPressed;
   }
 
+  /// Display form of a primary-modifier shortcut for help text and tooltips:
+  /// `⌘N` on Apple platforms, `Ctrl+N` elsewhere.
+  static String primaryShortcutLabel(BuildContext context, String key) {
+    final platform = Theme.of(context).platform;
+    final isApple =
+        platform == TargetPlatform.macOS || platform == TargetPlatform.iOS;
+    return isApple ? '⌘$key' : 'Ctrl+$key';
+  }
+
   /// Returns `true` when no modifier keys (Cmd, Ctrl, Alt) are held.
   static bool hasNoCommandModifiers() {
     final hw = HardwareKeyboard.instance;
@@ -79,8 +88,10 @@ class KeyboardNavHelper {
     if (!controller.hasClients) return;
     final pos = controller.position;
     if (!pos.hasViewportDimension || pos.viewportDimension <= 0) return;
-    final pageStep =
-        (pos.viewportDimension * 0.9).clamp(120.0, pos.viewportDimension);
+    final pageStep = (pos.viewportDimension * 0.9).clamp(
+      120.0,
+      pos.viewportDimension,
+    );
     final target = (pos.pixels + direction * pageStep).clamp(
       pos.minScrollExtent,
       pos.maxScrollExtent,
@@ -254,6 +265,8 @@ class KeyboardShortcutsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    String mod(String key) =>
+        KeyboardNavHelper.primaryShortcutLabel(context, key);
     return AlertDialog(
       title: Row(
         children: [
@@ -271,10 +284,19 @@ class KeyboardShortcutsDialog extends StatelessWidget {
             children: [
               _section(context, l10n.shortcutsSectionNavigation, [
                 (l10n.shortcutsOrKeyCombo('j', '↓'), l10n.shortcutsNextPost),
-                (l10n.shortcutsOrKeyCombo('k', '↑'), l10n.shortcutsPreviousPost),
-                (l10n.shortcutsOrKeyCombo('PgUp', 'PgDn'), l10n.shortcutsScrollPage),
+                (
+                  l10n.shortcutsOrKeyCombo('k', '↑'),
+                  l10n.shortcutsPreviousPost,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('PgUp', 'PgDn'),
+                  l10n.shortcutsScrollPage,
+                ),
                 ('Home', l10n.shortcutsScrollToTop),
-                (l10n.shortcutsOrKeyCombo('Enter', 'o'), l10n.shortcutsOpenPost),
+                (
+                  l10n.shortcutsOrKeyCombo('Enter', 'o'),
+                  l10n.shortcutsOpenPost,
+                ),
                 ('Esc', l10n.shortcutsEscape),
               ]),
               const SizedBox(height: 12),
@@ -288,21 +310,51 @@ class KeyboardShortcutsDialog extends StatelessWidget {
               ]),
               const SizedBox(height: 12),
               _section(context, l10n.shortcutsSectionTimelines, [
-                (l10n.shortcutsOrKeyCombo('g h', '1'), l10n.shortcutsHomeTimeline),
-                (l10n.shortcutsOrKeyCombo('g l', '2'), l10n.shortcutsLocalTimeline),
-                (l10n.shortcutsOrKeyCombo('g p', '3'), l10n.shortcutsFederatedTimeline),
-                (l10n.shortcutsOrKeyCombo('g n', '4'), l10n.shortcutsNotificationsTimeline),
-                (l10n.shortcutsOrKeyCombo('g b', '5'), l10n.shortcutsBookmarksTimeline),
-                (l10n.shortcutsOrKeyCombo('g f', '6'), l10n.shortcutsFavoritesTimeline),
-                (l10n.shortcutsOrKeyCombo('g u', '7'), l10n.shortcutsMyPostsTimeline),
+                (
+                  l10n.shortcutsOrKeyCombo('g h', '1'),
+                  l10n.shortcutsHomeTimeline,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('g l', '2'),
+                  l10n.shortcutsLocalTimeline,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('g p', '3'),
+                  l10n.shortcutsFederatedTimeline,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('g n', '4'),
+                  l10n.shortcutsNotificationsTimeline,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('g b', '5'),
+                  l10n.shortcutsBookmarksTimeline,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('g f', '6'),
+                  l10n.shortcutsFavoritesTimeline,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('g u', '7'),
+                  l10n.shortcutsMyPostsTimeline,
+                ),
               ]),
               const SizedBox(height: 12),
               _section(context, l10n.shortcutsSectionApp, [
-                (l10n.shortcutsOrKeyCombo('n', '⌘N'), l10n.shortcutsComposeNew),
-                ('⌘Enter', l10n.shortcutsPublishPost),
-                (l10n.shortcutsOrKeyCombo('/', '⌘F'), l10n.shortcutsLocalSearch),
-                (l10n.shortcutsOrKeyCombo('.', '⌘R'), l10n.shortcutsRefresh),
-                ('⌘,', l10n.shortcutsOpenSettings),
+                (
+                  l10n.shortcutsOrKeyCombo('n', mod('N')),
+                  l10n.shortcutsComposeNew,
+                ),
+                (mod('Enter'), l10n.shortcutsPublishPost),
+                (
+                  l10n.shortcutsOrKeyCombo('/', mod('F')),
+                  l10n.shortcutsLocalSearch,
+                ),
+                (
+                  l10n.shortcutsOrKeyCombo('.', mod('R')),
+                  l10n.shortcutsRefresh,
+                ),
+                (mod(','), l10n.shortcutsOpenSettings),
                 ('?', l10n.shortcutsShowHelp),
               ]),
             ],
@@ -331,10 +383,8 @@ class KeyboardShortcutsDialog extends StatelessWidget {
           header: true,
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.primary,
-                ),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.bold, color: scheme.primary),
           ),
         ),
         const SizedBox(height: 6),
@@ -352,16 +402,13 @@ class KeyboardShortcutsDialog extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: scheme.outlineVariant,
-                    ),
+                    border: Border.all(color: scheme.outlineVariant),
                   ),
                   child: Text(
                     keys,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 12),

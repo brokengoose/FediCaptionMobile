@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -19,17 +20,19 @@ class StorageService {
   StorageService({
     FlutterSecureStorage? secureStorage,
     bool? enableLinuxKeyringFallback,
-  })  : _hasCustomSecureStorage = secureStorage != null,
-        _enableLinuxKeyringFallback = enableLinuxKeyringFallback ??
-            (secureStorage == null &&
-                !kIsWeb &&
-                defaultTargetPlatform == TargetPlatform.linux),
-        _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock_this_device,
-              ),
-            );
+  }) : _hasCustomSecureStorage = secureStorage != null,
+       _enableLinuxKeyringFallback =
+           enableLinuxKeyringFallback ??
+           (secureStorage == null &&
+               !kIsWeb &&
+               defaultTargetPlatform == TargetPlatform.linux),
+       _secureStorage =
+           secureStorage ??
+           const FlutterSecureStorage(
+             iOptions: IOSOptions(
+               accessibility: KeychainAccessibility.first_unlock_this_device,
+             ),
+           );
 
   final bool _hasCustomSecureStorage;
   final bool _enableLinuxKeyringFallback;
@@ -147,10 +150,7 @@ class StorageService {
         accessToken.isEmpty) {
       return null;
     }
-    return MastodonSession(
-      instanceUrl: instanceUrl,
-      accessToken: accessToken,
-    );
+    return MastodonSession(instanceUrl: instanceUrl, accessToken: accessToken);
   }
 
   Future<void> saveSession(MastodonSession session) async {
@@ -165,33 +165,70 @@ class StorageService {
 
   /// Loads all saved Mastodon accounts (combining metadata in SharedPreferences
   /// with each account's OAuth/API token stored in platform secure storage).
+  ///
+  /// A token that can't be read (e.g. an Android Keystore error after a
+  /// backup restore) hides only that account; metadata is never discarded,
+  /// so it reappears once its token is readable again.
   Future<List<StoredAccount>> loadAccounts() async {
+    final accounts = <StoredAccount>[];
+    for (final item in await _loadAccountsMetadata()) {
+      final key = _metadataKey(item);
+      String token;
+      try {
+        token = await _readSecret(_accountTokenSecretKey(key)) ?? '';
+      } catch (_) {
+        token = '';
+      }
+      final account = StoredAccount.fromMetadataJson(item, accessToken: token);
+      if (account != null) accounts.add(account);
+    }
+    return accounts;
+  }
+
+  /// Raw per-account metadata (no secrets). Writes go through this rather
+  /// than [loadAccounts], so a secure-storage failure can't cause a
+  /// read-modify-write to drop accounts.
+  Future<List<Map<String, dynamic>>> _loadAccountsMetadata() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyAccountsMetadata);
     if (raw == null || raw.isEmpty) return const [];
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return const [];
-      final accounts = <StoredAccount>[];
-      for (final item in decoded) {
-        if (item is! Map<String, dynamic>) continue;
-        final key = (item['key'] as String?)?.trim() ?? '';
-        final instanceUrl = (item['instanceUrl'] as String?)?.trim() ?? '';
-        final accountId = (item['accountId'] as String?)?.trim() ?? '';
-        final effectiveKey =
-            key.isNotEmpty ? key : StoredAccount.buildKey(instanceUrl, accountId);
-        if (effectiveKey.isEmpty) continue;
-        final token =
-            await _readSecret(_accountTokenSecretKey(effectiveKey)) ?? '';
-        final account =
-            StoredAccount.fromMetadataJson(item, accessToken: token);
-        if (account != null) {
-          accounts.add(account);
-        }
-      }
-      return accounts;
-    } catch (_) {
+      return [
+        for (final item in decoded)
+          if (item is Map<String, dynamic> && _metadataKey(item).isNotEmpty)
+            item,
+      ];
+    } on FormatException {
       return const [];
+    }
+  }
+
+  static String _metadataKey(Map<String, dynamic> item) {
+    final key = (item['key'] as String?)?.trim() ?? '';
+    if (key.isNotEmpty) return key;
+    final instanceUrl = (item['instanceUrl'] as String?)?.trim() ?? '';
+    final accountId = (item['accountId'] as String?)?.trim() ?? '';
+    if (instanceUrl.isEmpty || accountId.isEmpty) return '';
+    return StoredAccount.buildKey(instanceUrl, accountId);
+  }
+
+  /// Serializes account-list read-modify-write operations so concurrent
+  /// saves/removes can't overwrite each other's changes. `null` while idle,
+  /// so no long-lived future is pinned to the zone that created the service.
+  Future<void>? _accountsTail;
+
+  Future<T> _serializedAccountsWrite<T>(Future<T> Function() op) async {
+    final previous = _accountsTail;
+    final done = Completer<void>();
+    _accountsTail = done.future;
+    try {
+      if (previous != null) await previous;
+      return await op();
+    } finally {
+      done.complete();
+      if (identical(_accountsTail, done.future)) _accountsTail = null;
     }
   }
 
@@ -203,29 +240,29 @@ class StorageService {
 
   /// Upserts [account] in multi-account storage, stores its token securely,
   /// and optionally sets it as the active account.
-  Future<void> saveAccount(
-    StoredAccount account, {
-    bool setActive = true,
-  }) async {
-    await _writeSecret(_accountTokenSecretKey(account.key), account.accessToken);
-    final existing = await loadAccounts();
-    final updated = <StoredAccount>[];
-    var replaced = false;
-    for (final item in existing) {
-      if (item.key == account.key) {
-        updated.add(account);
-        replaced = true;
-      } else {
-        updated.add(item);
+  Future<void> saveAccount(StoredAccount account, {bool setActive = true}) {
+    return _serializedAccountsWrite(() async {
+      await _writeSecret(
+        _accountTokenSecretKey(account.key),
+        account.accessToken,
+      );
+      final existing = await _loadAccountsMetadata();
+      final updated = <Map<String, dynamic>>[];
+      var replaced = false;
+      for (final item in existing) {
+        if (_metadataKey(item) == account.key) {
+          updated.add(account.toMetadataJson());
+          replaced = true;
+        } else {
+          updated.add(item);
+        }
       }
-    }
-    if (!replaced) {
-      updated.add(account);
-    }
-    await _writeAccountsMetadata(updated);
-    if (setActive) {
-      await _setActiveAccountInternal(account.key, account.session);
-    }
+      if (!replaced) updated.add(account.toMetadataJson());
+      await _writeAccountsMetadata(updated);
+      if (setActive) {
+        await _setActiveAccountInternal(account.key, account.session);
+      }
+    });
   }
 
   Future<void> saveActiveAccountKey(String? key) async {
@@ -247,34 +284,37 @@ class StorageService {
   }
 
   /// Removes the account identified by [key] and deletes its stored token.
-  /// If it was active, promotes the first remaining account (or clears active state).
-  Future<void> removeAccount(String key) async {
-    final existing = await loadAccounts();
-    final remaining = existing.where((a) => a.key != key).toList();
-    await _deleteSecret(_accountTokenSecretKey(key));
-    await _writeAccountsMetadata(remaining);
+  /// If it was active, promotes the first remaining readable account (or
+  /// clears active state).
+  Future<void> removeAccount(String key) {
+    return _serializedAccountsWrite(() async {
+      final existing = await _loadAccountsMetadata();
+      final remaining = existing.where((m) => _metadataKey(m) != key).toList();
+      await _deleteSecret(_accountTokenSecretKey(key));
+      await _writeAccountsMetadata(remaining);
 
-    final activeKey = await loadActiveAccountKey();
-    if (activeKey == key) {
-      if (remaining.isNotEmpty) {
-        await _setActiveAccountInternal(
-          remaining.first.key,
-          remaining.first.session,
-        );
-      } else {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_keyActiveAccountKey);
-        await clearSession();
+      final activeKey = await loadActiveAccountKey();
+      if (activeKey == key) {
+        final readable = await loadAccounts();
+        if (readable.isNotEmpty) {
+          await _setActiveAccountInternal(
+            readable.first.key,
+            readable.first.session,
+          );
+        } else {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(_keyActiveAccountKey);
+          await clearSession();
+        }
       }
-    }
+    });
   }
 
-  Future<void> _writeAccountsMetadata(List<StoredAccount> accounts) async {
+  Future<void> _writeAccountsMetadata(
+    List<Map<String, dynamic>> metadata,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _keyAccountsMetadata,
-      jsonEncode([for (final a in accounts) a.toMetadataJson()]),
-    );
+    await prefs.setString(_keyAccountsMetadata, jsonEncode(metadata));
   }
 
   Future<void> _setActiveAccountInternal(
@@ -394,8 +434,9 @@ class StorageService {
       if (decoded is! Map<String, dynamic>) return null;
       final fetchedMs = (decoded['fetched_at_ms'] as num?)?.toInt() ?? 0;
       if (fetchedMs <= 0) return null;
-      final age = DateTime.now()
-          .difference(DateTime.fromMillisecondsSinceEpoch(fetchedMs));
+      final age = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(fetchedMs),
+      );
       if (age > _instanceLimitsTtl) return null;
       if (!decoded.containsKey('translation_enabled')) return null;
       return InstanceLimits(

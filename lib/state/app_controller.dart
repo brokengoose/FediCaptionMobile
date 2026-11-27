@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -49,20 +50,21 @@ class AppController extends ChangeNotifier {
     UpdateCheckService? updateCheckService,
     TtsService? ttsService,
     ThemeController? themeController,
-  })  : storage = storageService ?? StorageService(),
-        mastodon = mastodonService ?? MastodonService(),
-        _ownsMastodon = mastodonService == null,
-        onDeviceAi = onDeviceAiService ?? OnDeviceAiService(),
-        _linkPreviewFetcher = linkPreviewFetcher ?? LinkPreviewFetcher(),
-        _ownsLinkPreviewFetcher = linkPreviewFetcher == null,
-        updateChecker = updateCheckService ?? UpdateCheckService(),
-        _ownsUpdateChecker = updateCheckService == null,
-        tts = ttsService ?? TtsService(),
-        themeController = themeController ?? ThemeController() {
+  }) : storage = storageService ?? StorageService(),
+       mastodon = mastodonService ?? MastodonService(),
+       _ownsMastodon = mastodonService == null,
+       onDeviceAi = onDeviceAiService ?? OnDeviceAiService(),
+       _linkPreviewFetcher = linkPreviewFetcher ?? LinkPreviewFetcher(),
+       _ownsLinkPreviewFetcher = linkPreviewFetcher == null,
+       updateChecker = updateCheckService ?? UpdateCheckService(),
+       _ownsUpdateChecker = updateCheckService == null,
+       tts = ttsService ?? TtsService(),
+       themeController = themeController ?? ThemeController() {
     _ownsAiProvider = aiProviderService == null;
-    aiProvider = aiProviderService ??
-        AiProviderService(onDeviceAiService: onDeviceAi);
-    translation = translationService ??
+    aiProvider =
+        aiProviderService ?? AiProviderService(onDeviceAiService: onDeviceAi);
+    translation =
+        translationService ??
         TranslationService(
           onDeviceAi: onDeviceAi,
           aiProvider: aiProvider,
@@ -88,7 +90,9 @@ class AppController extends ChangeNotifier {
       l10nProvider: () => l10n,
     );
     for (final provider in AiProviderType.values) {
-      _modelsByProvider[provider] = AiProviderService.defaultModelsFor(provider);
+      _modelsByProvider[provider] = AiProviderService.defaultModelsFor(
+        provider,
+      );
     }
   }
 
@@ -139,6 +143,7 @@ class AppController extends ChangeNotifier {
   // Dynamic model lists for each AI provider
   final Map<AiProviderType, List<AiModelOption>> _modelsByProvider = {};
   final Set<AiProviderType> _loadingModels = {};
+  final Map<AiProviderType, int> _modelRequestIds = {};
 
   // Incrementing counter used to signal timelines to refresh after posting/editing/deleting.
   int _timelineRefreshNonce = 0;
@@ -191,8 +196,9 @@ class AppController extends ChangeNotifier {
       resolveAppLocalizations(_settings.resolvedAppLocale);
 
   void _syncAnnouncementDirection() {
-    AccessibilityAnnouncer.defaultTextDirection =
-        resolveTextDirection(effectiveLocale);
+    AccessibilityAnnouncer.defaultTextDirection = resolveTextDirection(
+      effectiveLocale,
+    );
   }
 
   OnDeviceAiStatus get onDeviceAiStatus => _onDeviceAiStatus;
@@ -206,7 +212,8 @@ class AppController extends ChangeNotifier {
   int get timelineRefreshNonce => _timelineRefreshNonce;
 
   List<AiModelOption> modelsFor(AiProviderType provider) =>
-      _modelsByProvider[provider] ?? AiProviderService.defaultModelsFor(provider);
+      _modelsByProvider[provider] ??
+      AiProviderService.defaultModelsFor(provider);
 
   bool isLoadingModels(AiProviderType provider) =>
       _loadingModels.contains(provider);
@@ -228,8 +235,7 @@ class AppController extends ChangeNotifier {
   Future<MastodonStatus?> resolveQuotedStatus(
     String url, {
     bool forceRetry = false,
-  }) =>
-      quoteCache.resolve(url, session: _session, forceRetry: forceRetry);
+  }) => quoteCache.resolve(url, session: _session, forceRetry: forceRetry);
 
   /// Loads persisted settings, secure credentials, Mastodon session, instance limits,
   /// and runs the startup GitHub version check.
@@ -266,14 +272,25 @@ class AppController extends ChangeNotifier {
             account: account,
           );
           _upsertStoredAccount(refreshed);
-          await storage.saveAccount(refreshed, setActive: true);
+          await storage.saveAccount(refreshed);
           _session = refreshed.session;
           _currentAccount = account;
           _activeAccountKey = refreshed.key;
           _instanceLimits = limits;
         } catch (e) {
           _activeAccountKey = target.key;
-          _authError = l10n.authErrorExpiredSession(e.toString());
+          if (_isAuthRejection(e)) {
+            _authError = l10n.authErrorExpiredSession(e.toString());
+          } else {
+            // Network/server trouble (offline, timeout, 5xx) is not an expired
+            // session: stay signed in with the stored profile so the timeline
+            // can show its own error + retry instead of bouncing to login.
+            _session = target.session;
+            _currentAccount = _accountFromStored(target);
+            _instanceLimits =
+                await storage.loadCachedInstanceLimits(target.instanceUrl) ??
+                const InstanceLimits();
+          }
         }
       } else {
         final savedSession = await storage.loadSession();
@@ -292,7 +309,7 @@ class AppController extends ChangeNotifier {
               account: account,
             );
             _upsertStoredAccount(migrated);
-            await storage.saveAccount(migrated, setActive: true);
+            await storage.saveAccount(migrated);
             _session = savedSession;
             _currentAccount = account;
             _activeAccountKey = migrated.key;
@@ -311,12 +328,28 @@ class AppController extends ChangeNotifier {
 
     // Fire-and-forget startup tasks: restore AI caption cache, prune media disk
     // cache, check on-device AI, GitHub update check & models refresh.
-    mediaAi.loadPersistedCache();
-    MediaCacheService.instance.pruneIfNeeded();
-    refreshOnDeviceAiStatus();
-    _runUpdateCheck();
-    refreshModelsFor(_settings.activeProvider);
+    unawaited(mediaAi.useAccount(isAuthenticated ? _activeAccountKey : null));
+    unawaited(MediaCacheService.instance.pruneIfNeeded());
+    unawaited(refreshOnDeviceAiStatus());
+    unawaited(_runUpdateCheck());
+    unawaited(refreshModelsFor(_settings.activeProvider));
   }
+
+  /// True when the server explicitly rejected the stored token.
+  static bool _isAuthRejection(Object error) =>
+      error is MastodonApiException &&
+      (error.statusCode == 401 || error.statusCode == 403);
+
+  /// Minimal offline stand-in for the signed-in account, built from the
+  /// profile fields persisted with each [StoredAccount].
+  static MastodonAccount _accountFromStored(StoredAccount stored) =>
+      MastodonAccount(
+        id: stored.accountId,
+        username: stored.username,
+        acct: stored.acct,
+        displayName: stored.displayName,
+        avatar: stored.avatar,
+      );
 
   Future<InstanceLimits> _loadOrFetchInstanceLimits({
     required String instanceUrl,
@@ -328,6 +361,9 @@ class AppController extends ChangeNotifier {
       instanceUrl: instanceUrl,
       accessToken: accessToken,
     );
+    // Never cache the defaults used when the server couldn't be reached;
+    // otherwise one failed fetch would pin the wrong limits for the whole TTL.
+    if (fetched == null) return const InstanceLimits();
     await storage.saveCachedInstanceLimits(instanceUrl, fetched);
     return fetched;
   }
@@ -373,9 +409,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _runUpdateCheck() async {
-    final update = await updateChecker.checkForUpdate(
-      currentVersion: AppConstants.appVersion,
-    );
+    final update = await updateChecker.checkForUpdate();
     if (update == null || _disposed) return;
 
     final dismissedVersion = await storage.loadDismissedUpdateVersion();
@@ -415,7 +449,8 @@ class AppController extends ChangeNotifier {
     try {
       // On Windows & Linux, launch the user's default system browser with a
       // temporary RFC 8252 loopback listener (no Edge WebView2 required).
-      final useSystemBrowserLoopback = !kIsWeb &&
+      final useSystemBrowserLoopback =
+          !kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.windows ||
               defaultTargetPlatform == TargetPlatform.linux);
       final redirectUri = useSystemBrowserLoopback
@@ -465,7 +500,8 @@ class AppController extends ChangeNotifier {
       final callbackUri = Uri.parse(callbackResult);
       final code = callbackUri.queryParameters['code'];
       if (code == null || code.isEmpty) {
-        final err = callbackUri.queryParameters['error_description'] ??
+        final err =
+            callbackUri.queryParameters['error_description'] ??
             callbackUri.queryParameters['error'] ??
             l10n.authErrorCancelled;
         throw MastodonApiException(err);
@@ -559,12 +595,16 @@ class AppController extends ChangeNotifier {
         _activeAccountKey != null && _activeAccountKey != stored.key;
     if (switchingFromOther) {
       await tts.stop();
-      _clearPerAccountCaches();
     }
 
-    await storage.saveAccount(stored, setActive: true);
+    await storage.saveAccount(stored);
     _upsertStoredAccount(stored);
 
+    // Commit point: reset account-scoped caches in the same synchronous step
+    // as the session swap (see switchAccount).
+    if (switchingFromOther || _activeAccountKey == null) {
+      _resetAccountScopedState(stored.key);
+    }
     _session = newSession;
     _currentAccount = account;
     _activeAccountKey = stored.key;
@@ -601,7 +641,6 @@ class AppController extends ChangeNotifier {
     _safeNotify();
 
     await tts.stop();
-    _clearPerAccountCaches();
 
     try {
       final account = await mastodon.verifyCredentials(
@@ -617,8 +656,14 @@ class AppController extends ChangeNotifier {
         account: account,
       );
       _upsertStoredAccount(refreshed);
-      await storage.saveAccount(refreshed, setActive: true);
+      await storage.saveAccount(refreshed);
 
+      // Commit point. Caches are reset here, synchronously with the session
+      // swap and generation bump, not before the awaits above: screens of the
+      // old account stay mounted until now, and anything they wrote while
+      // the switch was pending must not be served to the new account. A
+      // failed switch leaves the current account's caches intact.
+      _resetAccountScopedState(refreshed.key);
       _session = refreshed.session;
       _currentAccount = account;
       _activeAccountKey = refreshed.key;
@@ -650,7 +695,7 @@ class AppController extends ChangeNotifier {
       _session = null;
       _currentAccount = null;
       _instanceLimits = const InstanceLimits();
-      _clearPerAccountCaches();
+      _resetAccountScopedState(null);
       _accountGeneration++;
       _safeNotify();
       AccessibilityAnnouncer.announce(l10n.authAnnounceSignedOut);
@@ -666,7 +711,7 @@ class AppController extends ChangeNotifier {
     }
 
     await tts.stop();
-    _clearPerAccountCaches();
+    _resetAccountScopedState(null);
 
     if (_accounts.isNotEmpty) {
       _activeAccountKey = null;
@@ -703,11 +748,13 @@ class AppController extends ChangeNotifier {
     _accounts = next;
   }
 
-  void _clearPerAccountCaches() {
+  /// Drops every account-scoped cache and scopes AI captions to
+  /// [nextAccountKey] (`null` = signed out).
+  void _resetAccountScopedState(String? nextAccountKey) {
     mastodon.clearSessionCaches();
     timelineCache.clear();
-    mediaAi.clear();
     quoteCache.clear();
+    unawaited(mediaAi.useAccount(nextAccountKey));
   }
 
   /// Persists updated non-secret settings and optionally refreshes models when
@@ -717,7 +764,8 @@ class AppController extends ChangeNotifier {
     bool autoRefreshModels = true,
   }) async {
     final providerChanged = updated.activeProvider != _settings.activeProvider;
-    final urlChanged = updated.openAiBaseUrl != _settings.openAiBaseUrl ||
+    final urlChanged =
+        updated.openAiBaseUrl != _settings.openAiBaseUrl ||
         updated.localBaseUrl != _settings.localBaseUrl;
 
     _settings = updated;
@@ -773,7 +821,7 @@ class AppController extends ChangeNotifier {
     await storage.saveSettings(finalized);
 
     if (finalized.isAiEnabled) {
-      refreshModelsFor(finalized.activeProvider);
+      unawaited(refreshModelsFor(finalized.activeProvider));
       AccessibilityAnnouncer.announce(
         l10n.aiSetupAnnounceCompleteWithAi(
           finalized.activeProvider.localizedDisplayName(l10n),
@@ -792,6 +840,13 @@ class AppController extends ChangeNotifier {
       _safeNotify();
       return;
     }
+    // Per-provider request token: a slower fetch started with older settings
+    // (e.g. a previous base URL or key) must not overwrite a newer result or
+    // reset and persist the selected model.
+    final requestId = (_modelRequestIds[provider] ?? 0) + 1;
+    _modelRequestIds[provider] = requestId;
+    bool isLatest() => _modelRequestIds[provider] == requestId;
+
     _loadingModels.add(provider);
     _safeNotify();
 
@@ -801,7 +856,7 @@ class AppController extends ChangeNotifier {
         settings: _settings,
         credentials: _credentials,
       );
-      if (_disposed) return;
+      if (_disposed || !isLatest()) return;
       _modelsByProvider[provider] = fetched;
 
       // If the currently stored model isn't in the freshly returned list, adopt top choice.
@@ -816,8 +871,10 @@ class AppController extends ChangeNotifier {
         await storage.saveSettings(nextSettings);
       }
     } finally {
-      _loadingModels.remove(provider);
-      _safeNotify();
+      if (isLatest()) {
+        _loadingModels.remove(provider);
+        _safeNotify();
+      }
     }
   }
 
@@ -825,14 +882,13 @@ class AppController extends ChangeNotifier {
   Future<void> describeTimelineMedia(
     MastodonMediaAttachment attachment, {
     String? postContext,
-  }) =>
-      mediaAi.describeMedia(
-        attachment: attachment,
-        settings: _settings,
-        credentials: _credentials,
-        maxAltTextLength: _instanceLimits.altTextLimit,
-        postContext: postContext,
-      );
+  }) => mediaAi.describeMedia(
+    attachment: attachment,
+    settings: _settings,
+    credentials: _credentials,
+    maxAltTextLength: _instanceLimits.altTextLimit,
+    postContext: postContext,
+  );
 
   void notifyTimelinesShouldRefresh() {
     timelineCache.markAllStale();
@@ -851,7 +907,9 @@ class AppController extends ChangeNotifier {
   String _buildOAuthLandingHtml() {
     final loc = l10n;
     final locale = effectiveLocale;
-    final dir = resolveTextDirection(locale) == TextDirection.rtl ? 'rtl' : 'ltr';
+    final dir = resolveTextDirection(locale) == TextDirection.rtl
+        ? 'rtl'
+        : 'ltr';
     const esc = HtmlEscape();
     final lang = esc.convert(locale.toLanguageTag());
     final title = esc.convert(loc.oauthLandingTitle);

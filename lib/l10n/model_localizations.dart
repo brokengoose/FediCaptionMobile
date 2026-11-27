@@ -175,8 +175,9 @@ extension OnDeviceAiStatusL10n on OnDeviceAiStatus {
 
   String localizedDiagnosticDetail(AppLocalizations l10n) {
     final promptExtra = promptDiagnostic != null ? ' ($promptDiagnostic)' : '';
-    final imageExtra =
-        imageDescriptionDiagnostic != null ? ' ($imageDescriptionDiagnostic)' : '';
+    final imageExtra = imageDescriptionDiagnostic != null
+        ? ' ($imageDescriptionDiagnostic)'
+        : '';
     return l10n.onDeviceAiDiagnosticDetail(
       promptAvailability.name,
       promptExtra,

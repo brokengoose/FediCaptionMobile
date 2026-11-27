@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants.dart';
 import '../../l10n/l10n.dart';
+import 'accessible_button_semantics.dart';
 import 'accessible_tip.dart';
 import 'cached_network_image_provider.dart';
 
@@ -38,9 +39,10 @@ class AccessibleAvatar extends StatelessWidget {
       radius: radius,
       backgroundColor: scheme.primaryContainer,
       foregroundColor: scheme.onPrimaryContainer,
-      backgroundImage:
-          imageUrl.isNotEmpty ? DiskCachedNetworkImage(imageUrl) : null,
-      onBackgroundImageError: imageUrl.isNotEmpty ? (_, __) {} : null,
+      backgroundImage: imageUrl.isNotEmpty
+          ? DiskCachedNetworkImage(imageUrl)
+          : null,
+      onBackgroundImageError: imageUrl.isNotEmpty ? (_, _) {} : null,
       child: imageUrl.isEmpty
           ? Text(
               _initial,
@@ -56,16 +58,18 @@ class AccessibleAvatar extends StatelessWidget {
       return ExcludeSemantics(child: avatar);
     }
 
-    final tipText = semanticLabel ??
-        context.l10n.avatarViewProfileSemantics(displayName);
-    return Semantics(
-      button: true,
+    final tipText =
+        semanticLabel ?? context.l10n.avatarViewProfileSemantics(displayName);
+    return AccessibleButtonSemantics(
       label: tipText,
+      onTap: onTap,
       child: AccessibleTip(
         message: tipText,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppConstants.minTouchTargetSize / 2),
+          borderRadius: BorderRadius.circular(
+            AppConstants.minTouchTargetSize / 2,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(
               minWidth: AppConstants.minTouchTargetSize,

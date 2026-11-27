@@ -78,20 +78,23 @@ void main() {
       expect(LanguageRegistry.nativeNameFor('ja'), '日本語');
     });
 
-    test('resolves TTS locales with defaults and explicit regional subtags', () {
-      expect(LanguageRegistry.resolveTtsLocale('en'), 'en-US');
-      expect(LanguageRegistry.resolveTtsLocale('ja'), 'ja-JP');
-      expect(LanguageRegistry.resolveTtsLocale('Spanish'), 'es-ES');
-      expect(LanguageRegistry.resolveTtsLocale('es-MX'), 'es-MX');
-      expect(LanguageRegistry.resolveTtsLocale('pt_BR'), 'pt-BR');
-      expect(LanguageRegistry.resolveTtsLocale(''), isNull);
+    test(
+      'resolves TTS locales with defaults and explicit regional subtags',
+      () {
+        expect(LanguageRegistry.resolveTtsLocale('en'), 'en-US');
+        expect(LanguageRegistry.resolveTtsLocale('ja'), 'ja-JP');
+        expect(LanguageRegistry.resolveTtsLocale('Spanish'), 'es-ES');
+        expect(LanguageRegistry.resolveTtsLocale('es-MX'), 'es-MX');
+        expect(LanguageRegistry.resolveTtsLocale('pt_BR'), 'pt-BR');
+        expect(LanguageRegistry.resolveTtsLocale(''), isNull);
 
-      expect(LanguageRegistry.resolveLinuxTtsCode('pt-BR'), 'pt');
-      expect(LanguageRegistry.resolveLinuxTtsCode('zh-CN'), 'zh');
-      expect(LanguageRegistry.resolveLinuxTtsCode('en-US'), 'en');
-      expect(LanguageRegistry.resolveLinuxTtsCode('Portuguese'), 'pt');
-      expect(LanguageRegistry.resolveLinuxTtsCode(''), isNull);
-    });
+        expect(LanguageRegistry.resolveLinuxTtsCode('pt-BR'), 'pt');
+        expect(LanguageRegistry.resolveLinuxTtsCode('zh-CN'), 'zh');
+        expect(LanguageRegistry.resolveLinuxTtsCode('en-US'), 'en');
+        expect(LanguageRegistry.resolveLinuxTtsCode('Portuguese'), 'pt');
+        expect(LanguageRegistry.resolveLinuxTtsCode(''), isNull);
+      },
+    );
 
     test('tracks word spacing and letter case metadata accurately', () {
       final en = LanguageRegistry.resolve('en')!;
@@ -118,7 +121,10 @@ void main() {
       expect(LanguageRegistry.detectScriptLanguage('こんにちは世界'), 'ja');
       expect(LanguageRegistry.detectScriptLanguage('안녕하세요 세계'), 'ko');
       expect(LanguageRegistry.detectScriptLanguage('这是一段中文测试'), 'zh');
-      expect(LanguageRegistry.detectScriptLanguage('Привет мир как дела'), 'ru');
+      expect(
+        LanguageRegistry.detectScriptLanguage('Привет мир как дела'),
+        'ru',
+      );
       expect(LanguageRegistry.detectScriptLanguage('Καλημέρα κόσμε'), 'el');
       expect(
         LanguageRegistry.detectScriptLanguage('مرحبا بكم في هذا العالم'),
@@ -156,54 +162,55 @@ void main() {
       );
     });
 
-    test('applies custom registered caption pack in formatter and prompt builder',
-        () {
-      const spanishPrefix = 'Descripción generada por IA: ';
-      LanguagePackRegistry.register(
-        AppLanguagePack(
-          languageCode: 'es',
-          caption: CaptionLanguagePack(
+    test(
+      'applies custom registered caption pack in formatter and prompt builder',
+      () {
+        const spanishPrefix = 'Descripción generada por IA: ';
+        LanguagePackRegistry.register(
+          AppLanguagePack(
             languageCode: 'es',
-            captionPrefix: spanishPrefix,
-            redundantPrefixPatterns: [
-              RegExp(
-                r'^descripci[oó]n\s+generada\s+por\s+ia\s*:\s*',
-                caseSensitive: false,
-              ),
-              RegExp(r'^foto\s+de\s+', caseSensitive: false),
-            ],
-            forbiddenPrefixExamples: const [
-              'Foto de',
-              'Descripción generada por IA:',
-            ],
+            caption: CaptionLanguagePack(
+              languageCode: 'es',
+              captionPrefix: spanishPrefix,
+              redundantPrefixPatterns: [
+                RegExp(
+                  r'^descripci[oó]n\s+generada\s+por\s+ia\s*:\s*',
+                  caseSensitive: false,
+                ),
+                RegExp(r'^foto\s+de\s+', caseSensitive: false),
+              ],
+              forbiddenPrefixExamples: const [
+                'Foto de',
+                'Descripción generada por IA:',
+              ],
+            ),
           ),
-        ),
-      );
-      addTearDown(() => LanguagePackRegistry.unregister('es'));
+        );
+        addTearDown(() => LanguagePackRegistry.unregister('es'));
 
-      final formatted = CaptionFormatter.format(
-        '«Foto de un gato dormido»',
-        language: 'es',
-      );
-      expect(formatted, 'Descripción generada por IA: Un gato dormido');
+        final formatted = CaptionFormatter.format(
+          '«Foto de un gato dormido»',
+          language: 'es',
+        );
+        expect(formatted, 'Descripción generada por IA: Un gato dormido');
 
-      const maxLen = 100;
-      final prompt = AiPromptBuilder.buildAltTextPrompt(
-        isVideo: false,
-        isInlineVideo: false,
-        frameCount: 0,
-        detailLevel: CaptionDetailLevel.descriptive,
-        language: 'Spanish',
-        maxLength: maxLen,
-      );
-      const expectedBudget = maxLen - spanishPrefix.length;
-      expect(prompt, contains('Spanish'));
-      expect(prompt, contains('$expectedBudget characters'));
-      expect(prompt, contains('"Foto de"'));
-    });
+        const maxLen = 100;
+        final prompt = AiPromptBuilder.buildAltTextPrompt(
+          isVideo: false,
+          isInlineVideo: false,
+          frameCount: 0,
+          detailLevel: CaptionDetailLevel.descriptive,
+          language: 'Spanish',
+          maxLength: maxLen,
+        );
+        const expectedBudget = maxLen - spanishPrefix.length;
+        expect(prompt, contains('Spanish'));
+        expect(prompt, contains('$expectedBudget characters'));
+        expect(prompt, contains('"Foto de"'));
+      },
+    );
 
-    test('handles non-spaced scripts without losing capitalization or UTF-16 safety',
-        () {
+    test('handles non-spaced scripts without losing capitalization or UTF-16 safety', () {
       final formatted = CaptionFormatter.format(
         '東京駅の赤いレンガ造りの駅舎の前に立つ人々の風景です',
         language: 'ja',
@@ -227,17 +234,19 @@ void main() {
   });
 
   group('BiasLanguagePack & BiasCheckService', () {
-    test('does not fire English rules on non-English drafts without a pack',
-        () {
-      final result = LocalBiasHeuristics.evaluate(
-        input: const BiasCheckInput(
-          postText: 'History of mankind and businessmen',
-        ),
-        languageCode: 'fr',
-      );
-      expect(result.hasBias, isFalse);
-      expect(result.findings, isEmpty);
-    });
+    test(
+      'does not fire English rules on non-English drafts without a pack',
+      () {
+        final result = LocalBiasHeuristics.evaluate(
+          input: const BiasCheckInput(
+            postText: 'History of mankind and businessmen',
+          ),
+          languageCode: 'fr',
+        );
+        expect(result.hasBias, isFalse);
+        expect(result.findings, isEmpty);
+      },
+    );
 
     test('applies registered custom BiasLanguagePack and custom labels', () {
       LanguagePackRegistry.register(
@@ -300,42 +309,46 @@ void main() {
       expect(result.summary, contains('Texto de la publicación'));
     });
 
-    test('BiasCheckService instructs AI in responseLanguageCode when non-English',
-        () async {
-      final fakeAi = _FakeBiasAiProviderService();
-      final fetcher = LinkPreviewFetcher();
-      final mastodon = MastodonService();
-      addTearDown(() {
-        fakeAi.dispose();
-        mastodon.dispose();
-      });
+    test(
+      'BiasCheckService instructs AI in responseLanguageCode when non-English',
+      () async {
+        final fakeAi = _FakeBiasAiProviderService();
+        final fetcher = LinkPreviewFetcher();
+        final mastodon = MastodonService();
+        addTearDown(() {
+          fakeAi.dispose();
+          mastodon.dispose();
+        });
 
-      final service = BiasCheckService(
-        aiProviderService: fakeAi,
-        linkPreviewFetcher: fetcher,
-        mastodonService: mastodon,
-      );
+        final service = BiasCheckService(
+          aiProviderService: fakeAi,
+          linkPreviewFetcher: fetcher,
+          mastodonService: mastodon,
+        );
 
-      final result = await service.checkDraft(
-        input: const BiasCheckInput(postText: 'A neutral community announcement.'),
-        settings: const AppSettings(activeProvider: AiProviderType.gemini),
-        credentials: const AiCredentials(geminiApiKey: 'test-key'),
-        contentLanguageCode: 'en',
-        responseLanguageCode: 'es',
-      );
+        final result = await service.checkDraft(
+          input: const BiasCheckInput(
+            postText: 'A neutral community announcement.',
+          ),
+          settings: const AppSettings(activeProvider: AiProviderType.gemini),
+          credentials: const AiCredentials(geminiApiKey: 'test-key'),
+          contentLanguageCode: 'en',
+          responseLanguageCode: 'es',
+        );
 
-      expect(result.hasBias, isFalse);
-      expect(fakeAi.lastSystemPrompt, contains('Spanish'));
-      expect(fakeAi.lastUserPrompt, contains('Spanish'));
-      expect(
-        fakeAi.lastSystemPrompt,
-        contains('suggested_alternate_wording'),
-      );
-      expect(
-        fakeAi.lastUserPrompt,
-        contains('same language as the post text'),
-      );
-    });
+        expect(result.hasBias, isFalse);
+        expect(fakeAi.lastSystemPrompt, contains('Spanish'));
+        expect(fakeAi.lastUserPrompt, contains('Spanish'));
+        expect(
+          fakeAi.lastSystemPrompt,
+          contains('suggested_alternate_wording'),
+        );
+        expect(
+          fakeAi.lastUserPrompt,
+          contains('same language as the post text'),
+        );
+      },
+    );
   });
 
   group('AppSettings.appLocale', () {
@@ -350,50 +363,51 @@ void main() {
       expect(legacy.resolvedAppLocale, isNull);
     });
 
-    test('parses single, region, and script subtags and supports clearAppLocale',
-        () {
-      expect(
-        const AppSettings(appLocale: 'es').resolvedAppLocale,
-        const Locale('es'),
-      );
-      expect(
-        const AppSettings(appLocale: 'es-MX').resolvedAppLocale,
-        const Locale('es', 'MX'),
-      );
-      expect(
-        const AppSettings(appLocale: 'zh-Hant-TW').resolvedAppLocale,
-        const Locale.fromSubtags(
-          languageCode: 'zh',
-          scriptCode: 'Hant',
-          countryCode: 'TW',
-        ),
-      );
-      expect(const AppSettings(appLocale: '').resolvedAppLocale, isNull);
-      expect(const AppSettings(appLocale: '1234').resolvedAppLocale, isNull);
+    test(
+      'parses single, region, and script subtags and supports clearAppLocale',
+      () {
+        expect(
+          const AppSettings(appLocale: 'es').resolvedAppLocale,
+          const Locale('es'),
+        );
+        expect(
+          const AppSettings(appLocale: 'es-MX').resolvedAppLocale,
+          const Locale('es', 'MX'),
+        );
+        expect(
+          const AppSettings(appLocale: 'zh-Hant-TW').resolvedAppLocale,
+          const Locale.fromSubtags(
+            languageCode: 'zh',
+            scriptCode: 'Hant',
+            countryCode: 'TW',
+          ),
+        );
+        expect(const AppSettings(appLocale: '').resolvedAppLocale, isNull);
+        expect(const AppSettings(appLocale: '1234').resolvedAppLocale, isNull);
 
-      const initial = AppSettings(appLocale: 'es');
-      expect(initial.copyWith(clearAppLocale: true).appLocale, isNull);
-    });
+        const initial = AppSettings(appLocale: 'es');
+        expect(initial.copyWith(clearAppLocale: true).appLocale, isNull);
+      },
+    );
   });
 
   group('Localization helpers, TimeUtils & Notifications', () {
-    test('resolveSupportedLocale, resolveAppLocalizations & resolveTextDirection',
-        () {
-      expect(
-        resolveSupportedLocale(const Locale('xx')),
-        const Locale('en'),
-      );
-      final enL10n = resolveAppLocalizations(const Locale('en'));
-      expect(enL10n.commonCancel, 'Cancel');
+    test(
+      'resolveSupportedLocale, resolveAppLocalizations & resolveTextDirection',
+      () {
+        expect(resolveSupportedLocale(const Locale('xx')), const Locale('en'));
+        final enL10n = resolveAppLocalizations(const Locale('en'));
+        expect(enL10n.commonCancel, 'Cancel');
 
-      expect(resolveTextDirection(const Locale('en')), TextDirection.ltr);
-      expect(resolveTextDirection(const Locale('ar')), TextDirection.rtl);
-      expect(resolveTextDirection(const Locale('he')), TextDirection.rtl);
-    });
+        expect(resolveTextDirection(const Locale('en')), TextDirection.ltr);
+        expect(resolveTextDirection(const Locale('ar')), TextDirection.rtl);
+        expect(resolveTextDirection(const Locale('he')), TextDirection.rtl);
+      },
+    );
 
     test('TimeUtils formats compact and accessible relative times cleanly', () {
       final l10n = AppLocalizationsEn();
-      final now = DateTime.utc(2026, 6, 15, 12, 0, 0);
+      final now = DateTime.utc(2026, 6, 15, 12);
 
       expect(
         TimeUtils.formatRelativeCompact(
@@ -478,7 +492,7 @@ void main() {
       );
       expect(
         TimeUtils.formatRelativeAccessible(
-          DateTime(2025, 5, 1, 12, 0),
+          DateTime(2025, 5, 1, 12),
           now: now,
           l10n: l10n,
         ),
@@ -525,43 +539,46 @@ void main() {
   });
 
   group('Localized & RTL Widget Tests', () {
-    testWidgets('MissingAltTextDialog uses singular/plural ICU forms and policy',
-        (tester) async {
-      await tester.pumpWidget(
-        localizedTestApp(
-          home: const Scaffold(
-            body: MissingAltTextDialog(
-              missingCount: 1,
-              policy: PolicyMode.warn,
+    testWidgets(
+      'MissingAltTextDialog uses singular/plural ICU forms and policy',
+      (tester) async {
+        await tester.pumpWidget(
+          localizedTestApp(
+            home: const Scaffold(
+              body: MissingAltTextDialog(
+                missingCount: 1,
+                policy: PolicyMode.warn,
+              ),
             ),
           ),
-        ),
-      );
-      expect(
-        find.textContaining('1 media attachment is missing'),
-        findsOneWidget,
-      );
-      expect(find.text('Post Anyway'), findsOneWidget);
+        );
+        expect(
+          find.textContaining('1 media attachment is missing'),
+          findsOneWidget,
+        );
+        expect(find.text('Post Anyway'), findsOneWidget);
 
-      await tester.pumpWidget(
-        localizedTestApp(
-          home: const Scaffold(
-            body: MissingAltTextDialog(
-              missingCount: 2,
-              policy: PolicyMode.require,
+        await tester.pumpWidget(
+          localizedTestApp(
+            home: const Scaffold(
+              body: MissingAltTextDialog(
+                missingCount: 2,
+                policy: PolicyMode.require,
+              ),
             ),
           ),
-        ),
-      );
-      expect(
-        find.textContaining('2 media attachments are missing'),
-        findsOneWidget,
-      );
-      expect(find.text('Post Anyway'), findsNothing);
-    });
+        );
+        expect(
+          find.textContaining('2 media attachments are missing'),
+          findsOneWidget,
+        );
+        expect(find.text('Post Anyway'), findsNothing);
+      },
+    );
 
-    testWidgets('PostTranslationBanner renders cleanly in LTR and RTL',
-        (tester) async {
+    testWidgets('PostTranslationBanner renders cleanly in LTR and RTL', (
+      tester,
+    ) async {
       for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
         await tester.pumpWidget(
           localizedTestApp(
@@ -584,8 +601,9 @@ void main() {
       }
     });
 
-    testWidgets('BiasReviewSheet renders cleanly in LTR and RTL',
-        (tester) async {
+    testWidgets('BiasReviewSheet renders cleanly in LTR and RTL', (
+      tester,
+    ) async {
       const sampleResult = BiasCheckResult(
         hasBias: true,
         summary: 'Checked Post Text and found 1 potential bias issue.',
@@ -616,13 +634,17 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(find.text('Pre-Post Racial & Gender Bias Review'), findsOneWidget);
+        expect(
+          find.text('Pre-Post Racial & Gender Bias Review'),
+          findsOneWidget,
+        );
         expect(find.text('Suggested Alternate Wording'), findsOneWidget);
       }
     });
 
-    testWidgets('KeyboardShortcutsDialog renders sections and closes cleanly',
-        (tester) async {
+    testWidgets('KeyboardShortcutsDialog renders sections and closes cleanly', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         localizedTestApp(
           home: Builder(

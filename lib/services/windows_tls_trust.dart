@@ -50,8 +50,9 @@ class WindowsTlsTrust {
 
     // Layer 1: Pre-load Windows ROOT store CAs into BoringSSL's default context.
     try {
-      final rawCerts =
-          await _channel.invokeMethod<List<Object?>>('getTrustedRootCerts');
+      final rawCerts = await _channel.invokeMethod<List<Object?>>(
+        'getTrustedRootCerts',
+      );
       if (rawCerts != null) {
         final ctx = SecurityContext.defaultContext;
         for (final item in rawCerts) {
@@ -107,12 +108,10 @@ class WindowsTlsTrust {
 
 class _WindowsCryptoApiHttpOverrides extends HttpOverrides {
   _WindowsCryptoApiHttpOverrides({
-    required _AllocDart alloc,
-    required _FreeDart free,
-    required _VerifyDart verify,
-  })  : _alloc = alloc,
-        _free = free,
-        _verify = verify;
+    required this._alloc,
+    required this._free,
+    required this._verify,
+  });
 
   final _AllocDart _alloc;
   final _FreeDart _free;
@@ -121,9 +120,10 @@ class _WindowsCryptoApiHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
-    client.badCertificateCallback = (X509Certificate cert, String host, int port) {
-      return _verifyWithWindowsCryptoApi(cert.der, host);
-    };
+    client.badCertificateCallback =
+        (X509Certificate cert, String host, int port) {
+          return _verifyWithWindowsCryptoApi(cert.der, host);
+        };
     return client;
   }
 

@@ -477,7 +477,8 @@ class LanguageRegistry {
           .split(RegExp(r'[-_]'))
           .where((p) => p.trim().isNotEmpty)
           .toList();
-      if (parts.length >= 2 && RegExp(r'^[A-Za-z]{2,3}$').hasMatch(parts.first)) {
+      if (parts.length >= 2 &&
+          RegExp(r'^[A-Za-z]{2,3}$').hasMatch(parts.first)) {
         final primary = parts.first.toLowerCase();
         final rest = parts.skip(1).map((seg) {
           if (seg.length == 2 && RegExp(r'^[A-Za-z]{2}$').hasMatch(seg)) {

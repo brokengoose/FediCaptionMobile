@@ -21,14 +21,16 @@ import 'helpers/test_app.dart';
 
 class _RecordingTtsService extends TtsService {
   _RecordingTtsService()
-      : super(
-          isLinuxOverride: true,
-          linuxProcessStarter: (_, __) =>
-              throw const ProcessException('spd-say', [], 'Disabled in test'),
-        );
+    : super(
+        isLinuxOverride: true,
+        linuxProcessStarter: (_, _) =>
+            throw const ProcessException('spd-say', [], 'Disabled in test'),
+      );
 
-  final List<({String key, String text, String? languageName, double speechRate})>
-      toggleCalls = [];
+  final List<
+    ({String key, String text, String? languageName, double speechRate})
+  >
+  toggleCalls = [];
   int stopCalls = 0;
 
   bool _speaking = false;
@@ -87,10 +89,10 @@ class _RecordingTtsService extends TtsService {
 class _FakeUnavailableOnDeviceAi extends OnDeviceAiService {
   @override
   Future<OnDeviceAiStatus> checkStatus() async => const OnDeviceAiStatus(
-        promptAvailability: EdgeGenAIAvailability.unavailable,
-        imageDescriptionAvailability: EdgeGenAIAvailability.unavailable,
-        engineName: 'Apple Foundation Models',
-      );
+    promptAvailability: EdgeGenAIAvailability.unavailable,
+    imageDescriptionAvailability: EdgeGenAIAvailability.unavailable,
+    engineName: 'Apple Foundation Models',
+  );
 }
 
 MastodonStatus _makeStatus({
@@ -103,7 +105,7 @@ MastodonStatus _makeStatus({
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 24, 9, 0),
+    createdAt: DateTime.utc(2026, 11, 24, 9),
     account: const MastodonAccount(
       id: 'u-1',
       username: 'alice',
@@ -123,65 +125,69 @@ void main() {
   final l10n = AppLocalizationsEn();
 
   group('PostReadAloudBuilder', () {
-    test('builds plain post, CW, and single image alt-text with sentence pauses',
-        () {
-      final status = _makeStatus(
-        spoilerText: 'Bird photography',
-        contentHtml: '<p>Spotted a cardinal at dawn</p>',
-        mediaAttachments: const [
-          MastodonMediaAttachment(
-            id: 'm1',
-            type: 'image',
-            url: 'https://example.social/m1.jpg',
-            description: 'A bright red cardinal perched on a snowy pine branch',
-          ),
-        ],
-      );
+    test(
+      'builds plain post, CW, and single image alt-text with sentence pauses',
+      () {
+        final status = _makeStatus(
+          spoilerText: 'Bird photography',
+          contentHtml: '<p>Spotted a cardinal at dawn</p>',
+          mediaAttachments: const [
+            MastodonMediaAttachment(
+              id: 'm1',
+              type: 'image',
+              url: 'https://example.social/m1.jpg',
+              description:
+                  'A bright red cardinal perched on a snowy pine branch',
+            ),
+          ],
+        );
 
-      final result = PostReadAloudBuilder.build(status: status, l10n: l10n);
-      expect(
-        result,
-        'Content warning: Bird photography. '
-        'Spotted a cardinal at dawn. '
-        'Image description: A bright red cardinal perched on a snowy pine branch.',
-      );
-    });
+        final result = PostReadAloudBuilder.build(status: status, l10n: l10n);
+        expect(
+          result,
+          'Content warning: Bird photography. '
+          'Spotted a cardinal at dawn. '
+          'Image description: A bright red cardinal perched on a snowy pine branch.',
+        );
+      },
+    );
 
     test(
-        'preserves 1-based attachment indices and skips uncaptioned attachments',
-        () {
-      final status = _makeStatus(
-        contentHtml: '<p>Three clips from the trip!</p>',
-        mediaAttachments: const [
-          MastodonMediaAttachment(
-            id: 'm1',
-            type: 'image',
-            url: 'https://example.social/m1.jpg',
-            description: 'Train arriving at platform 2.',
-          ),
-          MastodonMediaAttachment(
-            id: 'm2',
-            type: 'image',
-            url: 'https://example.social/m2.jpg',
-            description: '   ',
-          ),
-          MastodonMediaAttachment(
-            id: 'm3',
-            type: 'video',
-            url: 'https://example.social/m3.mp4',
-            description: 'Rain splashing onto cobblestones',
-          ),
-        ],
-      );
+      'preserves 1-based attachment indices and skips uncaptioned attachments',
+      () {
+        final status = _makeStatus(
+          contentHtml: '<p>Three clips from the trip!</p>',
+          mediaAttachments: const [
+            MastodonMediaAttachment(
+              id: 'm1',
+              type: 'image',
+              url: 'https://example.social/m1.jpg',
+              description: 'Train arriving at platform 2.',
+            ),
+            MastodonMediaAttachment(
+              id: 'm2',
+              type: 'image',
+              url: 'https://example.social/m2.jpg',
+              description: '   ',
+            ),
+            MastodonMediaAttachment(
+              id: 'm3',
+              type: 'video',
+              url: 'https://example.social/m3.mp4',
+              description: 'Rain splashing onto cobblestones',
+            ),
+          ],
+        );
 
-      final result = PostReadAloudBuilder.build(status: status, l10n: l10n);
-      expect(
-        result,
-        'Three clips from the trip! '
-        'Image 1 description: Train arriving at platform 2. '
-        'Video 3 description: Rain splashing onto cobblestones.',
-      );
-    });
+        final result = PostReadAloudBuilder.build(status: status, l10n: l10n);
+        expect(
+          result,
+          'Three clips from the trip! '
+          'Image 1 description: Train arriving at platform 2. '
+          'Video 3 description: Rain splashing onto cobblestones.',
+        );
+      },
+    );
 
     test('applies AI alt-text lookup above translated and author alt-text', () {
       final status = _makeStatus(
@@ -224,52 +230,55 @@ void main() {
       );
     });
 
-    test('strips RE: quote URL from outer body and includes embedded quote', () {
-      final quoted = MastodonStatus(
-        id: 'q-1',
-        createdAt: DateTime.utc(2026, 11, 23),
-        account: const MastodonAccount(
-          id: 'u-2',
-          username: 'bob',
-          acct: 'bob@example.social',
-          displayName: 'Bob',
-          avatar: '',
-        ),
-        spoilerText: 'Weather',
-        contentHtml: '<p>Snow expected tonight</p>',
-        mediaAttachments: const [
-          MastodonMediaAttachment(
-            id: 'qm-1',
-            type: 'image',
-            url: 'https://example.social/qm1.jpg',
-            description: 'Radar map showing snowfall band.',
+    test(
+      'strips RE: quote URL from outer body and includes embedded quote',
+      () {
+        final quoted = MastodonStatus(
+          id: 'q-1',
+          createdAt: DateTime.utc(2026, 11, 23),
+          account: const MastodonAccount(
+            id: 'u-2',
+            username: 'bob',
+            acct: 'bob@example.social',
+            displayName: 'Bob',
+            avatar: '',
           ),
-        ],
-      );
+          spoilerText: 'Weather',
+          contentHtml: '<p>Snow expected tonight</p>',
+          mediaAttachments: const [
+            MastodonMediaAttachment(
+              id: 'qm-1',
+              type: 'image',
+              url: 'https://example.social/qm1.jpg',
+              description: 'Radar map showing snowfall band.',
+            ),
+          ],
+        );
 
-      final outer = _makeStatus(
-        contentHtml:
-            '<p>RE: <a href="https://example.social/@bob/q-1">https://example.social/@bob/q-1</a></p>'
-            '<p>Stay warm everyone</p>',
-        quotedStatus: quoted,
-      );
+        final outer = _makeStatus(
+          contentHtml:
+              '<p>RE: <a href="https://example.social/@bob/q-1">https://example.social/@bob/q-1</a></p>'
+              '<p>Stay warm everyone</p>',
+          quotedStatus: quoted,
+        );
 
-      final result = PostReadAloudBuilder.build(
-        status: outer,
-        l10n: l10n,
-        embeddedQuote: quoted,
-      );
+        final result = PostReadAloudBuilder.build(
+          status: outer,
+          l10n: l10n,
+          embeddedQuote: quoted,
+        );
 
-      expect(result, isNot(contains('RE:')));
-      expect(
-        result,
-        'Stay warm everyone. '
-        'Quoted post by Bob. '
-        'Content warning: Weather. '
-        'Snow expected tonight. '
-        'Image description: Radar map showing snowfall band.',
-      );
-    });
+        expect(result, isNot(contains('RE:')));
+        expect(
+          result,
+          'Stay warm everyone. '
+          'Quoted post by Bob. '
+          'Content warning: Weather. '
+          'Snow expected tonight. '
+          'Image description: Radar map showing snowfall band.',
+        );
+      },
+    );
 
     test('returns empty string when post has no text and no alt-text', () {
       final status = _makeStatus(
@@ -300,7 +309,6 @@ void main() {
 
         final status = _makeStatus(
           id: 'focal-1',
-          language: 'en',
           contentHtml: '<p>Main post message</p>',
           mediaAttachments: const [
             MastodonMediaAttachment(
@@ -402,15 +410,18 @@ void main() {
           isWebOverride: false,
           osLanguageProvider: () => 'en',
           appleSupportCheck: () async => true,
-          appleTranslate: ({
-            required text,
-            required sourceLanguage,
-            required targetLanguage,
-          }) async {
-            if (text.contains('Bonjour')) return 'Hello from Paris!';
-            if (text.contains('chat')) return 'A white cat on a windowsill.';
-            return text;
-          },
+          appleTranslate:
+              ({
+                required text,
+                required sourceLanguage,
+                required targetLanguage,
+              }) async {
+                if (text.contains('Bonjour')) return 'Hello from Paris!';
+                if (text.contains('chat')) {
+                  return 'A white cat on a windowsill.';
+                }
+                return text;
+              },
         );
         final app = AppController(
           ttsService: tts,
@@ -475,8 +486,9 @@ void main() {
       },
     );
 
-    testWidgets('stops reading aloud when ThreadScreen is popped',
-        (tester) async {
+    testWidgets('stops reading aloud when ThreadScreen is popped', (
+      tester,
+    ) async {
       final tts = _RecordingTtsService();
       final app = AppController(
         ttsService: tts,
@@ -498,7 +510,8 @@ void main() {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => ThreadScreen(app: app, rootStatus: status),
+                        builder: (_) =>
+                            ThreadScreen(app: app, rootStatus: status),
                       ),
                     );
                   },
@@ -525,8 +538,9 @@ void main() {
       expect(tts.isSpeaking, isFalse);
     });
 
-    testWidgets('ThreadScreen focal Read Aloud button renders cleanly in RTL',
-        (tester) async {
+    testWidgets('ThreadScreen focal Read Aloud button renders cleanly in RTL', (
+      tester,
+    ) async {
       final tts = _RecordingTtsService();
       final app = AppController(
         ttsService: tts,

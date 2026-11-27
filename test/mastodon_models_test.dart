@@ -13,16 +13,9 @@ void main() {
       final limits = InstanceLimits.fromInstanceJson({
         'title': 'Accessibility.social',
         'configuration': {
-          'statuses': {
-            'max_characters': 1000,
-            'max_media_attachments': 6,
-          },
-          'media_attachments': {
-            'description_limit': 2000,
-          },
-          'translation': {
-            'enabled': true,
-          },
+          'statuses': {'max_characters': 1000, 'max_media_attachments': 6},
+          'media_attachments': {'description_limit': 2000},
+          'translation': {'enabled': true},
         },
       });
 
@@ -64,13 +57,16 @@ void main() {
       expect(translated.spoilerText, 'Translated CW');
       expect(translated.detectedSourceLanguage, 'es');
       expect(translated.provider, 'DeepL.com');
-      expect(translated.mediaDescriptions, {'att-1': 'A sleeping orange tabby cat'});
+      expect(translated.mediaDescriptions, {
+        'att-1': 'A sleeping orange tabby cat',
+      });
     });
   });
 
   group('HtmlUtils', () {
     test('converts Mastodon HTML to clean plain text', () {
-      const html = '<p>Hello <a href="https://example.com">world</a>!<br>Line two.</p>';
+      const html =
+          '<p>Hello <a href="https://example.com">world</a>!<br>Line two.</p>';
       expect(HtmlUtils.htmlToPlainText(html), 'Hello world!\nLine two.');
     });
 
@@ -99,14 +95,20 @@ void main() {
       );
       expect(inlineSpanQuote, isNotNull);
       expect(inlineSpanQuote!.quoteUrl, 'https://hachyderm.io/@bob/999');
-      expect(HtmlUtils.htmlToPlainText(inlineSpanQuote.remainingHtml), 'My commentary');
+      expect(
+        HtmlUtils.htmlToPlainText(inlineSpanQuote.remainingHtml),
+        'My commentary',
+      );
 
       final bareUrlQuote = HtmlUtils.extractLeadingQuote(
         '<p>re: https://fosstodon.org/@carol/777 Look at this</p>',
       );
       expect(bareUrlQuote, isNotNull);
       expect(bareUrlQuote!.quoteUrl, 'https://fosstodon.org/@carol/777');
-      expect(HtmlUtils.htmlToPlainText(bareUrlQuote.remainingHtml), 'Look at this');
+      expect(
+        HtmlUtils.htmlToPlainText(bareUrlQuote.remainingHtml),
+        'Look at this',
+      );
 
       final nonQuote = HtmlUtils.extractLeadingQuote(
         '<p>RE: meeting notes from today without a link</p>',
@@ -171,38 +173,56 @@ void main() {
       expect(stub.url, 'https://example.social/@alice');
     });
 
-    test('MastodonNotification describes Mastodon 4.5+ quote notification types', () {
-      final account = MastodonAccount.fromJson(const {
-        'id': '1',
-        'username': 'alice',
-        'acct': 'alice',
-        'display_name': 'Alice',
-        'avatar': '',
-      });
-      final quoteNotif = MastodonNotification(
-        id: 'n1',
-        type: 'quote',
-        createdAt: DateTime.utc(2026, 11, 20),
-        account: account,
-      );
-      final quotedUpdateNotif = MastodonNotification(
-        id: 'n2',
-        type: 'quoted_update',
-        createdAt: DateTime.utc(2026, 11, 20),
-        account: account,
-      );
-      expect(quoteNotif.actionDescription, 'quoted your post');
-      expect(quotedUpdateNotif.actionDescription, 'edited a post you quoted');
-    });
+    test(
+      'MastodonNotification describes Mastodon 4.5+ quote notification types',
+      () {
+        final account = MastodonAccount.fromJson(const {
+          'id': '1',
+          'username': 'alice',
+          'acct': 'alice',
+          'display_name': 'Alice',
+          'avatar': '',
+        });
+        final quoteNotif = MastodonNotification(
+          id: 'n1',
+          type: 'quote',
+          createdAt: DateTime.utc(2026, 11, 20),
+          account: account,
+        );
+        final quotedUpdateNotif = MastodonNotification(
+          id: 'n2',
+          type: 'quoted_update',
+          createdAt: DateTime.utc(2026, 11, 20),
+          account: account,
+        );
+        expect(quoteNotif.actionDescription, 'quoted your post');
+        expect(quotedUpdateNotif.actionDescription, 'edited a post you quoted');
+      },
+    );
 
     test('MediaUtils detects video paths and infers MIME types', () {
       expect(MediaUtils.isVideoFilePath('/tmp/clip.MOV'), isTrue);
       expect(MediaUtils.isVideoFilePath('/tmp/photo.webp'), isFalse);
-      expect(MediaUtils.guessMimeType('clip.mov', isVideo: true), 'video/quicktime');
-      expect(MediaUtils.guessMimeType('clip.webm', isVideo: true), 'video/webm');
-      expect(MediaUtils.guessMimeType('photo.png', isVideo: false), 'image/png');
-      expect(MediaUtils.guessMimeType('photo.gif', isVideo: false), 'image/gif');
-      expect(MediaUtils.guessMimeType('photo.jpg', isVideo: false), 'image/jpeg');
+      expect(
+        MediaUtils.guessMimeType('clip.mov', isVideo: true),
+        'video/quicktime',
+      );
+      expect(
+        MediaUtils.guessMimeType('clip.webm', isVideo: true),
+        'video/webm',
+      );
+      expect(
+        MediaUtils.guessMimeType('photo.png', isVideo: false),
+        'image/png',
+      );
+      expect(
+        MediaUtils.guessMimeType('photo.gif', isVideo: false),
+        'image/gif',
+      );
+      expect(
+        MediaUtils.guessMimeType('photo.jpg', isVideo: false),
+        'image/jpeg',
+      );
     });
 
     test('AppSettings.fromJson migrates removed legacy on-device-fallback localModel', () {

@@ -11,7 +11,8 @@ repository: https://github.com/brokengoose/FediCaptionMobile
 issue_tracker: https://github.com/brokengoose/FediCaptionMobile/issues
 
 environment:
-  sdk: '>=3.4.0 <4.0.0'
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
@@ -29,6 +30,10 @@ dependencies:
   file_picker: ^13.4.0
   flutter_tts: ^4.2.0
   edge_gen_ai: ^0.4.0
+  # Held on 0.13.x: 1.0+ ships its iOS side via Swift Package Manager, which
+  # bypasses the ios/LocalPods no-op stubs and pulls the full ML Kit binaries
+  # (from GitHub) into the iOS app, which translates with Apple frameworks
+  # instead. Upgrade together with a plan for the iOS stubs.
   google_mlkit_translation: ^0.13.0
   get_thumbnail_video: ^0.7.3
   video_player: ^2.9.2

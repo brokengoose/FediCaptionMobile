@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import '../core/json_coerce.dart';
 import 'ai_models.dart';
 import 'mastodon_models.dart';
 
@@ -27,15 +28,15 @@ class BiasFinding {
   final String? excerpt;
 
   factory BiasFinding.fromJson(Map<String, dynamic> json) {
+    final location = jsonString(json['location'])?.trim() ?? '';
     return BiasFinding(
-      location: (json['location'] as String?)?.trim().isNotEmpty == true
-          ? (json['location'] as String).trim()
-          : 'Post Text',
-      biasType: (json['bias_type'] as String?) ??
-          (json['biasType'] as String?) ??
+      location: location.isNotEmpty ? location : 'Post Text',
+      biasType:
+          jsonString(json['bias_type']) ??
+          jsonString(json['biasType']) ??
           'Potential Racial or Gender Bias',
-      explanation: (json['explanation'] as String?) ?? '',
-      excerpt: json['excerpt'] as String?,
+      explanation: jsonString(json['explanation']) ?? '',
+      excerpt: jsonString(json['excerpt']),
     );
   }
 }

@@ -28,9 +28,7 @@ class AppLanguagePack {
 class LanguagePackRegistry {
   LanguagePackRegistry._();
 
-  static final Map<String, AppLanguagePack> _packs = {
-    'en': enLanguagePack,
-  };
+  static final Map<String, AppLanguagePack> _packs = {'en': enLanguagePack};
 
   /// Unmodifiable list of registered ISO language codes.
   static List<String> get registeredLanguageCodes =>
@@ -38,7 +36,8 @@ class LanguagePackRegistry {
 
   /// Registers or replaces the [AppLanguagePack] for [AppLanguagePack.languageCode].
   static void register(AppLanguagePack pack) {
-    final code = LanguageRegistry.resolveCode(pack.languageCode) ??
+    final code =
+        LanguageRegistry.resolveCode(pack.languageCode) ??
         pack.languageCode.trim().toLowerCase();
     if (code.isEmpty) return;
     _packs[code] = pack;
@@ -46,7 +45,8 @@ class LanguagePackRegistry {
 
   /// Unregisters a non-default language pack (never removes `'en'`).
   static void unregister(String languageCode) {
-    final code = LanguageRegistry.resolveCode(languageCode) ??
+    final code =
+        LanguageRegistry.resolveCode(languageCode) ??
         languageCode.trim().toLowerCase();
     if (code == 'en') return;
     _packs.remove(code);
@@ -92,7 +92,8 @@ class LanguagePackRegistry {
     }
     final code = LanguageRegistry.resolveCode(languageNameOrCode);
     if (code != null && _packs.containsKey(code)) {
-      return _packs[code]!.bias ?? (fallbackToEnglish ? enBiasLanguagePack : null);
+      return _packs[code]!.bias ??
+          (fallbackToEnglish ? enBiasLanguagePack : null);
     }
     return fallbackToEnglish ? enBiasLanguagePack : null;
   }

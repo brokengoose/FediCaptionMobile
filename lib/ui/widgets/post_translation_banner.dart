@@ -47,9 +47,7 @@ class PostTranslationBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.8),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,15 +61,15 @@ class PostTranslationBanner extends StatelessWidget {
                   isTranslating
                       ? l10n.translationTranslatingStatus(srcName, tgtName)
                       : translationResult != null && showingTranslation
-                          ? l10n.translationTranslatedStatus(
-                              srcName,
-                              translationResult!.engineName,
-                            )
-                          : l10n.translationWrittenInStatus(srcName),
+                      ? l10n.translationTranslatedStatus(
+                          srcName,
+                          translationResult!.engineName,
+                        )
+                      : l10n.translationWrittenInStatus(srcName),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: fedi.subtleText,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: fedi.subtleText,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -112,9 +110,8 @@ class PostTranslationBanner extends StatelessWidget {
               liveRegion: true,
               child: Text(
                 errorMessage!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.error,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.error),
               ),
             ),
           ],

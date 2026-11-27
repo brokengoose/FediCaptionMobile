@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -36,20 +38,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isInitializing = true;
   bool _isMuted = false;
   String? _error;
+  bool _invalidUrl = false;
+  final FocusNode _rootFocus = FocusNode(debugLabel: 'VideoPlayerScreen');
 
   @override
   void initState() {
     super.initState();
-    _initPlayer();
+    unawaited(_initPlayer());
   }
 
   Future<void> _initPlayer() async {
     final uri = Uri.tryParse(widget.videoUrl);
     if (uri == null || widget.videoUrl.trim().isEmpty) {
-      setState(() {
-        _isInitializing = false;
-        _error = context.l10n.videoPlayerInvalidUrl;
-      });
+      // Runs synchronously from initState: no setState and no inherited-widget
+      // lookups (context.l10n) here; build() localizes the message.
+      _isInitializing = false;
+      _invalidUrl = true;
       return;
     }
 
@@ -130,6 +134,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  static const Duration _seekStep = Duration(seconds: 5);
+
+  Duration _clampPosition(Duration target) {
+    final duration = _controller?.value.duration ?? Duration.zero;
+    if (target < Duration.zero) return Duration.zero;
+    if (duration > Duration.zero && target > duration) return duration;
+    return target;
+  }
+
+  Future<void> _seekBy(Duration delta) async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    await c.seekTo(_clampPosition(c.value.position + delta));
+  }
+
   String _formatDuration(Duration d) {
     final totalSeconds = d.inSeconds;
     final minutes = totalSeconds ~/ 60;
@@ -137,10 +156,35 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  /// Space toggles playback only when no control has focus; otherwise the
+  /// focused button keeps its normal Space activation for keyboard users.
+  KeyEventResult _handleRootKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.space &&
+        FocusManager.instance.primaryFocus == _rootFocus) {
+      unawaited(_togglePlayPause());
+      return KeyEventResult.handled;
+    }
+    // Left/Right seek from anywhere in the player: the visual scrubber is
+    // pointer-only, so this is the keyboard equivalent.
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        unawaited(_seekBy(_seekStep));
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        unawaited(_seekBy(-_seekStep));
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   void dispose() {
     _controller?.removeListener(_onPlayerUpdate);
-    _controller?.dispose();
+    unawaited(_controller?.dispose());
+    _rootFocus.dispose();
     super.dispose();
   }
 
@@ -152,14 +196,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final isReady = c != null && c.value.isInitialized;
     final isPlaying = isReady && c.value.isPlaying;
 
+    final error = _invalidUrl ? l10n.videoPlayerInvalidUrl : _error;
+
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.space): _togglePlayPause,
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(context).pop(),
       },
       child: Focus(
+        focusNode: _rootFocus,
         autofocus: true,
+        onKeyEvent: _handleRootKey,
         child: Scaffold(
           backgroundColor: Colors.black,
           appBar: AppBar(
@@ -191,50 +238,48 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   child: Center(
                     child: _isInitializing
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : _error != null
-                            ? Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.videocam_off,
-                                      size: 48,
-                                      color: Colors.white70,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      _error!,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    FilledButton.icon(
-                                      onPressed: _openInBrowser,
-                                      icon: const Icon(Icons.open_in_new),
-                                      label: Text(
-                                        l10n.videoPlayerOpenBrowserButton,
-                                      ),
-                                    ),
-                                  ],
+                        : error != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.videocam_off,
+                                  size: 48,
+                                  color: Colors.white70,
                                 ),
-                              )
-                            : isReady
-                                ? GestureDetector(
-                                    onTap: _togglePlayPause,
-                                    behavior: HitTestBehavior.opaque,
-                                    child: Center(
-                                      child: AspectRatio(
-                                        aspectRatio: c.value.aspectRatio > 0
-                                            ? c.value.aspectRatio
-                                            : 16 / 9,
-                                        child: VideoPlayer(c),
-                                      ),
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
+                                const SizedBox(height: 12),
+                                Text(
+                                  error,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                const SizedBox(height: 16),
+                                FilledButton.icon(
+                                  onPressed: _openInBrowser,
+                                  icon: const Icon(Icons.open_in_new),
+                                  label: Text(
+                                    l10n.videoPlayerOpenBrowserButton,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : isReady
+                        ? GestureDetector(
+                            onTap: _togglePlayPause,
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AspectRatio(
+                                aspectRatio: c.value.aspectRatio > 0
+                                    ? c.value.aspectRatio
+                                    : 16 / 9,
+                                child: VideoPlayer(c),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ),
 
@@ -246,14 +291,43 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        VideoProgressIndicator(
-                          c,
-                          allowScrubbing: true,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          colors: VideoProgressColors(
-                            playedColor: Theme.of(context).colorScheme.primary,
-                            bufferedColor: Colors.white38,
-                            backgroundColor: Colors.white24,
+                        // Screen-reader slider: swipe up/down (or increase/
+                        // decrease actions) skips 5 seconds.
+                        Semantics(
+                          container: true,
+                          slider: true,
+                          label: l10n.videoPlayerSeekSemantics,
+                          hint: l10n.videoPlayerSeekHint,
+                          value: l10n.videoPlayerPositionValue(
+                            _formatDuration(c.value.position),
+                            _formatDuration(c.value.duration),
+                          ),
+                          increasedValue: l10n.videoPlayerPositionValue(
+                            _formatDuration(
+                              _clampPosition(c.value.position + _seekStep),
+                            ),
+                            _formatDuration(c.value.duration),
+                          ),
+                          decreasedValue: l10n.videoPlayerPositionValue(
+                            _formatDuration(
+                              _clampPosition(c.value.position - _seekStep),
+                            ),
+                            _formatDuration(c.value.duration),
+                          ),
+                          onIncrease: () => _seekBy(_seekStep),
+                          onDecrease: () => _seekBy(-_seekStep),
+                          excludeSemantics: true,
+                          child: VideoProgressIndicator(
+                            c,
+                            allowScrubbing: true,
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            colors: VideoProgressColors(
+                              playedColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary,
+                              bufferedColor: Colors.white38,
+                              backgroundColor: Colors.white24,
+                            ),
                           ),
                         ),
                         Row(
@@ -304,9 +378,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: SingleChildScrollView(
                       child: Text(
                         trimmedAlt,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
+                        style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: Colors.white),
                       ),
                     ),

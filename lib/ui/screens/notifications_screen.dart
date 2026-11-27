@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,10 +22,7 @@ import '../widgets/linkified_text.dart';
 /// Displays Mastodon notifications (`GET /api/v1/notifications`) with clickable
 /// user avatars/handles, direct thread navigation, and infinite-scroll pagination.
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({
-    super.key,
-    required this.app,
-  });
+  const NotificationsScreen({super.key, required this.app});
 
   final AppController app;
 
@@ -97,7 +96,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
     });
     if (next >= _notifications.length - 3 && !_isLoadingMore && _hasMore) {
-      _loadMore();
+      unawaited(_loadMore());
     }
     final l10n = context.l10n;
     AccessibilityAnnouncer.announce(
@@ -140,7 +139,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       },
       onReply: () {
         final st = _selectedNotification?.status;
-        if (st != null) _actions.openReply(context, st);
+        if (st != null) unawaited(_actions.openReply(context, st));
       },
       onRefresh: _refreshIncremental,
     );
@@ -153,7 +152,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         !_isLoadingMore &&
         _hasMore &&
         _notifications.isNotEmpty) {
-      _loadMore();
+      unawaited(_loadMore());
     }
   }
 
@@ -167,14 +166,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _error = null;
       });
       if (!widget.app.timelineCache.isNotificationsFresh()) {
-        _refreshIncremental(silentAnnouncement: true);
+        unawaited(_refreshIncremental(silentAnnouncement: true));
       }
       return;
     }
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     if (session == null) return;
     if (_notifications.isEmpty) {
@@ -188,7 +190,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         accessToken: session.accessToken,
         sinceId: _notifications.first.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       _seedNotificationStatuses(newer);
       final merged = widget.app.timelineCache.mergeNewerNotifications(newer);
       setState(() {
@@ -220,6 +222,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _load() async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     if (session == null) return;
     setState(() {
@@ -233,7 +238,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         instanceUrl: session.instanceUrl,
         accessToken: session.accessToken,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       _seedNotificationStatuses(items);
       widget.app.timelineCache.putNotifications(items, hasMore: hasMore);
@@ -246,7 +251,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         context.l10n.notificationsAnnounceLoadedInitial(items.length),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -255,6 +260,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _loadMore() async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     if (session == null || _notifications.isEmpty) return;
 
@@ -265,7 +273,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         accessToken: session.accessToken,
         maxId: _notifications.last.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       _seedNotificationStatuses(items);
       final combined = widget.app.timelineCache.appendOlderNotifications(
@@ -278,7 +286,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _hasMore = hasMore;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() => _isLoadingMore = false);
     }
   }
@@ -366,107 +374,122 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           );
           final isSelected = _selectedIndex == index;
 
-          return Card(
+          return Semantics(
             key: _keyForNotification(item.id),
-            shape: isSelected
-                ? RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: scheme.primary, width: 2.5),
-                  )
-                : null,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _iconForType(item.type),
-                        size: 20,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      AccessibleAvatar(
-                        imageUrl: item.account.avatar,
-                        displayName: item.account.effectiveDisplayName,
-                        radius: 18,
-                        onTap: () =>
-                            _actions.openProfile(context, item.account),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: AccessibleTip(
-                          message: l10n.avatarViewProfileSemantics(
-                            item.account.effectiveDisplayName,
-                          ),
-                          child: InkWell(
-                            onTap: () =>
-                                _actions.openProfile(context, item.account),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.localizedSummary(l10n),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
+            container: true,
+            selected: isSelected ? true : null,
+            child: Card(
+              semanticContainer: false,
+              shape: isSelected
+                  ? RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: scheme.primary, width: 2.5),
+                    )
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _iconForType(item.type),
+                          size: 20,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        AccessibleAvatar(
+                          imageUrl: item.account.avatar,
+                          displayName: item.account.effectiveDisplayName,
+                          radius: 18,
+                          onTap: () =>
+                              _actions.openProfile(context, item.account),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: AccessibleTip(
+                            message: l10n.avatarViewProfileSemantics(
+                              item.account.effectiveDisplayName,
+                            ),
+                            child: InkWell(
+                              onTap: () =>
+                                  _actions.openProfile(context, item.account),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
                                 ),
-                                Text(
-                                  '${item.account.handle} · $relTime',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(color: fedi.subtleText),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.localizedSummary(l10n),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    Text(
+                                      '${item.account.handle} · $relTime',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: fedi.subtleText),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
+                      ],
+                    ),
+                    if (item.status != null) ...[
+                      const SizedBox(height: 8),
+                      AccessibleTip(
+                        message: l10n.notificationsOpenThreadTip,
+                        child: InkWell(
+                          onTap: () =>
+                              _actions.openThread(context, item.status!),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: scheme.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: fedi.cardBorder),
+                            ),
+                            child: item.status!.plainText.isNotEmpty
+                                ? LinkifiedText.html(
+                                    item.status!.contentHtml,
+                                    maxLines: 4,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
+                                    mentions: item.status!.mentions,
+                                    onTapMention: (mention) =>
+                                        _actions.openProfile(
+                                          context,
+                                          mention.toStubAccount(),
+                                        ),
+                                  )
+                                : Text(
+                                    l10n.notificationsMediaPostPlaceholder,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
+                                  ),
+                          ),
                         ),
                       ),
                     ],
-                  ),
-                  if (item.status != null) ...[
-                    const SizedBox(height: 8),
-                    AccessibleTip(
-                      message: l10n.notificationsOpenThreadTip,
-                      child: InkWell(
-                        onTap: () => _actions.openThread(context, item.status!),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: scheme.surface,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: fedi.cardBorder),
-                        ),
-                        child: item.status!.plainText.isNotEmpty
-                            ? LinkifiedText.html(
-                                item.status!.contentHtml,
-                                maxLines: 4,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                                mentions: item.status!.mentions,
-                                onTapMention: (mention) => _actions.openProfile(
-                                  context,
-                                  mention.toStubAccount(),
-                                ),
-                              )
-                            : Text(
-                                l10n.notificationsMediaPostPlaceholder,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                      ),
-                    ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
           );

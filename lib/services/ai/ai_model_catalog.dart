@@ -18,11 +18,14 @@ class AiModelCatalog {
   final http.Client _client;
 
   /// Sorts model options alphabetically (case-insensitive by display name, then ID).
-  static List<AiModelOption> sortAlphabetically(Iterable<AiModelOption> models) {
+  static List<AiModelOption> sortAlphabetically(
+    Iterable<AiModelOption> models,
+  ) {
     final sorted = List<AiModelOption>.from(models);
     sorted.sort((a, b) {
-      final byName =
-          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+      final byName = a.displayName.toLowerCase().compareTo(
+        b.displayName.toLowerCase(),
+      );
       if (byName != 0) return byName;
       return a.id.toLowerCase().compareTo(b.id.toLowerCase());
     });
@@ -52,8 +55,14 @@ class AiModelCatalog {
       case AiProviderType.gemini:
         models = const [
           AiModelOption(id: 'gemini-1.5-pro', displayName: 'Gemini 1.5 Pro'),
-          AiModelOption(id: 'gemini-2.0-flash', displayName: 'Gemini 2.0 Flash'),
-          AiModelOption(id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash'),
+          AiModelOption(
+            id: 'gemini-2.0-flash',
+            displayName: 'Gemini 2.0 Flash',
+          ),
+          AiModelOption(
+            id: 'gemini-2.5-flash',
+            displayName: 'Gemini 2.5 Flash',
+          ),
           AiModelOption(id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro'),
         ];
       case AiProviderType.openai:
@@ -86,10 +95,7 @@ class AiModelCatalog {
             displayName: 'Llama 3.2 Vision (Ollama/LAN)',
           ),
           AiModelOption(id: 'llava', displayName: 'LLaVA (Ollama/LAN)'),
-          AiModelOption(
-            id: 'minicpm-v',
-            displayName: 'MiniCPM-V (Ollama/LAN)',
-          ),
+          AiModelOption(id: 'minicpm-v', displayName: 'MiniCPM-V (Ollama/LAN)'),
           AiModelOption(
             id: 'qwen2.5vl',
             displayName: 'Qwen 2.5 VL (Ollama/LAN)',
@@ -117,17 +123,20 @@ class AiModelCatalog {
     try {
       final fetched = switch (provider) {
         AiProviderType.onDevice => defaultModelsFor(AiProviderType.onDevice),
-        AiProviderType.gemini => await _fetchGeminiModels(credentials.geminiApiKey),
+        AiProviderType.gemini => await _fetchGeminiModels(
+          credentials.geminiApiKey,
+        ),
         AiProviderType.openai => await _fetchOpenAiModels(
-            baseUrl: settings.openAiBaseUrl,
-            apiKey: credentials.openAiApiKey,
-          ),
-        AiProviderType.anthropic =>
-            await _fetchAnthropicModels(credentials.anthropicApiKey),
+          baseUrl: settings.openAiBaseUrl,
+          apiKey: credentials.openAiApiKey,
+        ),
+        AiProviderType.anthropic => await _fetchAnthropicModels(
+          credentials.anthropicApiKey,
+        ),
         AiProviderType.local => await _fetchLocalModels(
-            baseUrl: settings.localBaseUrl,
-            apiKey: credentials.localApiKey,
-          ),
+          baseUrl: settings.localBaseUrl,
+          apiKey: credentials.localApiKey,
+        ),
         AiProviderType.none => const <AiModelOption>[],
       };
       if (fetched.isNotEmpty) {
@@ -143,10 +152,11 @@ class AiModelCatalog {
     final trimmed = apiKey.trim();
     if (trimmed.isEmpty) return const [];
 
-    final uri = Uri.parse(
-      '${AppConstants.geminiBaseUrl}/models?key=${Uri.encodeQueryComponent(trimmed)}',
-    );
-    final res = await _client.get(uri).timeout(const Duration(seconds: 12));
+    final uri = Uri.parse('${AppConstants.geminiBaseUrl}/models');
+    // Key in a header so it can't leak via exception messages that include the URI.
+    final res = await _client
+        .get(uri, headers: {'x-goog-api-key': trimmed})
+        .timeout(const Duration(seconds: 12));
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw AiProviderException('Gemini models error (${res.statusCode})');
     }
@@ -156,7 +166,8 @@ class AiModelCatalog {
     final results = <AiModelOption>[];
 
     for (final item in rawModels.whereType<Map<String, dynamic>>()) {
-      final methods = (item['supportedGenerationMethods'] as List<dynamic>?)
+      final methods =
+          (item['supportedGenerationMethods'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           const [];

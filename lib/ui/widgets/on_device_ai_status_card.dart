@@ -12,10 +12,7 @@ import '../../state/app_controller.dart';
 /// Google Gemini Nano via ML Kit GenAI & AICore on Pixel & Samsung flagships),
 /// with one-tap model download and refresh controls.
 class OnDeviceAiStatusCard extends StatelessWidget {
-  const OnDeviceAiStatusCard({
-    super.key,
-    required this.app,
-  });
+  const OnDeviceAiStatusCard({super.key, required this.app});
 
   final AppController app;
 
@@ -37,35 +34,32 @@ class OnDeviceAiStatusCard extends StatelessWidget {
             l10n.onDeviceAiBadgeReady,
           )
         : status.isDownloadable
-            ? (
-                scheme.primaryContainer,
-                scheme.onPrimaryContainer,
-                Icons.download_for_offline_outlined,
-                l10n.onDeviceAiBadgeDownloadable,
-              )
-            : status.isNotYetReady
-                ? (
-                    fedi.biasWarningBg,
-                    fedi.biasWarningFg,
-                    Icons.settings_suggest_outlined,
-                    l10n.onDeviceAiBadgeNotYetReady,
-                  )
-                : (
-                    fedi.altMissingBg,
-                    fedi.altMissingFg,
-                    Icons.info_outline,
-                    l10n.onDeviceAiBadgeUnavailable,
-                  );
+        ? (
+            scheme.primaryContainer,
+            scheme.onPrimaryContainer,
+            Icons.download_for_offline_outlined,
+            l10n.onDeviceAiBadgeDownloadable,
+          )
+        : status.isNotYetReady
+        ? (
+            fedi.biasWarningBg,
+            fedi.biasWarningFg,
+            Icons.settings_suggest_outlined,
+            l10n.onDeviceAiBadgeNotYetReady,
+          )
+        : (
+            fedi.altMissingBg,
+            fedi.altMissingFg,
+            Icons.info_outline,
+            l10n.onDeviceAiBadgeUnavailable,
+          );
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: fg,
-          width: fedi.isHighContrast ? 2 : 1,
-        ),
+        border: Border.all(color: fg, width: fedi.isHighContrast ? 2 : 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,10 +74,8 @@ class OnDeviceAiStatusCard extends StatelessWidget {
                     status.localizedEngineName(l10n),
                     badge,
                   ),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: fg,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(color: fg, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -96,17 +88,14 @@ class OnDeviceAiStatusCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             status.localizedDiagnosticDetail(l10n),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: fg.withAlpha(220),
-                ),
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: fg.withAlpha(220)),
           ),
           if (error != null && error.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               error,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
+              style: Theme.of(context).textTheme.bodySmall
                   ?.copyWith(color: scheme.error),
             ),
           ],

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import 'core/constants.dart';
@@ -12,10 +14,7 @@ import 'ui/screens/login_screen.dart';
 
 /// Root widget for FediCaption Mobile.
 class FediCaptionApp extends StatefulWidget {
-  const FediCaptionApp({
-    super.key,
-    this.controller,
-  });
+  const FediCaptionApp({super.key, this.controller});
 
   final AppController? controller;
 
@@ -32,7 +31,7 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
     super.initState();
     _ownsController = widget.controller == null;
     _app = widget.controller ?? AppController();
-    _app.initialize();
+    unawaited(_app.initialize());
   }
 
   @override
@@ -58,10 +57,10 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
           home: _app.isInitializing
               ? const _SplashScreen()
               : (_app.needsAiSetup
-                  ? AiSetupScreen(app: _app)
-                  : (!_app.isAuthenticated
-                      ? LoginScreen(app: _app)
-                      : HomeShell(app: _app))),
+                    ? AiSetupScreen(app: _app)
+                    : (!_app.isAuthenticated
+                          ? LoginScreen(app: _app)
+                          : HomeShell(app: _app))),
         );
       },
     );

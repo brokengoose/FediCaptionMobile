@@ -3,6 +3,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -341,10 +342,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String onDeviceAiDiagnosticDetail(
-      String promptAvailability,
-      String promptDiagnostic,
-      String imageAvailability,
-      String imageDiagnostic) {
+    String promptAvailability,
+    String promptDiagnostic,
+    String imageAvailability,
+    String imageDiagnostic,
+  ) {
     return 'Prompt API: $promptAvailability$promptDiagnostic\nImage Description API: $imageAvailability$imageDiagnostic';
   }
 
@@ -542,7 +544,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeShortcutsTooltip => 'View keyboard navigation shortcuts (?)';
 
   @override
-  String get homeSettingsTooltip => 'Open Settings & AI Configuration (⌘,)';
+  String homeSettingsTooltip(String shortcut) {
+    return 'Open Settings & AI Configuration ($shortcut)';
+  }
 
   @override
   String get homeDrawerSettings => 'Settings & AI Configuration';
@@ -575,7 +579,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'My Published Posts — your own Mastodon posts (g u)';
 
   @override
-  String get homeComposeTip => 'Compose a new Mastodon post (n or ⌘N)';
+  String homeComposeTip(String shortcut) {
+    return 'Compose a new Mastodon post (n or $shortcut)';
+  }
 
   @override
   String get homeComposeLabel => 'Post';
@@ -587,6 +593,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchClearTooltip => 'Clear search';
+
+  @override
+  String searchAnnounceResults(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matching cached posts',
+      one: '1 matching cached post',
+      zero: 'No matching cached posts',
+    );
+    return '$_temp0';
+  }
 
   @override
   String searchEmptyTitle(int count) {
@@ -627,7 +645,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String timelineAnnouncePostSelection(
-      int index, int total, String authorName, String preview) {
+    int index,
+    int total,
+    String authorName,
+    String preview,
+  ) {
     return 'Post $index of $total by $authorName. $preview';
   }
 
@@ -894,6 +916,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String profileAnnounceFollowRequested(String displayName) {
+    return 'Follow request sent to $displayName.';
+  }
+
+  @override
   String profileAnnounceUnsubscribed(String displayName) {
     return 'Unsubscribed from $displayName.';
   }
@@ -1118,7 +1145,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String translationTranslatingStatus(
-      String sourceLanguage, String targetLanguage) {
+    String sourceLanguage,
+    String targetLanguage,
+  ) {
     return 'Translating from $sourceLanguage to $targetLanguage…';
   }
 
@@ -1343,6 +1372,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get videoPlayerMuteTooltip => 'Mute';
 
   @override
+  String get videoPlayerSeekSemantics => 'Playback position';
+
+  @override
+  String get videoPlayerSeekHint =>
+      'Use left and right arrow keys to skip 5 seconds';
+
+  @override
+  String videoPlayerPositionValue(String position, String duration) {
+    return '$position of $duration';
+  }
+
+  @override
   String get composerCheckingBias => 'Checking Bias…';
 
   @override
@@ -1367,12 +1408,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get composerTitleNew => 'Compose Post';
 
   @override
-  String get composerEditSubmitTip =>
-      'Save your edited post and alt-text (⌘Enter)';
+  String composerEditSubmitTip(String shortcut) {
+    return 'Save your edited post and alt-text ($shortcut)';
+  }
 
   @override
-  String get composerPublishSubmitTip =>
-      'Check accessibility and bias rules, then publish post (⌘Enter)';
+  String composerPublishSubmitTip(String shortcut) {
+    return 'Check accessibility and bias rules, then publish post ($shortcut)';
+  }
 
   @override
   String composerReplyingTo(String handle) {
@@ -1553,8 +1596,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other:
           '$count media attachments are missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?',
-      one:
-          '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?',
+      one: '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?',
     );
     return '$_temp0';
   }
@@ -1566,8 +1608,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other:
           '$count media attachments are missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?',
-      one:
-          '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?',
+      one: '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?',
     );
     return '$_temp0';
   }
@@ -1579,8 +1620,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other:
           '$count media attachments are missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.',
-      one:
-          '1 media attachment is missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.',
+      one: '1 media attachment is missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.',
     );
     return '$_temp0';
   }
@@ -1816,7 +1856,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsAccountSubtitle(
-      String instanceUrl, int maxChars, int maxMedia, int altLimit) {
+    String instanceUrl,
+    int maxChars,
+    int maxMedia,
+    int altLimit,
+  ) {
     return 'Server: $instanceUrl\nMax post length: $maxChars chars · Max media: $maxMedia · Alt-text limit: $altLimit chars';
   }
 

@@ -50,10 +50,7 @@ class OptimizedImageBytes {
 /// Reduces Mastodon upload bandwidth, Sidekiq ImageMagick/libvips CPU load,
 /// server storage, and Cloud AI payload sizes while protecting user privacy.
 class ImageUploadOptimizer {
-  const ImageUploadOptimizer({
-    this.maxDimension = 2048,
-    this.jpegQuality = 85,
-  });
+  const ImageUploadOptimizer({this.maxDimension = 2048, this.jpegQuality = 85});
 
   /// Maximum width or height in pixels (2048px is plenty for crisp Mastodon
   /// display while shrinking 12–48MP photos by 80–95%).
@@ -98,11 +95,8 @@ class ImageUploadOptimizer {
     OptimizedImageBytes? optimized;
     try {
       optimized = await Isolate.run(
-        () => optimizeBytes(
-          rawBytes,
-          maxDimension: maxDim,
-          jpegQuality: quality,
-        ),
+        () =>
+            optimizeBytes(rawBytes, maxDimension: maxDim, jpegQuality: quality),
       );
     } catch (_) {
       optimized = null;
@@ -175,7 +169,7 @@ class ImageUploadOptimizer {
 
     final hasAlpha = _hasNonOpaqueAlpha(processed);
     if (hasAlpha) {
-      final pngBytes = Uint8List.fromList(img.encodePng(processed, level: 6));
+      final pngBytes = Uint8List.fromList(img.encodePng(processed));
       return OptimizedImageBytes(
         bytes: pngBytes,
         mimeType: 'image/png',
