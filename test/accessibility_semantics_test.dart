@@ -1,7 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
-import 'dart:ui' show Tristate;
+import 'dart:ui' show PointerDeviceKind, Tristate;
 
 import 'package:fedicaption_mobile/app.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
@@ -387,6 +387,65 @@ void main() {
         expect(app.timelineRefreshNonce, beforeNonce + 1);
         final after = tester.widget<MaterialApp>(find.byType(MaterialApp));
         expect(identical(before, after), isTrue);
+      },
+    );
+
+    testWidgets(
+      'Hovering a tall post positions the Open post tooltip outside the post text',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        tester.view.devicePixelRatio = 1.0;
+        tester.view.physicalSize = const Size(900, 900);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final app = buildTestAppController();
+        addTearDown(app.dispose);
+
+        final tallPost = MastodonStatus(
+          id: 'tall1',
+          createdAt: DateTime.utc(2026, 11, 27, 10),
+          account: _alice,
+          contentHtml:
+              '<p>Paragraph one of a multi-line Mastodon post.</p>'
+              '<p>Paragraph two continuing the discussion.</p>'
+              '<p>Paragraph three with extra height.</p>'
+              '<p>Paragraph four at the bottom.</p>',
+          url: 'https://example.social/@alice/tall1',
+        );
+
+        await tester.pumpWidget(_card(app, tallPost));
+        await tester.pumpAndSettle();
+
+        final bodyFinder = find.ancestor(
+          of: find.textContaining(
+            'Paragraph one of a multi-line Mastodon post.',
+            findRichText: true,
+          ),
+          matching: find.byType(InkWell),
+        );
+        expect(bodyFinder, findsOneWidget);
+        final bodyRect = tester.getRect(bodyFinder);
+        expect(bodyRect.height, greaterThan(100));
+
+        final gesture = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        addTearDown(gesture.removePointer);
+        await gesture.addPointer(location: Offset.zero);
+        await tester.pump();
+        await gesture.moveTo(bodyRect.center);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        final tipFinder = find.text(
+          'Open post and conversation thread (Enter)',
+        );
+        expect(tipFinder, findsOneWidget);
+        final tipRect = tester.getRect(tipFinder);
+        expect(
+          tipRect.top >= bodyRect.bottom || tipRect.bottom <= bodyRect.top,
+          isTrue,
+        );
       },
     );
   });
