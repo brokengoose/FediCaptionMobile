@@ -123,7 +123,6 @@ __declspec(dllexport) int32_t fedicaption_verify_windows_cert(
   chain_para.RequestedUsage.dwType = USAGE_MATCH_TYPE_AND;
   chain_para.RequestedUsage.Usage.cUsageIdentifier = 1;
   chain_para.RequestedUsage.Usage.rgpszUsageIdentifier = server_auth_usages;
-  chain_para.dwUrlRetrievalTimeout = 1500;
 
   PCCERT_CHAIN_CONTEXT chain_ctx = nullptr;
   BOOL chain_ok = ::CertGetCertificateChain(
