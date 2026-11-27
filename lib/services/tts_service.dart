@@ -4,6 +4,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../core/language/language_registry.dart';
@@ -243,7 +244,13 @@ class TtsService extends ChangeNotifier {
       _resetState();
       return;
     }
-    await _tts?.stop();
+    try {
+      await _tts?.stop();
+    } on MissingPluginException {
+      // Platform TTS plugin unavailable (e.g. headless test binding).
+    } on PlatformException {
+      // Ignore platform channel stop failures during cleanup.
+    }
     _resetState();
   }
 

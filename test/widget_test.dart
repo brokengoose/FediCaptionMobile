@@ -29,6 +29,8 @@ import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'helpers/test_app.dart';
+
 class _FakeOnDeviceAiService extends OnDeviceAiService {
   _FakeOnDeviceAiService({
     this.status = const OnDeviceAiStatus(
@@ -73,6 +75,12 @@ class _InMemoryStorageService extends StorageService {
 
   @override
   Future<MastodonSession?> loadSession() async => null;
+
+  @override
+  Future<List<StoredAccount>> loadAccounts() async => const [];
+
+  @override
+  Future<String?> loadActiveAccountKey() async => null;
 }
 
 class _NoOpUpdateCheckService extends UpdateCheckService {
@@ -329,6 +337,29 @@ void main() {
       expect(controller.settings.aiSetupCompleted, isTrue);
       expect(find.byType(AiSetupScreen), findsNothing);
       expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets(
+        'LoginScreen warns that sign-in does not create a new Mastodon account',
+        (tester) async {
+      final controller = AppController(
+        storageService: _InMemoryStorageService(),
+        onDeviceAiService: _FakeOnDeviceAiService(),
+        updateCheckService: _NoOpUpdateCheckService(),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        localizedTestApp(home: LoginScreen(app: controller)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Existing Mastodon Account Required'), findsOneWidget);
+      expect(find.textContaining('will not create a new account'), findsOneWidget);
+      expect(
+        find.textContaining("Mastodon server's website"),
+        findsOneWidget,
+      );
     });
   });
 

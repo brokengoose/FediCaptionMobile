@@ -59,6 +59,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'An accessible Mastodon client with automatic AI alt-text generation and pre-post racial & gender bias checking.';
 
   @override
+  String get loginExistingAccountWarningTitle =>
+      'Existing Mastodon Account Required';
+
+  @override
+  String get loginExistingAccountWarningBody =>
+      'Signing in through FediCaption will not create a new account. You must already have an account on a Mastodon server. If you don\'t have one yet, you can create an account on your chosen Mastodon server\'s website.';
+
+  @override
   String get loginServerDomainLabel => 'Mastodon Server Domain';
 
   @override
@@ -2031,4 +2039,65 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get loginAddAccountTitle => 'Add Mastodon Account';
+
+  @override
+  String get loginSavedAccountsHeader => 'Saved Accounts';
+
+  @override
+  String authAnnounceSwitchedAccount(String displayName, String handle) {
+    return 'Switched active account to $displayName ($handle).';
+  }
+
+  @override
+  String get accountsSheetTitle => 'Accounts';
+
+  @override
+  String accountsSheetSubtitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count accounts signed in',
+      one: '1 account signed in',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get accountsActiveBadge => 'Active';
+
+  @override
+  String get accountsAddButton => 'Add Account';
+
+  @override
+  String accountsSwitchTooltip(String handle) {
+    return 'Switch account (active: $handle)';
+  }
+
+  @override
+  String get accountsManageTooltip => 'Switch or add Mastodon account';
+
+  @override
+  String get accountsSwitchOrAddLabel => 'Switch / Add Account';
+
+  @override
+  String accountsSignOutAccountTooltip(String handle) {
+    return 'Sign out of $handle';
+  }
+
+  @override
+  String accountsSwitchError(String error) {
+    return 'Could not switch account: $error';
+  }
+
+  @override
+  String get settingsAddAccount => 'Add Account';
+
+  @override
+  String get settingsSwitchToAccount => 'Switch';
+
+  @override
+  String get settingsActiveAccountBadge => 'Active';
 }

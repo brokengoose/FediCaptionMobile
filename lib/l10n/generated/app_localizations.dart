@@ -187,6 +187,18 @@ abstract class AppLocalizations {
   /// **'An accessible Mastodon client with automatic AI alt-text generation and pre-post racial & gender bias checking.'**
   String get loginTagline;
 
+  /// No description provided for @loginExistingAccountWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing Mastodon Account Required'**
+  String get loginExistingAccountWarningTitle;
+
+  /// No description provided for @loginExistingAccountWarningBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in through FediCaption will not create a new account. You must already have an account on a Mastodon server. If you don\'t have one yet, you can create an account on your chosen Mastodon server\'s website.'**
+  String get loginExistingAccountWarningBody;
+
   /// No description provided for @loginServerDomainLabel.
   ///
   /// In en, this message translates to:
@@ -3121,6 +3133,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 day ago} other{{count} days ago}}'**
   String timeAccessibleDaysAgo(int count);
+
+  /// No description provided for @loginAddAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Mastodon Account'**
+  String get loginAddAccountTitle;
+
+  /// No description provided for @loginSavedAccountsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved Accounts'**
+  String get loginSavedAccountsHeader;
+
+  /// No description provided for @authAnnounceSwitchedAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched active account to {displayName} ({handle}).'**
+  String authAnnounceSwitchedAccount(String displayName, String handle);
+
+  /// No description provided for @accountsSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get accountsSheetTitle;
+
+  /// No description provided for @accountsSheetSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 account signed in} other{{count} accounts signed in}}'**
+  String accountsSheetSubtitle(int count);
+
+  /// No description provided for @accountsActiveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get accountsActiveBadge;
+
+  /// No description provided for @accountsAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Account'**
+  String get accountsAddButton;
+
+  /// No description provided for @accountsSwitchTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch account (active: {handle})'**
+  String accountsSwitchTooltip(String handle);
+
+  /// No description provided for @accountsManageTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch or add Mastodon account'**
+  String get accountsManageTooltip;
+
+  /// No description provided for @accountsSwitchOrAddLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch / Add Account'**
+  String get accountsSwitchOrAddLabel;
+
+  /// No description provided for @accountsSignOutAccountTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out of {handle}'**
+  String accountsSignOutAccountTooltip(String handle);
+
+  /// No description provided for @accountsSwitchError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch account: {error}'**
+  String accountsSwitchError(String error);
+
+  /// No description provided for @settingsAddAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Account'**
+  String get settingsAddAccount;
+
+  /// No description provided for @settingsSwitchToAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get settingsSwitchToAccount;
+
+  /// No description provided for @settingsActiveAccountBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get settingsActiveAccountBadge;
 }
 
 class _AppLocalizationsDelegate

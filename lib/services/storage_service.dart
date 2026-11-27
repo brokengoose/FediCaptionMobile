@@ -104,6 +104,9 @@ class StorageService {
   static const String _keySettings = 'fedicaption_settings_v1';
   static const String _keyInstanceUrl = 'mastodon_instance_url';
   static const String _keyAccessToken = 'mastodon_access_token';
+  static const String _keyAccountsMetadata = 'fedicaption_accounts_v1';
+  static const String _keyActiveAccountKey = 'fedicaption_active_account_v1';
+  static const String _keyAccountTokenPrefix = 'mastodon_account_token_v1_';
   static const String _keyGeminiKey = 'ai_key_gemini';
   static const String _keyOpenAiKey = 'ai_key_openai';
   static const String _keyAnthropicKey = 'ai_key_anthropic';
@@ -159,6 +162,134 @@ class StorageService {
     await _deleteSecret(_keyInstanceUrl);
     await _deleteSecret(_keyAccessToken);
   }
+
+  /// Loads all saved Mastodon accounts (combining metadata in SharedPreferences
+  /// with each account's OAuth/API token stored in platform secure storage).
+  Future<List<StoredAccount>> loadAccounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyAccountsMetadata);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      final accounts = <StoredAccount>[];
+      for (final item in decoded) {
+        if (item is! Map<String, dynamic>) continue;
+        final key = (item['key'] as String?)?.trim() ?? '';
+        final instanceUrl = (item['instanceUrl'] as String?)?.trim() ?? '';
+        final accountId = (item['accountId'] as String?)?.trim() ?? '';
+        final effectiveKey =
+            key.isNotEmpty ? key : StoredAccount.buildKey(instanceUrl, accountId);
+        if (effectiveKey.isEmpty) continue;
+        final token =
+            await _readSecret(_accountTokenSecretKey(effectiveKey)) ?? '';
+        final account =
+            StoredAccount.fromMetadataJson(item, accessToken: token);
+        if (account != null) {
+          accounts.add(account);
+        }
+      }
+      return accounts;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<String?> loadActiveAccountKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = prefs.getString(_keyActiveAccountKey)?.trim();
+    return (key == null || key.isEmpty) ? null : key;
+  }
+
+  /// Upserts [account] in multi-account storage, stores its token securely,
+  /// and optionally sets it as the active account.
+  Future<void> saveAccount(
+    StoredAccount account, {
+    bool setActive = true,
+  }) async {
+    await _writeSecret(_accountTokenSecretKey(account.key), account.accessToken);
+    final existing = await loadAccounts();
+    final updated = <StoredAccount>[];
+    var replaced = false;
+    for (final item in existing) {
+      if (item.key == account.key) {
+        updated.add(account);
+        replaced = true;
+      } else {
+        updated.add(item);
+      }
+    }
+    if (!replaced) {
+      updated.add(account);
+    }
+    await _writeAccountsMetadata(updated);
+    if (setActive) {
+      await _setActiveAccountInternal(account.key, account.session);
+    }
+  }
+
+  Future<void> saveActiveAccountKey(String? key) async {
+    if (key == null || key.trim().isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_keyActiveAccountKey);
+      await clearSession();
+      return;
+    }
+    final accounts = await loadAccounts();
+    StoredAccount? target;
+    for (final item in accounts) {
+      if (item.key == key) {
+        target = item;
+        break;
+      }
+    }
+    await _setActiveAccountInternal(key, target?.session);
+  }
+
+  /// Removes the account identified by [key] and deletes its stored token.
+  /// If it was active, promotes the first remaining account (or clears active state).
+  Future<void> removeAccount(String key) async {
+    final existing = await loadAccounts();
+    final remaining = existing.where((a) => a.key != key).toList();
+    await _deleteSecret(_accountTokenSecretKey(key));
+    await _writeAccountsMetadata(remaining);
+
+    final activeKey = await loadActiveAccountKey();
+    if (activeKey == key) {
+      if (remaining.isNotEmpty) {
+        await _setActiveAccountInternal(
+          remaining.first.key,
+          remaining.first.session,
+        );
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_keyActiveAccountKey);
+        await clearSession();
+      }
+    }
+  }
+
+  Future<void> _writeAccountsMetadata(List<StoredAccount> accounts) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keyAccountsMetadata,
+      jsonEncode([for (final a in accounts) a.toMetadataJson()]),
+    );
+  }
+
+  Future<void> _setActiveAccountInternal(
+    String key,
+    MastodonSession? session,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyActiveAccountKey, key);
+    if (session != null) {
+      await saveSession(session);
+    }
+  }
+
+  static String _accountTokenSecretKey(String accountKey) =>
+      _instanceKey(_keyAccountTokenPrefix, accountKey);
 
   Future<AiCredentials> loadAiCredentials() async {
     final gemini = await _readSecret(_keyGeminiKey) ?? '';

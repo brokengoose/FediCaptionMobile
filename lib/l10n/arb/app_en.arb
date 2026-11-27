@@ -27,6 +27,8 @@
   "loginElephantSemanticLabel": "FediCaption cartoon elephant wearing dark sunglasses",
   "loginWelcomeTitle": "Welcome to FediCaption",
   "loginTagline": "An accessible Mastodon client with automatic AI alt-text generation and pre-post racial & gender bias checking.",
+  "loginExistingAccountWarningTitle": "Existing Mastodon Account Required",
+  "loginExistingAccountWarningBody": "Signing in through FediCaption will not create a new account. You must already have an account on a Mastodon server. If you don't have one yet, you can create an account on your chosen Mastodon server's website.",
   "loginServerDomainLabel": "Mastodon Server Domain",
   "loginServerDomainHint": "mastodon.social",
   "loginServerDomainHelper": "Enter your Mastodon, Glitch-soc, Hometown, Pleroma, or Akkoma server.",
@@ -1334,5 +1336,47 @@
     "placeholders": {
       "count": {"type": "int"}
     }
-  }
+  },
+
+  "loginAddAccountTitle": "Add Mastodon Account",
+  "loginSavedAccountsHeader": "Saved Accounts",
+  "authAnnounceSwitchedAccount": "Switched active account to {displayName} ({handle}).",
+  "@authAnnounceSwitchedAccount": {
+    "placeholders": {
+      "displayName": {"type": "String"},
+      "handle": {"type": "String"}
+    }
+  },
+  "accountsSheetTitle": "Accounts",
+  "accountsSheetSubtitle": "{count, plural, =1{1 account signed in} other{{count} accounts signed in}}",
+  "@accountsSheetSubtitle": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "accountsActiveBadge": "Active",
+  "accountsAddButton": "Add Account",
+  "accountsSwitchTooltip": "Switch account (active: {handle})",
+  "@accountsSwitchTooltip": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "accountsManageTooltip": "Switch or add Mastodon account",
+  "accountsSwitchOrAddLabel": "Switch / Add Account",
+  "accountsSignOutAccountTooltip": "Sign out of {handle}",
+  "@accountsSignOutAccountTooltip": {
+    "placeholders": {
+      "handle": {"type": "String"}
+    }
+  },
+  "accountsSwitchError": "Could not switch account: {error}",
+  "@accountsSwitchError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "settingsAddAccount": "Add Account",
+  "settingsSwitchToAccount": "Switch",
+  "settingsActiveAccountBadge": "Active"
 }

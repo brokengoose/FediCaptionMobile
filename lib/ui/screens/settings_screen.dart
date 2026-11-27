@@ -15,6 +15,7 @@ import '../../models/ai_models.dart';
 import '../../models/app_settings.dart';
 import '../../state/app_controller.dart';
 import '../widgets/ai_provider_config_section.dart';
+import 'login_screen.dart';
 
 /// Settings screen providing:
 /// - AI provider selection, API keys / server URLs, and dynamic model drop-down picker
@@ -440,7 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: Text(
                     l10n.settingsAccountTitle(
                       widget.app.currentAccount!.effectiveDisplayName,
-                      widget.app.currentAccount!.handle,
+                      widget.app.activeAccountFullHandle,
                     ),
                   ),
                   subtitle: Text(
@@ -452,16 +453,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
+                if (widget.app.hasMultipleAccounts) ...[
+                  const SizedBox(height: 8),
+                  for (final acc in widget.app.accounts)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        acc.effectiveDisplayName,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(acc.fullHandle),
+                      trailing: acc.key == widget.app.activeAccountKey
+                          ? Chip(
+                              label: Text(l10n.settingsActiveAccountBadge),
+                              visualDensity: VisualDensity.compact,
+                            )
+                          : TextButton(
+                              onPressed: widget.app.isSwitchingAccount
+                                  ? null
+                                  : () => widget.app.switchAccount(acc.key),
+                              child: Text(l10n.settingsSwitchToAccount),
+                            ),
+                    ),
+                ],
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await widget.app.logout();
-                    if (context.mounted) {
-                      Navigator.of(context).popUntil((r) => r.isFirst);
-                    }
-                  },
-                  icon: const Icon(Icons.logout),
-                  label: Text(l10n.settingsSignOut),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => LoginScreen(
+                            app: widget.app,
+                            isAddingAccount: true,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.person_add_outlined),
+                      label: Text(l10n.settingsAddAccount),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await widget.app.logout();
+                        if (context.mounted && !widget.app.isAuthenticated) {
+                          Navigator.of(context).popUntil((r) => r.isFirst);
+                        }
+                      },
+                      icon: const Icon(Icons.logout),
+                      label: Text(l10n.settingsSignOut),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
               ],

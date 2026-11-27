@@ -7,6 +7,7 @@ import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/app_controller.dart';
+import '../widgets/accessible_avatar.dart';
 import 'settings_screen.dart';
 
 /// Mastodon authentication screen supporting OAuth 2.0 (`ASWebAuthenticationSession` /
@@ -15,9 +16,11 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
     required this.app,
+    this.isAddingAccount = false,
   });
 
   final AppController app;
+  final bool isAddingAccount;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -46,22 +49,28 @@ class _LoginScreenState extends State<LoginScreen> {
     return ListenableBuilder(
       listenable: widget.app,
       builder: (context, _) {
-        final busy = widget.app.isAuthenticating;
+        final busy = widget.app.isAuthenticating || widget.app.isSwitchingAccount;
         final error = widget.app.authError;
+        final savedAccounts = widget.app.accounts;
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text(AppConstants.appName),
+            title: Text(
+              widget.isAddingAccount
+                  ? l10n.loginAddAccountTitle
+                  : AppConstants.appName,
+            ),
             actions: [
-              IconButton(
-                tooltip: l10n.loginSettingsTooltip,
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => SettingsScreen(app: widget.app),
+              if (!widget.isAddingAccount)
+                IconButton(
+                  tooltip: l10n.loginSettingsTooltip,
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SettingsScreen(app: widget.app),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           body: SafeArea(
@@ -106,7 +115,62 @@ class _LoginScreenState extends State<LoginScreen> {
                             .bodyMedium
                             ?.copyWith(color: fedi.subtleText),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 20),
+                      Semantics(
+                        container: true,
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: fedi.biasWarningBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: fedi.isHighContrast
+                                  ? fedi.biasWarningFg
+                                  : fedi.biasWarningFg.withValues(alpha: 0.35),
+                              width: fedi.isHighContrast ? 2 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: fedi.biasWarningFg,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      l10n.loginExistingAccountWarningTitle,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: fedi.biasWarningFg,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      l10n.loginExistingAccountWarningBody,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: fedi.biasWarningFg,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
                       TextField(
                         controller: _instanceController,
@@ -127,8 +191,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       FilledButton.icon(
                         onPressed: busy
                             ? null
-                            : () => widget.app
-                                .loginWithOAuth(_instanceController.text),
+                            : () async {
+                                final ok = await widget.app
+                                    .loginWithOAuth(_instanceController.text);
+                                if (ok &&
+                                    widget.isAddingAccount &&
+                                    context.mounted) {
+                                  Navigator.of(context).pop(true);
+                                }
+                              },
                         icon: busy
                             ? const SizedBox(
                                 width: 18,
@@ -207,13 +278,57 @@ class _LoginScreenState extends State<LoginScreen> {
                         OutlinedButton.icon(
                           onPressed: busy
                               ? null
-                              : () => widget.app.loginWithAccessToken(
+                              : () async {
+                                  final ok =
+                                      await widget.app.loginWithAccessToken(
                                     rawInstanceUrl: _instanceController.text,
                                     accessToken: _tokenController.text,
-                                  ),
+                                  );
+                                  if (ok &&
+                                      widget.isAddingAccount &&
+                                      context.mounted) {
+                                    Navigator.of(context).pop(true);
+                                  }
+                                },
                           icon: const Icon(Icons.key),
                           label: Text(l10n.loginSignInToken),
                         ),
+                      ],
+
+                      if (!widget.isAddingAccount &&
+                          savedAccounts.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            l10n.loginSavedAccountsHeader,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        for (final acc in savedAccounts)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              enabled: !busy,
+                              leading: AccessibleAvatar(
+                                imageUrl: acc.avatar,
+                                displayName: acc.effectiveDisplayName,
+                                radius: 18,
+                              ),
+                              title: Text(acc.effectiveDisplayName),
+                              subtitle: Text(acc.fullHandle),
+                              trailing: const Icon(Icons.login),
+                              onTap: busy
+                                  ? null
+                                  : () => widget.app.switchAccount(acc.key),
+                            ),
+                          ),
                       ],
                     ],
                   ),

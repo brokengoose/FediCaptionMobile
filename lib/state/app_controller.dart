@@ -124,6 +124,10 @@ class AppController extends ChangeNotifier {
 
   MastodonSession? _session;
   MastodonAccount? _currentAccount;
+  List<StoredAccount> _accounts = const [];
+  String? _activeAccountKey;
+  bool _isSwitchingAccount = false;
+  int _accountGeneration = 0;
   InstanceLimits _instanceLimits = const InstanceLimits();
 
   AppSettings _settings = const AppSettings();
@@ -141,9 +145,35 @@ class AppController extends ChangeNotifier {
 
   bool get isInitializing => _isInitializing;
   bool get isAuthenticating => _isAuthenticating;
+  bool get isSwitchingAccount => _isSwitchingAccount;
   String? get authError => _authError;
   bool get isAuthenticated => _session != null && _currentAccount != null;
   bool get needsAiSetup => !_settings.aiSetupCompleted;
+  List<StoredAccount> get accounts => List.unmodifiable(_accounts);
+  bool get hasMultipleAccounts => _accounts.length > 1;
+  String? get activeAccountKey => _activeAccountKey;
+  int get accountGeneration => _accountGeneration;
+
+  StoredAccount? get activeStoredAccount {
+    final key = _activeAccountKey;
+    if (key == null) return null;
+    for (final item in _accounts) {
+      if (item.key == key) return item;
+    }
+    return null;
+  }
+
+  String get activeAccountFullHandle {
+    final stored = activeStoredAccount;
+    if (stored != null) return stored.fullHandle;
+    if (_session != null && _currentAccount != null) {
+      return StoredAccount.fromSessionAndAccount(
+        session: _session!,
+        account: _currentAccount!,
+      ).fullHandle;
+    }
+    return _currentAccount?.handle ?? '';
+  }
 
   MastodonSession? get session => _session;
   MastodonAccount? get currentAccount => _currentAccount;
@@ -213,21 +243,63 @@ class AppController extends ChangeNotifier {
       themeController.setPreference(_settings.themePreference);
       _syncAnnouncementDirection();
 
-      final savedSession = await storage.loadSession();
-      if (savedSession != null) {
+      final savedAccounts = await storage.loadAccounts();
+      final activeKey = await storage.loadActiveAccountKey();
+
+      if (savedAccounts.isNotEmpty) {
+        _accounts = savedAccounts;
+        final target = savedAccounts.firstWhere(
+          (a) => a.key == activeKey,
+          orElse: () => savedAccounts.first,
+        );
         try {
           final account = await mastodon.verifyCredentials(
-            instanceUrl: savedSession.instanceUrl,
-            accessToken: savedSession.accessToken,
+            instanceUrl: target.instanceUrl,
+            accessToken: target.accessToken,
           );
-          _session = savedSession;
+          final limits = await _loadOrFetchInstanceLimits(
+            instanceUrl: target.instanceUrl,
+            accessToken: target.accessToken,
+          );
+          final refreshed = StoredAccount.fromSessionAndAccount(
+            session: target.session,
+            account: account,
+          );
+          _upsertStoredAccount(refreshed);
+          await storage.saveAccount(refreshed, setActive: true);
+          _session = refreshed.session;
           _currentAccount = account;
-          _instanceLimits = await _loadOrFetchInstanceLimits(
-            instanceUrl: savedSession.instanceUrl,
-            accessToken: savedSession.accessToken,
-          );
+          _activeAccountKey = refreshed.key;
+          _instanceLimits = limits;
         } catch (e) {
+          _activeAccountKey = target.key;
           _authError = l10n.authErrorExpiredSession(e.toString());
+        }
+      } else {
+        final savedSession = await storage.loadSession();
+        if (savedSession != null) {
+          try {
+            final account = await mastodon.verifyCredentials(
+              instanceUrl: savedSession.instanceUrl,
+              accessToken: savedSession.accessToken,
+            );
+            final limits = await _loadOrFetchInstanceLimits(
+              instanceUrl: savedSession.instanceUrl,
+              accessToken: savedSession.accessToken,
+            );
+            final migrated = StoredAccount.fromSessionAndAccount(
+              session: savedSession,
+              account: account,
+            );
+            _upsertStoredAccount(migrated);
+            await storage.saveAccount(migrated, setActive: true);
+            _session = savedSession;
+            _currentAccount = account;
+            _activeAccountKey = migrated.key;
+            _instanceLimits = limits;
+          } catch (e) {
+            _authError = l10n.authErrorExpiredSession(e.toString());
+          }
         }
       }
     } finally {
@@ -479,11 +551,27 @@ class AppController extends ChangeNotifier {
       instanceUrl: instanceUrl,
       accessToken: accessToken,
     );
-    await storage.saveSession(newSession);
+    final stored = StoredAccount.fromSessionAndAccount(
+      session: newSession,
+      account: account,
+    );
+    final switchingFromOther =
+        _activeAccountKey != null && _activeAccountKey != stored.key;
+    if (switchingFromOther) {
+      await tts.stop();
+      _clearPerAccountCaches();
+    }
+
+    await storage.saveAccount(stored, setActive: true);
+    _upsertStoredAccount(stored);
 
     _session = newSession;
     _currentAccount = account;
+    _activeAccountKey = stored.key;
     _instanceLimits = limits;
+    if (switchingFromOther) {
+      _accountGeneration++;
+    }
     _isAuthenticating = false;
     _authError = null;
     _safeNotify();
@@ -494,18 +582,132 @@ class AppController extends ChangeNotifier {
     return true;
   }
 
-  Future<void> logout() async {
+  /// Switches the active Mastodon account to a previously saved login in [_accounts].
+  Future<bool> switchAccount(String accountKey) async {
+    StoredAccount? target;
+    for (final item in _accounts) {
+      if (item.key == accountKey) {
+        target = item;
+        break;
+      }
+    }
+    if (target == null) return false;
+    if (accountKey == _activeAccountKey && isAuthenticated) {
+      return true;
+    }
+
+    _isSwitchingAccount = true;
+    _authError = null;
+    _safeNotify();
+
     await tts.stop();
-    await storage.clearSession();
+    _clearPerAccountCaches();
+
+    try {
+      final account = await mastodon.verifyCredentials(
+        instanceUrl: target.instanceUrl,
+        accessToken: target.accessToken,
+      );
+      final limits = await _loadOrFetchInstanceLimits(
+        instanceUrl: target.instanceUrl,
+        accessToken: target.accessToken,
+      );
+      final refreshed = StoredAccount.fromSessionAndAccount(
+        session: target.session,
+        account: account,
+      );
+      _upsertStoredAccount(refreshed);
+      await storage.saveAccount(refreshed, setActive: true);
+
+      _session = refreshed.session;
+      _currentAccount = account;
+      _activeAccountKey = refreshed.key;
+      _instanceLimits = limits;
+      _accountGeneration++;
+      _isSwitchingAccount = false;
+      _safeNotify();
+
+      AccessibilityAnnouncer.announce(
+        l10n.authAnnounceSwitchedAccount(
+          account.effectiveDisplayName,
+          refreshed.fullHandle,
+        ),
+      );
+      return true;
+    } catch (e) {
+      _authError = e.toString();
+      _isSwitchingAccount = false;
+      _safeNotify();
+      return false;
+    }
+  }
+
+  Future<void> logout({String? accountKey}) async {
+    final targetKey = accountKey ?? _activeAccountKey;
+    if (targetKey == null) {
+      await tts.stop();
+      await storage.clearSession();
+      _session = null;
+      _currentAccount = null;
+      _instanceLimits = const InstanceLimits();
+      _clearPerAccountCaches();
+      _accountGeneration++;
+      _safeNotify();
+      AccessibilityAnnouncer.announce(l10n.authAnnounceSignedOut);
+      return;
+    }
+
+    _accounts = _accounts.where((a) => a.key != targetKey).toList();
+    await storage.removeAccount(targetKey);
+
+    if (targetKey != _activeAccountKey) {
+      _safeNotify();
+      return;
+    }
+
+    await tts.stop();
+    _clearPerAccountCaches();
+
+    if (_accounts.isNotEmpty) {
+      _activeAccountKey = null;
+      _session = null;
+      _currentAccount = null;
+      await switchAccount(_accounts.first.key);
+      return;
+    }
+
     _session = null;
     _currentAccount = null;
+    _activeAccountKey = null;
     _instanceLimits = const InstanceLimits();
+    _accountGeneration++;
+    await storage.clearSession();
+    _safeNotify();
+    AccessibilityAnnouncer.announce(l10n.authAnnounceSignedOut);
+  }
+
+  void _upsertStoredAccount(StoredAccount account) {
+    final next = <StoredAccount>[];
+    var replaced = false;
+    for (final item in _accounts) {
+      if (item.key == account.key) {
+        next.add(account);
+        replaced = true;
+      } else {
+        next.add(item);
+      }
+    }
+    if (!replaced) {
+      next.add(account);
+    }
+    _accounts = next;
+  }
+
+  void _clearPerAccountCaches() {
     mastodon.clearSessionCaches();
     timelineCache.clear();
     mediaAi.clear();
     quoteCache.clear();
-    _safeNotify();
-    AccessibilityAnnouncer.announce(l10n.authAnnounceSignedOut);
   }
 
   /// Persists updated non-secret settings and optionally refreshes models when

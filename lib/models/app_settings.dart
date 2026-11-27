@@ -5,6 +5,7 @@ import 'dart:ui';
 
 import '../core/constants.dart';
 import 'ai_models.dart';
+import 'mastodon_models.dart';
 
 /// Shared policy mode for both Accessibility Rules (alt-text) and Bias Rules.
 enum PolicyMode {
@@ -334,4 +335,138 @@ class MastodonSession {
 
   final String instanceUrl;
   final String accessToken;
+}
+
+/// Persisted Mastodon account metadata paired with a securely stored OAuth/API token.
+class StoredAccount {
+  const StoredAccount({
+    required this.key,
+    required this.instanceUrl,
+    required this.accessToken,
+    required this.accountId,
+    required this.username,
+    required this.acct,
+    required this.displayName,
+    this.avatar = '',
+  });
+
+  final String key;
+  final String instanceUrl;
+  final String accessToken;
+  final String accountId;
+  final String username;
+  final String acct;
+  final String displayName;
+  final String avatar;
+
+  String get instanceHost {
+    final parsed = Uri.tryParse(instanceUrl);
+    if (parsed != null && parsed.host.isNotEmpty) {
+      return parsed.host.toLowerCase();
+    }
+    return instanceUrl
+        .trim()
+        .replaceFirst(RegExp(r'^https?://', caseSensitive: false), '')
+        .split('/')
+        .first
+        .toLowerCase();
+  }
+
+  /// Canonical `@username@server` handle so identically named accounts on
+  /// different Mastodon servers are always clearly distinguishable.
+  String get fullHandle {
+    final cleanAcct = acct.trim().replaceFirst(RegExp(r'^@+'), '');
+    if (cleanAcct.contains('@')) {
+      return '@$cleanAcct';
+    }
+    final user = cleanAcct.isNotEmpty ? cleanAcct : username.trim();
+    final host = instanceHost;
+    return host.isNotEmpty ? '@$user@$host' : '@$user';
+  }
+
+  String get effectiveDisplayName =>
+      displayName.trim().isNotEmpty ? displayName.trim() : username;
+
+  MastodonSession get session => MastodonSession(
+        instanceUrl: instanceUrl,
+        accessToken: accessToken,
+      );
+
+  static String buildKey(String instanceUrl, String accountId) {
+    final cleanUrl = instanceUrl.trim().replaceAll(RegExp(r'/+$'), '').toLowerCase();
+    return '$cleanUrl::${accountId.trim()}';
+  }
+
+  factory StoredAccount.fromSessionAndAccount({
+    required MastodonSession session,
+    required MastodonAccount account,
+  }) {
+    final cleanInstance =
+        session.instanceUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    return StoredAccount(
+      key: buildKey(cleanInstance, account.id),
+      instanceUrl: cleanInstance,
+      accessToken: session.accessToken,
+      accountId: account.id,
+      username: account.username,
+      acct: account.acct,
+      displayName: account.displayName,
+      avatar: account.avatar,
+    );
+  }
+
+  StoredAccount copyWith({
+    String? accessToken,
+    String? username,
+    String? acct,
+    String? displayName,
+    String? avatar,
+  }) {
+    return StoredAccount(
+      key: key,
+      instanceUrl: instanceUrl,
+      accessToken: accessToken ?? this.accessToken,
+      accountId: accountId,
+      username: username ?? this.username,
+      acct: acct ?? this.acct,
+      displayName: displayName ?? this.displayName,
+      avatar: avatar ?? this.avatar,
+    );
+  }
+
+  /// Serializes only non-secret account metadata for SharedPreferences.
+  /// The access token is stored separately in platform secure storage.
+  Map<String, dynamic> toMetadataJson() => {
+        'key': key,
+        'instanceUrl': instanceUrl,
+        'accountId': accountId,
+        'username': username,
+        'acct': acct,
+        'displayName': displayName,
+        'avatar': avatar,
+      };
+
+  static StoredAccount? fromMetadataJson(
+    Map<String, dynamic> json, {
+    required String accessToken,
+  }) {
+    final instanceUrl = (json['instanceUrl'] as String?)?.trim() ?? '';
+    final accountId = (json['accountId'] as String?)?.trim() ?? '';
+    if (instanceUrl.isEmpty || accountId.isEmpty || accessToken.isEmpty) {
+      return null;
+    }
+    final key = (json['key'] as String?)?.trim();
+    return StoredAccount(
+      key: (key != null && key.isNotEmpty)
+          ? key
+          : buildKey(instanceUrl, accountId),
+      instanceUrl: instanceUrl,
+      accessToken: accessToken,
+      accountId: accountId,
+      username: (json['username'] as String?) ?? '',
+      acct: (json['acct'] as String?) ?? '',
+      displayName: (json['displayName'] as String?) ?? '',
+      avatar: (json['avatar'] as String?) ?? '',
+    );
+  }
 }

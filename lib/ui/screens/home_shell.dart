@@ -14,6 +14,7 @@ import '../../state/app_controller.dart';
 import '../helpers/keyboard_shortcuts.dart';
 import '../widgets/accessible_avatar.dart';
 import '../widgets/accessible_tip.dart';
+import '../widgets/account_switcher_sheet.dart';
 import '../widgets/update_banner.dart';
 import 'composer_screen.dart';
 import 'local_search_screen.dart';
@@ -199,6 +200,10 @@ class _HomeShellState extends State<HomeShell> {
       listenable: widget.app,
       builder: (context, _) {
         final account = widget.app.currentAccount;
+        final activeHandle = widget.app.activeAccountFullHandle;
+        final hasMultipleAccounts = widget.app.hasMultipleAccounts;
+        final accountCacheSuffix =
+            '${widget.app.activeAccountKey ?? ''}_${widget.app.accountGeneration}';
         final update = widget.app.visibleUpdate;
         final fedi = context.fediColors;
         final screenWidth = MediaQuery.sizeOf(context).width;
@@ -211,6 +216,7 @@ class _HomeShellState extends State<HomeShell> {
 
         final contentColumn = Column(
           children: [
+            if (widget.app.isSwitchingAccount) const LinearProgressIndicator(),
             // Dismissible GitHub Update Available banner
             if (update != null)
               UpdateBanner(
@@ -219,8 +225,12 @@ class _HomeShellState extends State<HomeShell> {
               ),
             Expanded(
               child: _selectedTimeline == TimelineType.notifications
-                  ? NotificationsScreen(app: widget.app)
+                  ? NotificationsScreen(
+                      key: ValueKey('notifications_$accountCacheSuffix'),
+                      app: widget.app,
+                    )
                   : TimelineScreen(
+                      key: ValueKey('timeline_$accountCacheSuffix'),
                       app: widget.app,
                       timelineType: _selectedTimeline,
                     ),
@@ -240,10 +250,10 @@ class _HomeShellState extends State<HomeShell> {
                     button: true,
                     label: l10n.homeProfileHeaderSemantics(
                       account.effectiveDisplayName,
-                      account.handle,
+                      activeHandle,
                     ),
                     child: AccessibleTip(
-                      message: l10n.homeProfileHeaderTip(account.handle),
+                      message: l10n.homeProfileHeaderTip(activeHandle),
                       child: InkWell(
                         onTap: () => _selectTimeline(TimelineType.myPosts),
                       borderRadius: BorderRadius.circular(10),
@@ -274,7 +284,7 @@ class _HomeShellState extends State<HomeShell> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    account.handle,
+                                    activeHandle,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -292,6 +302,64 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ),
             actions: [
+              if (account != null)
+                hasMultipleAccounts
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Semantics(
+                          button: true,
+                          label: l10n.accountsSwitchTooltip(activeHandle),
+                          child: AccessibleTip(
+                            message: l10n.accountsSwitchTooltip(activeHandle),
+                            child: OutlinedButton(
+                              onPressed: () => AccountSwitcherSheet.show(
+                                context,
+                                widget.app,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AccessibleAvatar(
+                                    imageUrl: account.avatar,
+                                    displayName: account.effectiveDisplayName,
+                                    radius: 12,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: isWideLayout ? 200 : 96,
+                                    ),
+                                    child: Text(
+                                      isWideLayout
+                                          ? activeHandle
+                                          : account.handle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.unfold_more, size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : AccessibleTip(
+                        message: l10n.accountsManageTooltip,
+                        child: IconButton(
+                          icon: const Icon(Icons.switch_account_outlined),
+                          onPressed: () =>
+                              AccountSwitcherSheet.show(context, widget.app),
+                        ),
+                      ),
               AccessibleTip(
                 message: l10n.homeSearchTooltip,
                 child: IconButton(
@@ -350,7 +418,7 @@ class _HomeShellState extends State<HomeShell> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              account.handle,
+                              activeHandle,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -399,6 +467,15 @@ class _HomeShellState extends State<HomeShell> {
                     type: TimelineType.myPosts,
                   ),
                   const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.switch_account_outlined),
+                    title: Text(l10n.accountsSwitchOrAddLabel),
+                    subtitle: hasMultipleAccounts ? Text(activeHandle) : null,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      AccountSwitcherSheet.show(context, widget.app);
+                    },
+                  ),
                   ListTile(
                     leading: const Icon(Icons.settings_outlined),
                     title: Text(l10n.homeDrawerSettings),
