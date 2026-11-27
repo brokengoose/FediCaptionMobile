@@ -36,6 +36,11 @@ class QuoteCacheController extends ChangeNotifier {
   int _activeResolutions = 0;
   bool _disposed = false;
 
+  /// Bumped by [clear] (account switch); resolutions started under an older
+  /// epoch drop their results, since they used the previous account's
+  /// session and instance-local status IDs.
+  int _epoch = 0;
+
   MastodonStatus? cachedStatus(String url) {
     final key = _normalizeKey(url);
     if (!_cache.containsKey(key)) return null;
@@ -136,8 +141,11 @@ class QuoteCacheController extends ChangeNotifier {
     try {
       return await future;
     } finally {
-      // Only drops the map entry; the future itself was awaited above.
-      unawaited(_inFlightFutures.remove(key));
+      // Only drop our own entry: after a clear() a newer resolution for the
+      // same key may already be in flight.
+      if (identical(_inFlightFutures[key], future)) {
+        unawaited(_inFlightFutures.remove(key));
+      }
       _safeNotify();
     }
   }
@@ -147,14 +155,16 @@ class QuoteCacheController extends ChangeNotifier {
     String rawUrl,
     MastodonSession session,
   ) async {
+    final epoch = _epoch;
     await _acquireSlot();
     try {
-      if (_disposed) return null;
+      if (_disposed || epoch != _epoch) return null;
       final resolved = await _mastodon.resolveStatusByUrl(
         instanceUrl: session.instanceUrl,
         accessToken: session.accessToken,
         statusUrl: rawUrl,
       );
+      if (epoch != _epoch) return null; // Account switched meanwhile.
       final target = resolved?.displayStatus;
       _putEntry(key, target);
       if (target != null) {
@@ -162,7 +172,7 @@ class QuoteCacheController extends ChangeNotifier {
       }
       return target;
     } catch (_) {
-      _putEntry(key, null);
+      if (epoch == _epoch) _putEntry(key, null);
       return null;
     } finally {
       _releaseSlot();
@@ -209,6 +219,7 @@ class QuoteCacheController extends ChangeNotifier {
   }
 
   void clear() {
+    _epoch++;
     _cache.clear();
     _inFlightFutures.clear();
     _safeNotify();

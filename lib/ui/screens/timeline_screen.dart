@@ -224,6 +224,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
   /// Pull-to-refresh / post-publish refresh using `since_id` so Mastodon only
   /// transfers genuinely new posts instead of re-serializing the full page.
   Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     final account = widget.app.currentAccount;
     if (session == null || account == null) return;
@@ -241,7 +244,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         currentUserId: account.id,
         sinceId: _statuses.first.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       if (newer.isNotEmpty) {
         widget.app.quoteCache.seedStatuses(newer);
       }
@@ -264,7 +267,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       if (_statuses.isEmpty) {
         setState(() {
           _error = e.toString();
@@ -275,6 +278,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   Future<void> _loadInitial({bool silentAnnouncement = false}) async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     final account = widget.app.currentAccount;
     if (session == null || account == null) return;
@@ -292,7 +298,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         type: widget.timelineType,
         currentUserId: account.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       widget.app.quoteCache.seedStatuses(items);
       widget.app.timelineCache.putTimeline(
@@ -315,7 +321,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         );
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -324,6 +330,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   Future<void> _loadMore() async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     final account = widget.app.currentAccount;
     if (session == null || account == null || _statuses.isEmpty) return;
@@ -337,7 +346,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         currentUserId: account.id,
         maxId: _statuses.last.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       widget.app.quoteCache.seedStatuses(items);
       final combined = widget.app.timelineCache.appendOlderTimeline(
@@ -351,7 +360,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
         _hasMore = hasMore;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() => _isLoadingMore = false);
     }
   }

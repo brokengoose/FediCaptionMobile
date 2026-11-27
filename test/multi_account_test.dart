@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fedicaption_mobile/models/app_settings.dart';
@@ -118,6 +119,23 @@ class _FakeMastodonService extends MastodonService {
   /// When set, every verifyCredentials call throws this (simulates offline).
   Object? verifyError;
 
+  /// When set, verifyCredentials waits for it (holds an account switch open).
+  Completer<void>? verifyGate;
+
+  /// When set, resolveStatusByUrl waits for it, then returns [resolvedStatus].
+  Completer<void>? resolveGate;
+  MastodonStatus? resolvedStatus;
+
+  @override
+  Future<MastodonStatus?> resolveStatusByUrl({
+    required String instanceUrl,
+    required String accessToken,
+    required String statusUrl,
+  }) async {
+    if (resolveGate != null) await resolveGate!.future;
+    return resolvedStatus;
+  }
+
   /// When true, fetchInstanceLimits reports failure (`null`).
   bool failInstanceLimits = false;
 
@@ -126,6 +144,7 @@ class _FakeMastodonService extends MastodonService {
     required String instanceUrl,
     required String accessToken,
   }) async {
+    if (verifyGate != null) await verifyGate!.future;
     if (verifyError != null) throw verifyError!;
     final account = accountsByCreds[_credKey(instanceUrl, accessToken)];
     if (account == null) {
@@ -537,6 +556,130 @@ void main() {
       await Future.wait([for (final a in accounts) storage.saveAccount(a)]);
 
       expect(await storage.loadAccounts(), hasLength(5));
+    });
+  });
+
+  group('Account switch isolation', () {
+    const alice = MastodonAccount(
+      id: '10',
+      username: 'alice',
+      acct: 'alice',
+      displayName: 'Alice',
+      avatar: '',
+    );
+    const bob = MastodonAccount(
+      id: '20',
+      username: 'bob',
+      acct: 'bob',
+      displayName: 'Bob',
+      avatar: '',
+    );
+
+    Future<(AppController, _FakeMastodonService)> twoAccounts() async {
+      final mastodon = _FakeMastodonService()
+        ..registerAccount(
+          instanceUrl: 'https://mastodon.social',
+          accessToken: 'tok-alice',
+          account: alice,
+        )
+        ..registerAccount(
+          instanceUrl: 'https://infosec.exchange',
+          accessToken: 'tok-bob',
+          account: bob,
+        );
+      final app = AppController(
+        storageService: StorageService(
+          secureStorage: _InMemorySecureStorage(),
+          enableLinuxKeyringFallback: false,
+        ),
+        mastodonService: mastodon,
+        onDeviceAiService: _StubOnDeviceAiService(),
+        updateCheckService: _NoOpUpdateCheckService(),
+        ttsService: _StubTtsService(),
+      );
+      addTearDown(app.dispose);
+      await app.loginWithAccessToken(
+        rawInstanceUrl: 'infosec.exchange',
+        accessToken: 'tok-bob',
+      );
+      await app.loginWithAccessToken(
+        rawInstanceUrl: 'mastodon.social',
+        accessToken: 'tok-alice',
+      );
+      return (app, mastodon);
+    }
+
+    test('old-account timeline writes during a switch do not leak into the '
+        'new account', () async {
+      final (app, mastodon) = await twoAccounts();
+      expect(app.activeAccountFullHandle, '@alice@mastodon.social');
+      final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+
+      mastodon.verifyGate = Completer<void>();
+      final switching = app.switchAccount(bobKey);
+      await Future<void>.delayed(Duration.zero); // now parked on verifyGate
+
+      // An Alice screen still mounted mid-switch finishes a page load.
+      app.timelineCache.putTimeline(TimelineType.home, [
+        _samplePost('a1', 'Alice private home feed', alice),
+      ], hasMore: false);
+
+      mastodon.verifyGate!.complete();
+      expect(await switching, isTrue);
+
+      expect(app.activeAccountFullHandle, '@bob@infosec.exchange');
+      expect(app.timelineCache.timelineFor(TimelineType.home), isNull);
+    });
+
+    test('a failed switch keeps the current account caches intact', () async {
+      final (app, mastodon) = await twoAccounts();
+      final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+      app.timelineCache.putTimeline(TimelineType.home, [
+        _samplePost('a1', 'Alice home', alice),
+      ], hasMore: false);
+
+      mastodon.verifyError = Exception('offline');
+      expect(await app.switchAccount(bobKey), isFalse);
+
+      expect(app.activeAccountFullHandle, '@alice@mastodon.social');
+      expect(app.timelineCache.timelineFor(TimelineType.home), isNotNull);
+    });
+
+    test(
+      'a quote resolved for the old account is dropped after a switch',
+      () async {
+        final (app, mastodon) = await twoAccounts();
+        final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+        mastodon
+          ..resolveGate = Completer<void>()
+          ..resolvedStatus = _samplePost('q1', 'Quoted via Alice', alice);
+
+        const url = 'https://elsewhere.example/@x/123';
+        final resolving = app.resolveQuotedStatus(url);
+        expect(await app.switchAccount(bobKey), isTrue);
+
+        mastodon.resolveGate!.complete();
+        await resolving;
+
+        expect(app.cachedQuotedStatus(url), isNull);
+        expect(app.hasResolvedQuote(url), isFalse);
+      },
+    );
+
+    test('AI captions are not shared across accounts', () async {
+      final (app, _) = await twoAccounts();
+      final bobKey = app.accounts.firstWhere((a) => a.accountId == '20').key;
+      final aliceKey = app.activeAccountKey!;
+
+      app.mediaAi.debugPutDescription('m1', 'Caption made on Alice');
+      await app.mediaAi.debugFlush();
+      expect(await app.switchAccount(bobKey), isTrue);
+      await app.mediaAi.debugFlush();
+      expect(app.aiDescriptionForMedia('m1'), isNull);
+
+      expect(await app.switchAccount(aliceKey), isTrue);
+      await app.mediaAi.debugFlush();
+      expect(app.aiDescriptionForMedia('m1'), 'Caption made on Alice');
     });
   });
 

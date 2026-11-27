@@ -38,24 +38,52 @@ class TimelineMediaAiController extends ChangeNotifier {
   final Map<String, String> _errors = {};
   bool _disposed = false;
 
-  static const String _prefsCacheKey = 'fedicaption_media_ai_captions_v1';
+  /// Pre-multi-account cache: not attributable to an account (media IDs are
+  /// instance-local), so it is discarded rather than migrated.
+  static const String _legacyPrefsCacheKey = 'fedicaption_media_ai_captions_v1';
+  static const String _prefsCacheKeyPrefix =
+      'fedicaption_media_ai_captions_v2::';
+
+  /// Account whose captions are loaded; media IDs are only unique per
+  /// instance, so captions are stored and served per account.
+  String? _accountKey;
+
+  /// Bumped on every scope change; async work started under an older epoch
+  /// discards its result.
+  int _epoch = 0;
+  Future<void>? _lastIo;
 
   String? descriptionFor(String mediaId) => _descriptions[mediaId];
   bool isDescribing(String mediaId) => _describingIds.contains(mediaId);
   String? errorFor(String mediaId) => _errors[mediaId];
 
-  /// Loads previously generated timeline AI descriptions from local storage so
-  /// restarting the app does not re-download media or re-call the AI model.
+  /// Switches caption scope to [accountKey] (`null` = signed out): drops
+  /// in-memory captions and in-flight results, then restores that account's
+  /// persisted captions.
+  Future<void> useAccount(String? accountKey) {
+    _accountKey = accountKey;
+    clear();
+    return _track(loadPersistedCache());
+  }
+
+  /// Loads previously generated timeline AI descriptions for the current
+  /// account so restarting the app does not re-download media or re-call the
+  /// AI model.
   Future<void> loadPersistedCache() async {
+    final accountKey = _accountKey;
+    if (accountKey == null) return;
+    final epoch = _epoch;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsCacheKey);
-      if (raw == null || raw.isEmpty) return;
+      unawaited(prefs.remove(_legacyPrefsCacheKey));
+      final raw = prefs.getString('$_prefsCacheKeyPrefix$accountKey');
+      if (epoch != _epoch || raw == null || raw.isEmpty) return;
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return;
       for (final entry in decoded.entries) {
-        if (entry.value is String && (entry.value as String).isNotEmpty) {
-          _descriptions[entry.key] = entry.value as String;
+        final value = entry.value;
+        if (value is String && value.isNotEmpty) {
+          _descriptions.putIfAbsent(entry.key, () => value);
         }
       }
       while (_descriptions.length > maxEntries) {
@@ -68,12 +96,30 @@ class TimelineMediaAiController extends ChangeNotifier {
   }
 
   Future<void> _persistCache() async {
+    final accountKey = _accountKey;
+    if (accountKey == null) return;
+    final snapshot = jsonEncode(_descriptions);
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsCacheKey, jsonEncode(_descriptions));
+      await prefs.setString('$_prefsCacheKeyPrefix$accountKey', snapshot);
     } catch (_) {
       // Best-effort cache persistence.
     }
+  }
+
+  Future<void> _track(Future<void> io) => _lastIo = io;
+
+  @visibleForTesting
+  void debugPutDescription(String mediaId, String caption) {
+    _descriptions[mediaId] = caption;
+    unawaited(_track(_persistCache()));
+  }
+
+  /// Completes once the most recent load/persist has finished.
+  @visibleForTesting
+  Future<void> debugFlush() async {
+    final io = _lastIo;
+    if (io != null) await io;
   }
 
   /// Downloads [attachment] media bytes (preferring pre-sized `preview_url`
@@ -91,6 +137,7 @@ class TimelineMediaAiController extends ChangeNotifier {
     _describingIds.add(attachment.id);
     _errors.remove(attachment.id);
     _safeNotify();
+    final epoch = _epoch;
 
     final l10n = _l10nProvider();
     AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceGenerating);
@@ -116,23 +163,28 @@ class TimelineMediaAiController extends ChangeNotifier {
         draftPostContext: postContext,
       );
 
+      if (epoch != _epoch) return; // Account switched; ID may not match.
       _descriptions.remove(attachment.id);
       _descriptions[attachment.id] = caption;
       while (_descriptions.length > maxEntries) {
         _descriptions.remove(_descriptions.keys.first);
       }
-      unawaited(_persistCache());
+      unawaited(_track(_persistCache()));
       AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceReady(caption));
     } catch (e) {
+      if (epoch != _epoch) return;
       _errors[attachment.id] = e.toString();
       AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceFailed);
     } finally {
-      _describingIds.remove(attachment.id);
-      _safeNotify();
+      if (epoch == _epoch) {
+        _describingIds.remove(attachment.id);
+        _safeNotify();
+      }
     }
   }
 
   void clear() {
+    _epoch++;
     _descriptions.clear();
     _describingIds.clear();
     _errors.clear();

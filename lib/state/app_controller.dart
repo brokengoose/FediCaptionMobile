@@ -328,7 +328,7 @@ class AppController extends ChangeNotifier {
 
     // Fire-and-forget startup tasks: restore AI caption cache, prune media disk
     // cache, check on-device AI, GitHub update check & models refresh.
-    unawaited(mediaAi.loadPersistedCache());
+    unawaited(mediaAi.useAccount(isAuthenticated ? _activeAccountKey : null));
     unawaited(MediaCacheService.instance.pruneIfNeeded());
     unawaited(refreshOnDeviceAiStatus());
     unawaited(_runUpdateCheck());
@@ -595,12 +595,16 @@ class AppController extends ChangeNotifier {
         _activeAccountKey != null && _activeAccountKey != stored.key;
     if (switchingFromOther) {
       await tts.stop();
-      _clearPerAccountCaches();
     }
 
     await storage.saveAccount(stored);
     _upsertStoredAccount(stored);
 
+    // Commit point: reset account-scoped caches in the same synchronous step
+    // as the session swap (see switchAccount).
+    if (switchingFromOther || _activeAccountKey == null) {
+      _resetAccountScopedState(stored.key);
+    }
     _session = newSession;
     _currentAccount = account;
     _activeAccountKey = stored.key;
@@ -637,7 +641,6 @@ class AppController extends ChangeNotifier {
     _safeNotify();
 
     await tts.stop();
-    _clearPerAccountCaches();
 
     try {
       final account = await mastodon.verifyCredentials(
@@ -655,6 +658,12 @@ class AppController extends ChangeNotifier {
       _upsertStoredAccount(refreshed);
       await storage.saveAccount(refreshed);
 
+      // Commit point. Caches are reset here, synchronously with the session
+      // swap and generation bump, not before the awaits above: screens of the
+      // old account stay mounted until now, and anything they wrote while
+      // the switch was pending must not be served to the new account. A
+      // failed switch leaves the current account's caches intact.
+      _resetAccountScopedState(refreshed.key);
       _session = refreshed.session;
       _currentAccount = account;
       _activeAccountKey = refreshed.key;
@@ -686,7 +695,7 @@ class AppController extends ChangeNotifier {
       _session = null;
       _currentAccount = null;
       _instanceLimits = const InstanceLimits();
-      _clearPerAccountCaches();
+      _resetAccountScopedState(null);
       _accountGeneration++;
       _safeNotify();
       AccessibilityAnnouncer.announce(l10n.authAnnounceSignedOut);
@@ -702,7 +711,7 @@ class AppController extends ChangeNotifier {
     }
 
     await tts.stop();
-    _clearPerAccountCaches();
+    _resetAccountScopedState(null);
 
     if (_accounts.isNotEmpty) {
       _activeAccountKey = null;
@@ -739,11 +748,13 @@ class AppController extends ChangeNotifier {
     _accounts = next;
   }
 
-  void _clearPerAccountCaches() {
+  /// Drops every account-scoped cache and scopes AI captions to
+  /// [nextAccountKey] (`null` = signed out).
+  void _resetAccountScopedState(String? nextAccountKey) {
     mastodon.clearSessionCaches();
     timelineCache.clear();
-    mediaAi.clear();
     quoteCache.clear();
+    unawaited(mediaAi.useAccount(nextAccountKey));
   }
 
   /// Persists updated non-secret settings and optionally refreshes models when

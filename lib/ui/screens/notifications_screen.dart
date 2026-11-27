@@ -174,6 +174,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     if (session == null) return;
     if (_notifications.isEmpty) {
@@ -187,7 +190,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         accessToken: session.accessToken,
         sinceId: _notifications.first.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       _seedNotificationStatuses(newer);
       final merged = widget.app.timelineCache.mergeNewerNotifications(newer);
       setState(() {
@@ -219,6 +222,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _load() async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     if (session == null) return;
     setState(() {
@@ -232,7 +238,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         instanceUrl: session.instanceUrl,
         accessToken: session.accessToken,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       _seedNotificationStatuses(items);
       widget.app.timelineCache.putNotifications(items, hasMore: hasMore);
@@ -245,7 +251,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         context.l10n.notificationsAnnounceLoadedInitial(items.length),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -254,6 +260,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _loadMore() async {
+    // Results fetched for a previous account must not land in the new
+    // account's cache (this screen can still be mounted just after a switch).
+    final generation = widget.app.accountGeneration;
     final session = widget.app.session;
     if (session == null || _notifications.isEmpty) return;
 
@@ -264,7 +273,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         accessToken: session.accessToken,
         maxId: _notifications.last.id,
       );
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       final hasMore = items.length >= 15;
       _seedNotificationStatuses(items);
       final combined = widget.app.timelineCache.appendOlderNotifications(
@@ -277,7 +286,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _hasMore = hasMore;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != widget.app.accountGeneration) return;
       setState(() => _isLoadingMore = false);
     }
   }
