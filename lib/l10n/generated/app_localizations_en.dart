@@ -3,6 +3,7 @@
 
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -341,10 +342,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String onDeviceAiDiagnosticDetail(
-      String promptAvailability,
-      String promptDiagnostic,
-      String imageAvailability,
-      String imageDiagnostic) {
+    String promptAvailability,
+    String promptDiagnostic,
+    String imageAvailability,
+    String imageDiagnostic,
+  ) {
     return 'Prompt API: $promptAvailability$promptDiagnostic\nImage Description API: $imageAvailability$imageDiagnostic';
   }
 
@@ -643,7 +645,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String timelineAnnouncePostSelection(
-      int index, int total, String authorName, String preview) {
+    int index,
+    int total,
+    String authorName,
+    String preview,
+  ) {
     return 'Post $index of $total by $authorName. $preview';
   }
 
@@ -1139,7 +1145,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String translationTranslatingStatus(
-      String sourceLanguage, String targetLanguage) {
+    String sourceLanguage,
+    String targetLanguage,
+  ) {
     return 'Translating from $sourceLanguage to $targetLanguage…';
   }
 
@@ -1588,8 +1596,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other:
           '$count media attachments are missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?',
-      one:
-          '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?',
+      one: '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to auto-generate descriptions with AI before posting?',
     );
     return '$_temp0';
   }
@@ -1601,8 +1608,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other:
           '$count media attachments are missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?',
-      one:
-          '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?',
+      one: '1 media attachment is missing an alt-text description for blind and low-vision readers. Would you like to add alt-text in the composer before posting?',
     );
     return '$_temp0';
   }
@@ -1614,8 +1620,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other:
           '$count media attachments are missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.',
-      one:
-          '1 media attachment is missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.',
+      one: '1 media attachment is missing an alt-text description for blind and low-vision readers. Your Accessibility Rules policy requires alt-text on all attached media before posting.',
     );
     return '$_temp0';
   }
@@ -1851,7 +1856,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsAccountSubtitle(
-      String instanceUrl, int maxChars, int maxMedia, int altLimit) {
+    String instanceUrl,
+    int maxChars,
+    int maxMedia,
+    int altLimit,
+  ) {
     return 'Server: $instanceUrl\nMax post length: $maxChars chars · Max media: $maxMedia · Alt-text limit: $altLimit chars';
   }
 

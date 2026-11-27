@@ -170,7 +170,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                                     height: _previewHeightFor(att.aspectRatio),
                                     fit: BoxFit.cover,
                                     gaplessPlayback: true,
-                                    errorBuilder: (_, __, ___) {
+                                    errorBuilder: (_, _, _) {
                                       // The resize wrapper has its own cache
                                       // entry; evict it so the preview retries
                                       // next time this card is built.

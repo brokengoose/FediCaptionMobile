@@ -360,7 +360,7 @@ class MastodonService {
       instanceUrl: instanceUrl,
       path: '/api/v1/accounts/$accountId/follow',
       accessToken: accessToken,
-      body: {if (notify != null) 'notify': notify},
+      body: {'notify': ?notify},
       errorContext: 'Failed to follow user',
     );
     final rel = MastodonRelationship.fromJson(decoded);

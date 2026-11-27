@@ -55,19 +55,15 @@ class BiasComponentLabels {
   const BiasComponentLabels({
     required this.postText,
     required this.contentWarning,
-    required String Function(int index) attachmentLabel,
-    required String Function(String url) linkLabel,
-    required String Function(String handle) referencedMessageLabel,
+    required this._attachmentLabel,
+    required this._linkLabel,
+    required this._referencedMessageLabel,
     required this.cleanSummary,
     required this.localCleanSummary,
-    required String Function(String checkedLabel, int count) findingsSummary,
-    required String Function(String checkedLabel) aiFallbackBiasSummary,
+    required this._findingsSummary,
+    required this._aiFallbackBiasSummary,
     required this.aiFallbackCleanSummary,
-  })  : _attachmentLabel = attachmentLabel,
-        _linkLabel = linkLabel,
-        _referencedMessageLabel = referencedMessageLabel,
-        _findingsSummary = findingsSummary,
-        _aiFallbackBiasSummary = aiFallbackBiasSummary;
+  });
 
   const BiasComponentLabels.english()
       : postText = 'Post Text',

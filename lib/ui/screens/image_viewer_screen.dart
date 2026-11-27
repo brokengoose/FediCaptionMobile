@@ -197,7 +197,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                                 CircularProgressIndicator(color: Colors.white),
                           );
                         },
-                        errorBuilder: (_, __, ___) => Center(
+                        errorBuilder: (_, _, _) => Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [

@@ -20,13 +20,11 @@ import '../services/mastodon_service.dart';
 /// app listeners and bounded in memory.
 class TimelineMediaAiController extends ChangeNotifier {
   TimelineMediaAiController({
-    required MastodonService mastodon,
-    required AiProviderService aiProvider,
+    required this._mastodon,
+    required this._aiProvider,
     AppLocalizations Function()? l10nProvider,
     this.maxEntries = 200,
-  })  : _mastodon = mastodon,
-        _aiProvider = aiProvider,
-        _l10nProvider = l10nProvider ?? (() => resolveAppLocalizations());
+  })  : _l10nProvider = l10nProvider ?? (() => resolveAppLocalizations());
 
   final MastodonService _mastodon;
   final AiProviderService _aiProvider;

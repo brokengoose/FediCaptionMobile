@@ -63,7 +63,7 @@ void main() {
   group('OnDeviceAiService', () {
     test('falls back from empty dedicated Image Describer to prompt without duplicate describer call', () async {
       final prompt = _FakePromptClient(
-        onGenerate: (_, __) => Stream.value('Fallback multimodal caption'),
+        onGenerate: (_, _) => Stream.value('Fallback multimodal caption'),
       );
       final describer = _FakeImageDescriberClient(
         onDescribe: (_) async => '   ',
@@ -86,7 +86,7 @@ void main() {
 
     test('auto mode falls back to Image Describer when multimodal prompt throws', () async {
       final prompt = _FakePromptClient(
-        onGenerate: (_, __) => Stream.error(Exception('Vision prompt unsupported')),
+        onGenerate: (_, _) => Stream.error(Exception('Vision prompt unsupported')),
       );
       final describer = _FakeImageDescriberClient(
         onDescribe: (_) async => 'A dog sitting on grass',

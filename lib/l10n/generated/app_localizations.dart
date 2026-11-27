@@ -65,7 +65,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -88,11 +88,11 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
@@ -666,10 +666,11 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prompt API: {promptAvailability}{promptDiagnostic}\nImage Description API: {imageAvailability}{imageDiagnostic}'**
   String onDeviceAiDiagnosticDetail(
-      String promptAvailability,
-      String promptDiagnostic,
-      String imageAvailability,
-      String imageDiagnostic);
+    String promptAvailability,
+    String promptDiagnostic,
+    String imageAvailability,
+    String imageDiagnostic,
+  );
 
   /// No description provided for @aiProviderOnDeviceLabel.
   ///
@@ -1150,7 +1151,11 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Post {index} of {total} by {authorName}. {preview}'**
   String timelineAnnouncePostSelection(
-      int index, int total, String authorName, String preview);
+    int index,
+    int total,
+    String authorName,
+    String preview,
+  );
 
   /// No description provided for @timelineAnnounceUpToDate.
   ///
@@ -1721,7 +1726,9 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Translating from {sourceLanguage} to {targetLanguage}…'**
   String translationTranslatingStatus(
-      String sourceLanguage, String targetLanguage);
+    String sourceLanguage,
+    String targetLanguage,
+  );
 
   /// No description provided for @translationTranslatedStatus.
   ///
@@ -2820,7 +2827,11 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Server: {instanceUrl}\nMax post length: {maxChars} chars · Max media: {maxMedia} · Alt-text limit: {altLimit} chars'**
   String settingsAccountSubtitle(
-      String instanceUrl, int maxChars, int maxMedia, int altLimit);
+    String instanceUrl,
+    int maxChars,
+    int maxMedia,
+    int altLimit,
+  );
 
   /// No description provided for @settingsSignOut.
   ///
@@ -3280,8 +3291,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

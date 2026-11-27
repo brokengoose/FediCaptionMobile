@@ -66,26 +66,17 @@ typedef NativeLanguageDetectCallback = Future<String?> Function(String text);
 /// - Mastodon's built-in server translation API (`POST /api/v1/statuses/:id/translate`)
 class TranslationService {
   TranslationService({
-    required OnDeviceAiService onDeviceAi,
-    AiProviderService? aiProvider,
-    MastodonService? mastodon,
-    TargetPlatform? platformOverride,
-    bool? isWebOverride,
-    String Function()? osLanguageProvider,
-    AppleSupportCheckCallback? appleSupportCheck,
-    NativeLanguageDetectCallback? nativeLanguageDetect,
-    AppleTranslateCallback? appleTranslate,
-    MlKitTranslateCallback? mlKitTranslate,
-  })  : _onDeviceAi = onDeviceAi,
-        _aiProvider = aiProvider,
-        _mastodon = mastodon,
-        _platformOverride = platformOverride,
-        _isWebOverride = isWebOverride,
-        _osLanguageProvider = osLanguageProvider,
-        _appleSupportCheck = appleSupportCheck,
-        _nativeLanguageDetect = nativeLanguageDetect,
-        _appleTranslate = appleTranslate,
-        _mlKitTranslate = mlKitTranslate;
+    required this._onDeviceAi,
+    this._aiProvider,
+    this._mastodon,
+    this._platformOverride,
+    this._isWebOverride,
+    this._osLanguageProvider,
+    this._appleSupportCheck,
+    this._nativeLanguageDetect,
+    this._appleTranslate,
+    this._mlKitTranslate,
+  });
 
   static const MethodChannel _appleChannel = MethodChannel(
     'io.github.brokengoose.fedicaption/apple_translation',

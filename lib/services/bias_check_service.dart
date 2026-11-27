@@ -26,14 +26,11 @@ import 'mastodon_service.dart';
 /// Automatically falls back to [LocalBiasHeuristics] when the AI endpoint is offline.
 class BiasCheckService {
   BiasCheckService({
-    required AiProviderService aiProviderService,
-    required LinkPreviewFetcher linkPreviewFetcher,
-    required MastodonService mastodonService,
-    QuoteCacheController? quoteCache,
-  })  : _aiProviderService = aiProviderService,
-        _linkPreviewFetcher = linkPreviewFetcher,
-        _mastodonService = mastodonService,
-        _quoteCache = quoteCache;
+    required this._aiProviderService,
+    required this._linkPreviewFetcher,
+    required this._mastodonService,
+    this._quoteCache,
+  });
 
   final AiProviderService _aiProviderService;
   final LinkPreviewFetcher _linkPreviewFetcher;

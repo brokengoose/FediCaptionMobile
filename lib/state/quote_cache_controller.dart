@@ -19,10 +19,10 @@ import '../services/mastodon_service.dart';
 /// - Bounded LRU eviction so memory stays bounded
 class QuoteCacheController extends ChangeNotifier {
   QuoteCacheController({
-    required MastodonService mastodon,
+    required this._mastodon,
     this.maxEntries = 300,
     this.maxConcurrentResolutions = 2,
-  }) : _mastodon = mastodon;
+  });
 
   final MastodonService _mastodon;
   final int maxEntries;

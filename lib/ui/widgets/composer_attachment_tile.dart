@@ -325,13 +325,13 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
       content = Image.file(
         File(att.filePath!),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined),
+        errorBuilder: (_, _, _) => const Icon(Icons.image_outlined),
       );
     } else if (att.previewUrl != null && att.previewUrl!.isNotEmpty) {
       content = Image.network(
         att.previewUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined),
+        errorBuilder: (_, _, _) => const Icon(Icons.image_outlined),
       );
     } else {
       content = Icon(

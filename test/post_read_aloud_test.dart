@@ -23,7 +23,7 @@ class _RecordingTtsService extends TtsService {
   _RecordingTtsService()
       : super(
           isLinuxOverride: true,
-          linuxProcessStarter: (_, __) =>
+          linuxProcessStarter: (_, _) =>
               throw const ProcessException('spd-say', [], 'Disabled in test'),
         );
 

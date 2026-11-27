@@ -107,12 +107,10 @@ class WindowsTlsTrust {
 
 class _WindowsCryptoApiHttpOverrides extends HttpOverrides {
   _WindowsCryptoApiHttpOverrides({
-    required _AllocDart alloc,
-    required _FreeDart free,
-    required _VerifyDart verify,
-  })  : _alloc = alloc,
-        _free = free,
-        _verify = verify;
+    required this._alloc,
+    required this._free,
+    required this._verify,
+  });
 
   final _AllocDart _alloc;
   final _FreeDart _free;

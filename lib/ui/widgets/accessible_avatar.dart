@@ -41,7 +41,7 @@ class AccessibleAvatar extends StatelessWidget {
       foregroundColor: scheme.onPrimaryContainer,
       backgroundImage:
           imageUrl.isNotEmpty ? DiskCachedNetworkImage(imageUrl) : null,
-      onBackgroundImageError: imageUrl.isNotEmpty ? (_, __) {} : null,
+      onBackgroundImageError: imageUrl.isNotEmpty ? (_, _) {} : null,
       child: imageUrl.isEmpty
           ? Text(
               _initial,
