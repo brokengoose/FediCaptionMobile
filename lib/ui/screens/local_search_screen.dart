@@ -40,9 +40,21 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
   }
 
+  String? _lastQuery;
+
   void _onQueryChanged() {
+    // The controller also notifies on cursor/selection moves; only re-run the
+    // (full-cache) search when the text actually changed.
+    if (_queryController.text == _lastQuery) return;
+    _refreshResults();
+  }
+
+  /// Re-runs the search; safe to call after awaits (no-op once disposed).
+  void _refreshResults() {
+    if (!mounted) return;
     setState(() {
-      _results = widget.app.timelineCache.searchLocal(_queryController.text);
+      _lastQuery = _queryController.text;
+      _results = widget.app.timelineCache.searchLocal(_lastQuery!);
     });
   }
 
@@ -168,44 +180,26 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
                         onToggleBoost: (st) async {
                           final updated =
                               await _actions.toggleBoost(context, st);
-                          if (updated != null) {
-                            widget.app.timelineCache
-                                .updateStatusEverywhere(updated);
-                            _onQueryChanged();
-                          }
+                          if (updated != null) _refreshResults();
                         },
                         onToggleFavorite: (st) async {
                           final updated =
                               await _actions.toggleFavorite(context, st);
-                          if (updated != null) {
-                            widget.app.timelineCache
-                                .updateStatusEverywhere(updated);
-                            _onQueryChanged();
-                          }
+                          if (updated != null) _refreshResults();
                         },
                         onToggleBookmark: (st) async {
                           final updated =
                               await _actions.toggleBookmark(context, st);
-                          if (updated != null) {
-                            widget.app.timelineCache
-                                .updateStatusEverywhere(updated);
-                            _onQueryChanged();
-                          }
+                          if (updated != null) _refreshResults();
                         },
                         onEdit: (st) async {
                           final edited = await _actions.openEdit(context, st);
-                          if (edited != null && mounted) {
-                            _onQueryChanged();
-                          }
+                          if (edited != null) _refreshResults();
                         },
                         onDelete: (st) async {
                           final deleted =
                               await _actions.confirmAndDelete(context, st);
-                          if (deleted) {
-                            widget.app.timelineCache
-                                .removeStatusEverywhere(st.id);
-                            _onQueryChanged();
-                          }
+                          if (deleted) _refreshResults();
                         },
                       ),
                     );

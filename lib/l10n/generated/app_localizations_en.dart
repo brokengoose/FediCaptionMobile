@@ -894,6 +894,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String profileAnnounceFollowRequested(String displayName) {
+    return 'Follow request sent to $displayName.';
+  }
+
+  @override
   String profileAnnounceUnsubscribed(String displayName) {
     return 'Unsubscribed from $displayName.';
   }

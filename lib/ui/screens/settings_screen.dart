@@ -52,7 +52,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    _textPrefsDebounce?.cancel();
+    // Flush (not drop) an edit typed just before leaving the screen. Snapshot
+    // the text now and save on the next event-loop turn, after the tree
+    // finalizes, so AppController listeners aren't notified mid-unmount.
+    if (_textPrefsDebounce?.isActive ?? false) {
+      _textPrefsDebounce!.cancel();
+      final lang = _languageCtrl.text;
+      final instructions = _customInstructionsCtrl.text;
+      Future(() => _saveTextPrefs(lang, instructions));
+    }
     _languageCtrl.dispose();
     _customInstructionsCtrl.dispose();
     super.dispose();
@@ -62,16 +70,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// does not write SharedPreferences or rebuild the app on every keystroke.
   void _scheduleTextPrefsSave() {
     _textPrefsDebounce?.cancel();
-    _textPrefsDebounce = Timer(const Duration(milliseconds: 500), () {
-      final lang = _languageCtrl.text.trim();
-      widget.app.updateSettings(
-        widget.app.settings.copyWith(
-          language: lang.isEmpty ? 'English' : lang,
-          customInstructions: _customInstructionsCtrl.text,
-        ),
-        autoRefreshModels: false,
-      );
-    });
+    _textPrefsDebounce = Timer(
+      const Duration(milliseconds: 500),
+      () => _saveTextPrefs(_languageCtrl.text, _customInstructionsCtrl.text),
+    );
+  }
+
+  Future<void> _saveTextPrefs(String language, String customInstructions) {
+    final lang = language.trim();
+    return widget.app.updateSettings(
+      widget.app.settings.copyWith(
+        language: lang.isEmpty ? 'English' : lang,
+        customInstructions: customInstructions,
+      ),
+      autoRefreshModels: false,
+    );
   }
 
   @override

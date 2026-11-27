@@ -88,7 +88,25 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
 
   @override
   void dispose() {
-    _saveDebounce?.cancel();
+    // Flush (not drop) a key/URL typed just before leaving. Snapshot inputs
+    // before the controllers are disposed and save on the next event-loop
+    // turn so AppController listeners aren't notified mid-unmount.
+    if (_saveDebounce?.isActive ?? false) {
+      _saveDebounce!.cancel();
+      final app = widget.app;
+      final credentials = buildCredentials();
+      final openAiUrl = _openAiUrlCtrl.text.trim();
+      final localUrl = _localUrlCtrl.text.trim();
+      Future(() async {
+        await app.updateCredentials(credentials);
+        // Merge onto settings as they are at save time so a sibling flush
+        // (e.g. Settings' language field) isn't overwritten by a stale copy.
+        await app.updateSettings(
+          _withBaseUrls(app.settings, openAiUrl: openAiUrl, localUrl: localUrl),
+          autoRefreshModels: false,
+        );
+      });
+    }
     _geminiKeyCtrl.dispose();
     _openAiKeyCtrl.dispose();
     _openAiUrlCtrl.dispose();
@@ -111,10 +129,19 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
   /// Snapshot of settings merged with the current base URL fields (and optional provider override).
   AppSettings buildSettings({AiProviderType? providerOverride}) {
     final base = widget.app.settings;
-    final openAiUrl = _openAiUrlCtrl.text.trim();
-    final localUrl = _localUrlCtrl.text.trim();
+    return _withBaseUrls(
+      base.copyWith(activeProvider: providerOverride ?? base.activeProvider),
+      openAiUrl: _openAiUrlCtrl.text.trim(),
+      localUrl: _localUrlCtrl.text.trim(),
+    );
+  }
+
+  static AppSettings _withBaseUrls(
+    AppSettings base, {
+    required String openAiUrl,
+    required String localUrl,
+  }) {
     return base.copyWith(
-      activeProvider: providerOverride ?? base.activeProvider,
       openAiBaseUrl:
           openAiUrl.isEmpty ? AppConstants.openAiDefaultBaseUrl : openAiUrl,
       localBaseUrl:

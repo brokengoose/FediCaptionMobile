@@ -558,6 +558,12 @@
       "displayName": {"type": "String"}
     }
   },
+  "profileAnnounceFollowRequested": "Follow request sent to {displayName}.",
+  "@profileAnnounceFollowRequested": {
+    "placeholders": {
+      "displayName": {"type": "String"}
+    }
+  },
   "profileAnnounceUnsubscribed": "Unsubscribed from {displayName}.",
   "@profileAnnounceUnsubscribed": {
     "placeholders": {

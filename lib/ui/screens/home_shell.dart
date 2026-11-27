@@ -230,7 +230,12 @@ class _HomeShellState extends State<HomeShell> {
                       app: widget.app,
                     )
                   : TimelineScreen(
-                      key: ValueKey('timeline_$accountCacheSuffix'),
+                      // Type in the key: each timeline gets a fresh State so
+                      // in-flight loads from the previous type can't write
+                      // into this type's cache or carry over scroll offset.
+                      key: ValueKey(
+                        'timeline_${_selectedTimeline.name}_$accountCacheSuffix',
+                      ),
                       app: widget.app,
                       timelineType: _selectedTimeline,
                     ),

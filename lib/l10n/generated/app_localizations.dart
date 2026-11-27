@@ -1428,6 +1428,12 @@ abstract class AppLocalizations {
   /// **'Subscribed to {displayName}.'**
   String profileAnnounceSubscribed(String displayName);
 
+  /// No description provided for @profileAnnounceFollowRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow request sent to {displayName}.'**
+  String profileAnnounceFollowRequested(String displayName);
+
   /// No description provided for @profileAnnounceUnsubscribed.
   ///
   /// In en, this message translates to:

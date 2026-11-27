@@ -36,6 +36,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isInitializing = true;
   bool _isMuted = false;
   String? _error;
+  bool _invalidUrl = false;
+  final FocusNode _rootFocus = FocusNode(debugLabel: 'VideoPlayerScreen');
 
   @override
   void initState() {
@@ -46,10 +48,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _initPlayer() async {
     final uri = Uri.tryParse(widget.videoUrl);
     if (uri == null || widget.videoUrl.trim().isEmpty) {
-      setState(() {
-        _isInitializing = false;
-        _error = context.l10n.videoPlayerInvalidUrl;
-      });
+      // Runs synchronously from initState: no setState and no inherited-widget
+      // lookups (context.l10n) here; build() localizes the message.
+      _isInitializing = false;
+      _invalidUrl = true;
       return;
     }
 
@@ -137,10 +139,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  /// Space toggles playback only when no control has focus; otherwise the
+  /// focused button keeps its normal Space activation for keyboard users.
+  KeyEventResult _handleRootKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.space &&
+        FocusManager.instance.primaryFocus == _rootFocus) {
+      _togglePlayPause();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   void dispose() {
     _controller?.removeListener(_onPlayerUpdate);
     _controller?.dispose();
+    _rootFocus.dispose();
     super.dispose();
   }
 
@@ -152,14 +167,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final isReady = c != null && c.value.isInitialized;
     final isPlaying = isReady && c.value.isPlaying;
 
+    final error = _invalidUrl ? l10n.videoPlayerInvalidUrl : _error;
+
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.space): _togglePlayPause,
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(context).pop(),
       },
       child: Focus(
+        focusNode: _rootFocus,
         autofocus: true,
+        onKeyEvent: _handleRootKey,
         child: Scaffold(
           backgroundColor: Colors.black,
           appBar: AppBar(
@@ -191,7 +209,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   child: Center(
                     child: _isInitializing
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : _error != null
+                        : error != null
                             ? Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
@@ -204,7 +222,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      _error!,
+                                      error,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Colors.white70,

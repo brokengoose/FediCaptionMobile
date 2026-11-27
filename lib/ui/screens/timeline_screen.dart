@@ -56,16 +56,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
     _loadOrUseCache();
   }
 
-  @override
-  void didUpdateWidget(covariant TimelineScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.timelineType != widget.timelineType) {
-      _selectedIndex = null;
-      _itemKeys.clear();
-      _loadOrUseCache();
-    }
-  }
-
   GlobalKey _keyForStatus(String id) =>
       _itemKeys.putIfAbsent(id, () => GlobalKey());
 
@@ -389,7 +379,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
   Future<void> _deleteStatus(MastodonStatus target) async {
     final deleted = await _actions.confirmAndDelete(context, target);
     if (deleted && mounted) {
-      widget.app.timelineCache.removeStatusEverywhere(target.id);
       setState(() {
         _statuses = StatusActionHandler.removeFromList(_statuses, target.id);
       });

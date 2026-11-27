@@ -271,8 +271,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           accessToken: session.accessToken,
           accountId: widget.accountId,
         );
+        // Locked accounts return `requested` instead of `following`.
         AccessibilityAnnouncer.announce(
-          l10n.profileAnnounceSubscribed(targetName),
+          updated.requested && !updated.following
+              ? l10n.profileAnnounceFollowRequested(targetName)
+              : l10n.profileAnnounceSubscribed(targetName),
         );
       }
       if (!mounted) return;

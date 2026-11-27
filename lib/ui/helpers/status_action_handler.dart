@@ -14,7 +14,8 @@ import '../screens/thread_screen.dart';
 /// Shared navigation and status-mutation helpers used across [TimelineScreen],
 /// [ProfileScreen], and [ThreadScreen] so boost, favorite, bookmark, and
 /// destructive delete flows always provide confirmation dialogs, error handling,
-/// `mounted` safety, and screen-reader announcements consistently.
+/// `mounted` safety, shared-cache updates, and screen-reader announcements
+/// consistently.
 class StatusActionHandler {
   const StatusActionHandler({
     required this.app,
@@ -122,6 +123,7 @@ class StatusActionHandler {
         currentlyReblogged: target.reblogged,
       );
       final display = updated.displayStatus;
+      _syncCaches(display);
       AccessibilityAnnouncer.announce(
         display.reblogged
             ? l10n.actionAnnounceBoosted
@@ -152,6 +154,7 @@ class StatusActionHandler {
         currentlyFavourited: target.favourited,
       );
       final display = updated.displayStatus;
+      _syncCaches(display);
       AccessibilityAnnouncer.announce(
         display.favourited
             ? l10n.actionAnnounceFavorited
@@ -182,6 +185,7 @@ class StatusActionHandler {
         currentlyBookmarked: target.bookmarked,
       );
       final display = updated.displayStatus;
+      _syncCaches(display);
       AccessibilityAnnouncer.announce(
         display.bookmarked
             ? l10n.actionAnnounceBookmarked
@@ -231,6 +235,7 @@ class StatusActionHandler {
         accessToken: session.accessToken,
         statusId: target.id,
       );
+      app.timelineCache.removeStatusEverywhere(target.id);
       AccessibilityAnnouncer.announce(l10n.actionAnnounceDeleted);
       return true;
     } catch (e) {
@@ -240,6 +245,10 @@ class StatusActionHandler {
       return false;
     }
   }
+
+  /// Propagates a mutated status to the shared timeline/notification and quote
+  /// caches, so every screen (not just the one that acted) sees fresh state.
+  void _syncCaches(MastodonStatus updated) => app.applyEditedStatus(updated);
 
   void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
