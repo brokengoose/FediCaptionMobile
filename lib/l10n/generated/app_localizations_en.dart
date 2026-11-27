@@ -542,7 +542,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeShortcutsTooltip => 'View keyboard navigation shortcuts (?)';
 
   @override
-  String get homeSettingsTooltip => 'Open Settings & AI Configuration (⌘,)';
+  String homeSettingsTooltip(String shortcut) {
+    return 'Open Settings & AI Configuration ($shortcut)';
+  }
 
   @override
   String get homeDrawerSettings => 'Settings & AI Configuration';
@@ -575,7 +577,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'My Published Posts — your own Mastodon posts (g u)';
 
   @override
-  String get homeComposeTip => 'Compose a new Mastodon post (n or ⌘N)';
+  String homeComposeTip(String shortcut) {
+    return 'Compose a new Mastodon post (n or $shortcut)';
+  }
 
   @override
   String get homeComposeLabel => 'Post';
@@ -1372,12 +1376,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get composerTitleNew => 'Compose Post';
 
   @override
-  String get composerEditSubmitTip =>
-      'Save your edited post and alt-text (⌘Enter)';
+  String composerEditSubmitTip(String shortcut) {
+    return 'Save your edited post and alt-text ($shortcut)';
+  }
 
   @override
-  String get composerPublishSubmitTip =>
-      'Check accessibility and bias rules, then publish post (⌘Enter)';
+  String composerPublishSubmitTip(String shortcut) {
+    return 'Check accessibility and bias rules, then publish post ($shortcut)';
+  }
 
   @override
   String composerReplyingTo(String handle) {

@@ -51,6 +51,15 @@ class KeyboardNavHelper {
     return (hw.isMetaPressed || hw.isControlPressed) && !hw.isAltPressed;
   }
 
+  /// Display form of a primary-modifier shortcut for help text and tooltips:
+  /// `⌘N` on Apple platforms, `Ctrl+N` elsewhere.
+  static String primaryShortcutLabel(BuildContext context, String key) {
+    final platform = Theme.of(context).platform;
+    final isApple =
+        platform == TargetPlatform.macOS || platform == TargetPlatform.iOS;
+    return isApple ? '⌘$key' : 'Ctrl+$key';
+  }
+
   /// Returns `true` when no modifier keys (Cmd, Ctrl, Alt) are held.
   static bool hasNoCommandModifiers() {
     final hw = HardwareKeyboard.instance;
@@ -254,6 +263,8 @@ class KeyboardShortcutsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    String mod(String key) =>
+        KeyboardNavHelper.primaryShortcutLabel(context, key);
     return AlertDialog(
       title: Row(
         children: [
@@ -298,11 +309,11 @@ class KeyboardShortcutsDialog extends StatelessWidget {
               ]),
               const SizedBox(height: 12),
               _section(context, l10n.shortcutsSectionApp, [
-                (l10n.shortcutsOrKeyCombo('n', '⌘N'), l10n.shortcutsComposeNew),
-                ('⌘Enter', l10n.shortcutsPublishPost),
-                (l10n.shortcutsOrKeyCombo('/', '⌘F'), l10n.shortcutsLocalSearch),
-                (l10n.shortcutsOrKeyCombo('.', '⌘R'), l10n.shortcutsRefresh),
-                ('⌘,', l10n.shortcutsOpenSettings),
+                (l10n.shortcutsOrKeyCombo('n', mod('N')), l10n.shortcutsComposeNew),
+                (mod('Enter'), l10n.shortcutsPublishPost),
+                (l10n.shortcutsOrKeyCombo('/', mod('F')), l10n.shortcutsLocalSearch),
+                (l10n.shortcutsOrKeyCombo('.', mod('R')), l10n.shortcutsRefresh),
+                (mod(','), l10n.shortcutsOpenSettings),
                 ('?', l10n.shortcutsShowHelp),
               ]),
             ],

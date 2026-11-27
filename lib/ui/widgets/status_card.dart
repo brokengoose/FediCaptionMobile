@@ -560,6 +560,7 @@ class _StatusCardState extends State<StatusCard> {
                   translatedAltText: _showingTranslation
                       ? _translationResult?.translatedAltTexts[media.id]
                       : null,
+                  readAloudLanguage: _resolveReadAloudLanguage(),
                 ),
             ],
 
@@ -633,7 +634,7 @@ class _StatusCardState extends State<StatusCard> {
                   _ActionIcon(
                     icon: Icons.delete_outline,
                     label: '',
-                    activeColor: scheme.error,
+                    color: scheme.error,
                     semanticLabel: l10n.statusDeleteActionSemantics,
                     onPressed: () => widget.onDelete!(target),
                   ),
@@ -654,6 +655,7 @@ class _ActionIcon extends StatelessWidget {
     required this.onPressed,
     this.active = false,
     this.activeColor,
+    this.color,
   });
 
   final IconData icon;
@@ -663,12 +665,15 @@ class _ActionIcon extends StatelessWidget {
   final bool active;
   final Color? activeColor;
 
+  /// Resting (non-toggled) color override, e.g. the error tint for Delete.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
-    final defaultColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    final scheme = Theme.of(context).colorScheme;
     final color = active
-        ? (activeColor ?? Theme.of(context).colorScheme.primary)
-        : defaultColor;
+        ? (activeColor ?? scheme.primary)
+        : (this.color ?? scheme.onSurfaceVariant);
 
     return Semantics(
       button: true,

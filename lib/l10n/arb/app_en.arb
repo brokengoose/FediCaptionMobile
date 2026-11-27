@@ -264,7 +264,12 @@
   },
   "homeSearchTooltip": "Search cached posts and alt-text offline (/)",
   "homeShortcutsTooltip": "View keyboard navigation shortcuts (?)",
-  "homeSettingsTooltip": "Open Settings & AI Configuration (⌘,)",
+  "homeSettingsTooltip": "Open Settings & AI Configuration ({shortcut})",
+  "@homeSettingsTooltip": {
+    "placeholders": {
+      "shortcut": {"type": "String", "example": "Ctrl+,"}
+    }
+  },
   "homeDrawerSettings": "Settings & AI Configuration",
   "homeNavHomeTip": "Home timeline — posts from people you follow (g h)",
   "homeNavLocalTip": "Local timeline — public posts from your server (g l)",
@@ -273,7 +278,12 @@
   "homeNavBookmarksTip": "Bookmarks — posts you saved privately (g b)",
   "homeNavFavoritesTip": "Favorites — posts you liked (g f)",
   "homeNavMyPostsTip": "My Published Posts — your own Mastodon posts (g u)",
-  "homeComposeTip": "Compose a new Mastodon post (n or ⌘N)",
+  "homeComposeTip": "Compose a new Mastodon post (n or {shortcut})",
+  "@homeComposeTip": {
+    "placeholders": {
+      "shortcut": {"type": "String", "example": "Ctrl+N"}
+    }
+  },
   "homeComposeLabel": "Post",
 
   "searchHint": "Search {count} cached posts & alt-text…",
@@ -899,8 +909,18 @@
   "composerTitleEdit": "Edit Post",
   "composerTitleReply": "Reply",
   "composerTitleNew": "Compose Post",
-  "composerEditSubmitTip": "Save your edited post and alt-text (⌘Enter)",
-  "composerPublishSubmitTip": "Check accessibility and bias rules, then publish post (⌘Enter)",
+  "composerEditSubmitTip": "Save your edited post and alt-text ({shortcut})",
+  "@composerEditSubmitTip": {
+    "placeholders": {
+      "shortcut": {"type": "String", "example": "Ctrl+Enter"}
+    }
+  },
+  "composerPublishSubmitTip": "Check accessibility and bias rules, then publish post ({shortcut})",
+  "@composerPublishSubmitTip": {
+    "placeholders": {
+      "shortcut": {"type": "String", "example": "Ctrl+Enter"}
+    }
+  },
   "composerReplyingTo": "Replying to {handle}",
   "@composerReplyingTo": {
     "placeholders": {

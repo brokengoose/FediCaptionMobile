@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -22,6 +24,7 @@ class MediaAttachmentCard extends StatefulWidget {
     required this.app,
     this.postContext,
     this.translatedAltText,
+    this.readAloudLanguage,
   });
 
   final MastodonMediaAttachment attachment;
@@ -31,6 +34,11 @@ class MediaAttachmentCard extends StatefulWidget {
   /// Optional translated alt-text displayed in place of the author's original
   /// alt-text when the parent post is showing a translation.
   final String? translatedAltText;
+
+  /// Language of the author's (or translated) alt-text, as resolved by the
+  /// parent post, so read-aloud picks the right voice. Falls back to the
+  /// app's caption language, which is also what AI-generated alt-text uses.
+  final String? readAloudLanguage;
 
   @override
   State<MediaAttachmentCard> createState() => _MediaAttachmentCardState();
@@ -137,19 +145,33 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                             height: _previewHeightFor(att.aspectRatio),
                             child: ColoredBox(
                               color: scheme.surfaceContainerHighest,
-                              child: Image(
-                                image: ResizeImage.resizeIfNeeded(
-                                  1200,
-                                  null,
-                                  DiskCachedNetworkImage(att.bestPreviewUrl),
-                                ),
-                                width: double.infinity,
-                                height: _previewHeightFor(att.aspectRatio),
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true,
-                                errorBuilder: (_, __, ___) => const Center(
-                                  child: Icon(Icons.broken_image, size: 40),
-                                ),
+                              child: Builder(
+                                builder: (context) {
+                                  final preview = ResizeImage.resizeIfNeeded(
+                                    1200,
+                                    null,
+                                    DiskCachedNetworkImage(att.bestPreviewUrl),
+                                  );
+                                  return Image(
+                                    image: preview,
+                                    width: double.infinity,
+                                    height: _previewHeightFor(att.aspectRatio),
+                                    fit: BoxFit.cover,
+                                    gaplessPlayback: true,
+                                    errorBuilder: (_, __, ___) {
+                                      // The resize wrapper has its own cache
+                                      // entry; evict it so the preview retries
+                                      // next time this card is built.
+                                      scheduleMicrotask(preview.evict);
+                                      return const Center(
+                                        child: Icon(
+                                          Icons.broken_image,
+                                          size: 40,
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -353,7 +375,10 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               onPressed: () => widget.app.tts.toggleSpeak(
                                 key: ttsKey,
                                 text: effectiveAlt,
-                                languageName: widget.app.settings.language,
+                                languageName: aiAlt == null
+                                    ? (widget.readAloudLanguage ??
+                                        widget.app.settings.language)
+                                    : widget.app.settings.language,
                                 speechRate: widget.app.settings.ttsSpeechRate,
                               ),
                               icon: Icon(

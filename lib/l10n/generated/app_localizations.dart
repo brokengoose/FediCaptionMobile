@@ -1016,8 +1016,8 @@ abstract class AppLocalizations {
   /// No description provided for @homeSettingsTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Open Settings & AI Configuration (⌘,)'**
-  String get homeSettingsTooltip;
+  /// **'Open Settings & AI Configuration ({shortcut})'**
+  String homeSettingsTooltip(String shortcut);
 
   /// No description provided for @homeDrawerSettings.
   ///
@@ -1070,8 +1070,8 @@ abstract class AppLocalizations {
   /// No description provided for @homeComposeTip.
   ///
   /// In en, this message translates to:
-  /// **'Compose a new Mastodon post (n or ⌘N)'**
-  String get homeComposeTip;
+  /// **'Compose a new Mastodon post (n or {shortcut})'**
+  String homeComposeTip(String shortcut);
 
   /// No description provided for @homeComposeLabel.
   ///
@@ -2146,14 +2146,14 @@ abstract class AppLocalizations {
   /// No description provided for @composerEditSubmitTip.
   ///
   /// In en, this message translates to:
-  /// **'Save your edited post and alt-text (⌘Enter)'**
-  String get composerEditSubmitTip;
+  /// **'Save your edited post and alt-text ({shortcut})'**
+  String composerEditSubmitTip(String shortcut);
 
   /// No description provided for @composerPublishSubmitTip.
   ///
   /// In en, this message translates to:
-  /// **'Check accessibility and bias rules, then publish post (⌘Enter)'**
-  String get composerPublishSubmitTip;
+  /// **'Check accessibility and bias rules, then publish post ({shortcut})'**
+  String composerPublishSubmitTip(String shortcut);
 
   /// No description provided for @composerReplyingTo.
   ///

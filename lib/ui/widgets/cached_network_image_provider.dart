@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -49,10 +50,20 @@ class DiskCachedNetworkImage extends ImageProvider<DiskCachedNetworkImage> {
     DiskCachedNetworkImage key,
     ImageDecoderCallback decode,
   ) async {
-    final service = cacheService ?? MediaCacheService.instance;
-    final cached = await service.getOrFetch(key.url);
-    final buffer = await ui.ImmutableBuffer.fromUint8List(cached.bytes);
-    return decode(buffer);
+    try {
+      final service = cacheService ?? MediaCacheService.instance;
+      final cached = await service.getOrFetch(key.url);
+      final buffer = await ui.ImmutableBuffer.fromUint8List(cached.bytes);
+      return await decode(buffer);
+    } catch (_) {
+      // Same as Flutter's NetworkImage: drop the failed entry so the next
+      // resolve retries instead of replaying the cached error until restart.
+      // Deferred because the completer is still being registered right now.
+      scheduleMicrotask(() {
+        PaintingBinding.instance.imageCache.evict(key);
+      });
+      rethrow;
+    }
   }
 
   @override

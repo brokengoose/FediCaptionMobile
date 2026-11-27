@@ -227,6 +227,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
         final overLimit = _controller.isOverCharacterLimit;
         final limits = _controller.limits;
 
+        final submitShortcut =
+            KeyboardNavHelper.primaryShortcutLabel(context, 'Enter');
         final submitLabel = _controller.isCheckingBias
             ? l10n.composerCheckingBias
             : _controller.isPublishing
@@ -251,8 +253,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: AccessibleTip(
                   message: _controller.isEditing
-                      ? l10n.composerEditSubmitTip
-                      : l10n.composerPublishSubmitTip,
+                      ? l10n.composerEditSubmitTip(submitShortcut)
+                      : l10n.composerPublishSubmitTip(submitShortcut),
                   child: FilledButton(
                     onPressed: _controller.canSubmit ? _handleSubmit : null,
                     child: Text(submitLabel),

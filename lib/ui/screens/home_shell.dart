@@ -381,7 +381,9 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ),
               AccessibleTip(
-                message: l10n.homeSettingsTooltip,
+                message: l10n.homeSettingsTooltip(
+                  KeyboardNavHelper.primaryShortcutLabel(context, ','),
+                ),
                 child: IconButton(
                   icon: const Icon(Icons.settings_outlined),
                   onPressed: _openSettings,
@@ -607,7 +609,9 @@ class _HomeShellState extends State<HomeShell> {
                 )
               : contentColumn,
           floatingActionButton: AccessibleTip(
-            message: l10n.homeComposeTip,
+            message: l10n.homeComposeTip(
+              KeyboardNavHelper.primaryShortcutLabel(context, 'N'),
+            ),
             preferBelow: false,
             child: FloatingActionButton.extended(
               onPressed: _openComposer,
