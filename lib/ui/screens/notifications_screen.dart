@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -94,7 +96,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
     });
     if (next >= _notifications.length - 3 && !_isLoadingMore && _hasMore) {
-      _loadMore();
+      unawaited(_loadMore());
     }
     final l10n = context.l10n;
     AccessibilityAnnouncer.announce(
@@ -137,7 +139,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       },
       onReply: () {
         final st = _selectedNotification?.status;
-        if (st != null) _actions.openReply(context, st);
+        if (st != null) unawaited(_actions.openReply(context, st));
       },
       onRefresh: _refreshIncremental,
     );
@@ -150,7 +152,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         !_isLoadingMore &&
         _hasMore &&
         _notifications.isNotEmpty) {
-      _loadMore();
+      unawaited(_loadMore());
     }
   }
 
@@ -164,11 +166,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _error = null;
       });
       if (!widget.app.timelineCache.isNotificationsFresh()) {
-        _refreshIncremental(silentAnnouncement: true);
+        unawaited(_refreshIncremental(silentAnnouncement: true));
       }
       return;
     }
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _refreshIncremental({bool silentAnnouncement = false}) async {

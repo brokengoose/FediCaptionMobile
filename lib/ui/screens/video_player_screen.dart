@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -42,7 +44,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _initPlayer();
+    unawaited(_initPlayer());
   }
 
   Future<void> _initPlayer() async {
@@ -160,18 +162,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.space &&
         FocusManager.instance.primaryFocus == _rootFocus) {
-      _togglePlayPause();
+      unawaited(_togglePlayPause());
       return KeyEventResult.handled;
     }
     // Left/Right seek from anywhere in the player: the visual scrubber is
     // pointer-only, so this is the keyboard equivalent.
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        _seekBy(_seekStep);
+        unawaited(_seekBy(_seekStep));
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        _seekBy(-_seekStep);
+        unawaited(_seekBy(-_seekStep));
         return KeyEventResult.handled;
       }
     }
@@ -181,7 +183,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void dispose() {
     _controller?.removeListener(_onPlayerUpdate);
-    _controller?.dispose();
+    unawaited(_controller?.dispose());
     _rootFocus.dispose();
     super.dispose();
   }

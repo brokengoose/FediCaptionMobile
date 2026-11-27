@@ -325,7 +325,6 @@ void main() {
                         id: 'media-1',
                         type: 'image',
                         url: '',
-                        previewUrl: '',
                         description: 'Un chat noir qui dort au soleil.',
                       ),
                     ],
@@ -465,7 +464,7 @@ void main() {
           settings: const AppSettings(activeProvider: AiProviderType.none),
           credentials: const AiCredentials(),
           session: mastodonSession,
-          instanceLimits: const InstanceLimits(translationEnabled: false),
+          instanceLimits: const InstanceLimits(),
         ),
         isFalse,
       );
@@ -475,7 +474,7 @@ void main() {
           settings: const AppSettings(activeProvider: AiProviderType.gemini),
           credentials: const AiCredentials(geminiApiKey: 'gem-123'),
           session: mastodonSession,
-          instanceLimits: const InstanceLimits(translationEnabled: false),
+          instanceLimits: const InstanceLimits(),
         ),
         isTrue,
       );
@@ -484,8 +483,6 @@ void main() {
         await translation.isTranslationSupported(
           settings: const AppSettings(activeProvider: AiProviderType.local),
           credentials: const AiCredentials(),
-          session: null,
-          instanceLimits: const InstanceLimits(translationEnabled: false),
         ),
         isTrue,
       );
@@ -646,7 +643,7 @@ void main() {
               'spoiler_text': '',
               'detected_source_language': 'fr',
               'provider': 'LibreTranslate',
-              'media_attachments': [],
+              'media_attachments': <Object?>[],
             }),
             200,
           );
@@ -746,7 +743,6 @@ void main() {
               id: 'med-1',
               type: 'image',
               url: '',
-              previewUrl: '',
               description: 'Des bateaux dans le vieux port.',
             ),
           ],

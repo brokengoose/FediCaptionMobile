@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -270,7 +271,7 @@ class AppController extends ChangeNotifier {
             account: account,
           );
           _upsertStoredAccount(refreshed);
-          await storage.saveAccount(refreshed, setActive: true);
+          await storage.saveAccount(refreshed);
           _session = refreshed.session;
           _currentAccount = account;
           _activeAccountKey = refreshed.key;
@@ -307,7 +308,7 @@ class AppController extends ChangeNotifier {
               account: account,
             );
             _upsertStoredAccount(migrated);
-            await storage.saveAccount(migrated, setActive: true);
+            await storage.saveAccount(migrated);
             _session = savedSession;
             _currentAccount = account;
             _activeAccountKey = migrated.key;
@@ -326,11 +327,11 @@ class AppController extends ChangeNotifier {
 
     // Fire-and-forget startup tasks: restore AI caption cache, prune media disk
     // cache, check on-device AI, GitHub update check & models refresh.
-    mediaAi.loadPersistedCache();
-    MediaCacheService.instance.pruneIfNeeded();
-    refreshOnDeviceAiStatus();
-    _runUpdateCheck();
-    refreshModelsFor(_settings.activeProvider);
+    unawaited(mediaAi.loadPersistedCache());
+    unawaited(MediaCacheService.instance.pruneIfNeeded());
+    unawaited(refreshOnDeviceAiStatus());
+    unawaited(_runUpdateCheck());
+    unawaited(refreshModelsFor(_settings.activeProvider));
   }
 
   /// True when the server explicitly rejected the stored token.
@@ -407,9 +408,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> _runUpdateCheck() async {
-    final update = await updateChecker.checkForUpdate(
-      currentVersion: AppConstants.appVersion,
-    );
+    final update = await updateChecker.checkForUpdate();
     if (update == null || _disposed) return;
 
     final dismissedVersion = await storage.loadDismissedUpdateVersion();
@@ -598,7 +597,7 @@ class AppController extends ChangeNotifier {
       _clearPerAccountCaches();
     }
 
-    await storage.saveAccount(stored, setActive: true);
+    await storage.saveAccount(stored);
     _upsertStoredAccount(stored);
 
     _session = newSession;
@@ -653,7 +652,7 @@ class AppController extends ChangeNotifier {
         account: account,
       );
       _upsertStoredAccount(refreshed);
-      await storage.saveAccount(refreshed, setActive: true);
+      await storage.saveAccount(refreshed);
 
       _session = refreshed.session;
       _currentAccount = account;
@@ -810,7 +809,7 @@ class AppController extends ChangeNotifier {
     await storage.saveSettings(finalized);
 
     if (finalized.isAiEnabled) {
-      refreshModelsFor(finalized.activeProvider);
+      unawaited(refreshModelsFor(finalized.activeProvider));
       AccessibilityAnnouncer.announce(
         l10n.aiSetupAnnounceCompleteWithAi(
           finalized.activeProvider.localizedDisplayName(l10n),

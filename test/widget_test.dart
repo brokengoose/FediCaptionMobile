@@ -536,7 +536,7 @@ void main() {
 
         final original = MastodonStatus(
           id: '100',
-          createdAt: DateTime.utc(2026, 11, 19, 10, 0),
+          createdAt: DateTime.utc(2026, 11, 19, 10),
           account: const MastodonAccount(
             id: '1',
             username: 'orig',
@@ -550,7 +550,7 @@ void main() {
 
         final quotingPost = MastodonStatus(
           id: '200',
-          createdAt: DateTime.utc(2026, 11, 19, 11, 0),
+          createdAt: DateTime.utc(2026, 11, 19, 11),
           account: const MastodonAccount(
             id: '2',
             username: 'commentator',

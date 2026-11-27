@@ -121,7 +121,6 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _buildThumbnail(context),
                 const SizedBox(width: 12),

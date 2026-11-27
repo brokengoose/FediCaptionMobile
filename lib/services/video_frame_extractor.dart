@@ -74,13 +74,7 @@ class VideoFrameExtractor {
           quality: quality,
         );
         if (bytes.isNotEmpty) {
-          frames.add(
-            MediaBinaryPayload(
-              bytes: bytes,
-              mimeType: 'image/jpeg',
-              isVideo: false,
-            ),
-          );
+          frames.add(MediaBinaryPayload(bytes: bytes, mimeType: 'image/jpeg'));
         }
       } catch (_) {
         // Continue attempting remaining frames.
@@ -93,17 +87,12 @@ class VideoFrameExtractor {
         final fallbackBytes = await VideoThumbnail.thumbnailData(
           video: videoPath,
           imageFormat: ImageFormat.JPEG,
-          timeMs: 0,
           maxWidth: maxWidth,
           quality: quality,
         );
         if (fallbackBytes.isNotEmpty) {
           frames.add(
-            MediaBinaryPayload(
-              bytes: fallbackBytes,
-              mimeType: 'image/jpeg',
-              isVideo: false,
-            ),
+            MediaBinaryPayload(bytes: fallbackBytes, mimeType: 'image/jpeg'),
           );
         }
       } catch (_) {

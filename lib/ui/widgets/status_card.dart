@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/accessibility_announcer.dart';
@@ -102,14 +104,14 @@ class _StatusCardState extends State<StatusCard> {
     super.initState();
     _syncQuoteResolution();
     if (widget.enableTranslationOffer) {
-      _checkTranslationOffer();
+      unawaited(_checkTranslationOffer());
     }
   }
 
   @override
   void dispose() {
     if (widget.enableReadAloud && widget.app.tts.isSpeakingKey(_postTtsKey)) {
-      widget.app.tts.stop().catchError((_) {});
+      widget.app.tts.stop().ignore();
     }
     super.dispose();
   }
@@ -129,7 +131,7 @@ class _StatusCardState extends State<StatusCard> {
         (oldWidget.enableReadAloud && !widget.enableReadAloud)) {
       final oldKey = 'post_full_${oldWidget.status.displayStatus.id}';
       if (widget.app.tts.isSpeakingKey(oldKey)) {
-        widget.app.tts.stop().catchError((_) {});
+        widget.app.tts.stop().ignore();
       }
     }
     if (statusChanged) {
@@ -145,7 +147,7 @@ class _StatusCardState extends State<StatusCard> {
       _translationResult = null;
       _translationError = null;
       if (widget.enableTranslationOffer) {
-        _checkTranslationOffer();
+        unawaited(_checkTranslationOffer());
       }
     }
   }
@@ -250,7 +252,7 @@ class _StatusCardState extends State<StatusCard> {
 
   void _stopReadAloudIfActive() {
     if (widget.app.tts.isSpeakingKey(_postTtsKey)) {
-      widget.app.tts.stop().catchError((_) {});
+      widget.app.tts.stop().ignore();
     }
   }
 
@@ -296,7 +298,7 @@ class _StatusCardState extends State<StatusCard> {
         !widget.app.isResolvingQuote(quoteUrl)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          widget.app.resolveQuotedStatus(quoteUrl);
+          unawaited(widget.app.resolveQuotedStatus(quoteUrl));
         }
       });
     }

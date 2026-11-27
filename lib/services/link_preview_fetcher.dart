@@ -122,7 +122,7 @@ class LinkPreviewFetcher {
       (chunk) {
         final remaining = limit - buffer.length;
         if (remaining <= 0) {
-          sub.cancel();
+          unawaited(sub.cancel());
           if (!completer.isCompleted) completer.complete(buffer);
           return;
         }
@@ -130,7 +130,7 @@ class LinkPreviewFetcher {
           buffer.addAll(chunk);
         } else {
           buffer.addAll(chunk.sublist(0, remaining));
-          sub.cancel();
+          unawaited(sub.cancel());
           if (!completer.isCompleted) completer.complete(buffer);
         }
       },

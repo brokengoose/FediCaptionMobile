@@ -407,7 +407,7 @@ void main() {
 
     test('TimeUtils formats compact and accessible relative times cleanly', () {
       final l10n = AppLocalizationsEn();
-      final now = DateTime.utc(2026, 6, 15, 12, 0, 0);
+      final now = DateTime.utc(2026, 6, 15, 12);
 
       expect(
         TimeUtils.formatRelativeCompact(
@@ -492,7 +492,7 @@ void main() {
       );
       expect(
         TimeUtils.formatRelativeAccessible(
-          DateTime(2025, 5, 1, 12, 0),
+          DateTime(2025, 5, 1, 12),
           now: now,
           l10n: l10n,
         ),

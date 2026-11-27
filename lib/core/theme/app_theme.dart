@@ -1,6 +1,11 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+// Color schemes spell out every foreground/background pair (even ones that
+// match ColorScheme defaults) so each audited contrast ratio is explicit and
+// survives upstream default changes.
+// ignore_for_file: avoid_redundant_argument_values
+
 import 'package:material_ui/material_ui.dart';
 
 import '../constants.dart';

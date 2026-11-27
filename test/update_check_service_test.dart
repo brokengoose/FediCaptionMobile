@@ -33,7 +33,7 @@ void main() {
       });
 
       final service = UpdateCheckService(client: mockClient);
-      final update = await service.checkForUpdate(currentVersion: '1.0.0');
+      final update = await service.checkForUpdate();
 
       expect(update, isNotNull);
       expect(update!.latestVersion, '1.2.0');
@@ -54,7 +54,7 @@ void main() {
         });
 
         final service = UpdateCheckService(client: mockClient);
-        final update = await service.checkForUpdate(currentVersion: '1.0.0');
+        final update = await service.checkForUpdate();
 
         expect(update, isNotNull);
         expect(update!.latestVersion, '1.3.0');

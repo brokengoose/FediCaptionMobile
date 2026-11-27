@@ -21,7 +21,7 @@ MastodonStatus _status({
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 27, 8, 0),
+    createdAt: DateTime.utc(2026, 11, 27, 8),
     account: const MastodonAccount(
       id: 'acc_me',
       username: 'me',

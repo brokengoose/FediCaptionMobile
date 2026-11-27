@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -149,7 +151,7 @@ class _HomeShellState extends State<HomeShell> {
     // `?` shows the Keyboard Shortcuts reference dialog.
     if (key == LogicalKeyboardKey.question ||
         (key == LogicalKeyboardKey.slash && shiftPressed)) {
-      KeyboardShortcutsDialog.show(context);
+      unawaited(KeyboardShortcutsDialog.show(context));
       return true;
     }
 
@@ -477,7 +479,9 @@ class _HomeShellState extends State<HomeShell> {
                               : null,
                           onTap: () {
                             Navigator.of(context).pop();
-                            AccountSwitcherSheet.show(context, widget.app);
+                            unawaited(
+                              AccountSwitcherSheet.show(context, widget.app),
+                            );
                           },
                         ),
                         ListTile(

@@ -105,7 +105,7 @@ MastodonStatus _makeStatus({
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 24, 9, 0),
+    createdAt: DateTime.utc(2026, 11, 24, 9),
     account: const MastodonAccount(
       id: 'u-1',
       username: 'alice',
@@ -309,7 +309,6 @@ void main() {
 
         final status = _makeStatus(
           id: 'focal-1',
-          language: 'en',
           contentHtml: '<p>Main post message</p>',
           mediaAttachments: const [
             MastodonMediaAttachment(

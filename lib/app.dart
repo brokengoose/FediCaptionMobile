@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import 'core/constants.dart';
@@ -29,7 +31,7 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
     super.initState();
     _ownsController = widget.controller == null;
     _app = widget.controller ?? AppController();
-    _app.initialize();
+    unawaited(_app.initialize());
   }
 
   @override

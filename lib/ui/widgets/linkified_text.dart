@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
@@ -160,7 +162,7 @@ class _LinkifiedTextState extends State<LinkifiedText> {
                 if (matchedMention != null && widget.onTapMention != null) {
                   widget.onTapMention!(matchedMention);
                 } else {
-                  _openUrl(href);
+                  unawaited(_openUrl(href));
                 }
               }),
             ),

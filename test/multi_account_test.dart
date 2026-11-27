@@ -152,7 +152,7 @@ class _StubTtsService extends TtsService {
 MastodonStatus _samplePost(String id, String text, MastodonAccount author) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 27, 8, 0),
+    createdAt: DateTime.utc(2026, 11, 27, 8),
     account: author,
     contentHtml: '<p>$text</p>',
   );
@@ -190,8 +190,8 @@ void main() {
         displayName: 'Bob',
       );
 
-      await storage.saveAccount(alice, setActive: true);
-      await storage.saveAccount(bob, setActive: true);
+      await storage.saveAccount(alice);
+      await storage.saveAccount(bob);
 
       final loaded = await storage.loadAccounts();
       expect(loaded, hasLength(2));
@@ -241,7 +241,6 @@ void main() {
         instanceUrl: 'https://mastodon.social',
         accessToken: 'tok-alice',
         account: aliceAccount,
-        limits: const InstanceLimits(maxCharacters: 500),
       );
       mastodon.registerAccount(
         instanceUrl: 'https://infosec.exchange',
@@ -486,7 +485,6 @@ void main() {
           ),
           account: alice,
         ),
-        setActive: true,
       );
       return (storage, mastodon);
     }

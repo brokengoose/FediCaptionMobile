@@ -280,7 +280,6 @@ class AiProviderService {
           mimeType:
               mimeType ??
               MediaUtils.guessMimeType(localFilePath, isVideo: false),
-          isVideo: false,
         ),
       ];
     }

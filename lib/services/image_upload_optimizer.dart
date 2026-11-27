@@ -169,7 +169,7 @@ class ImageUploadOptimizer {
 
     final hasAlpha = _hasNonOpaqueAlpha(processed);
     if (hasAlpha) {
-      final pngBytes = Uint8List.fromList(img.encodePng(processed, level: 6));
+      final pngBytes = Uint8List.fromList(img.encodePng(processed));
       return OptimizedImageBytes(
         bytes: pngBytes,
         mimeType: 'image/png',

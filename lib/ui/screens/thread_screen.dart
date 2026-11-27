@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -48,7 +50,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
     _actions = StatusActionHandler(app: widget.app);
     _focalStatus = widget.rootStatus.displayStatus;
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    _loadContext();
+    unawaited(_loadContext());
   }
 
   @override
@@ -113,7 +115,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
         final st = _selectedStatus;
         if (st == null) return;
         final posted = await _actions.openReply(context, st);
-        if (posted != null && mounted) _loadContext();
+        if (posted != null && mounted) unawaited(_loadContext());
       },
       onFavorite: () async {
         final st = _selectedStatus?.displayStatus;
@@ -250,7 +252,7 @@ class _ThreadScreenState extends State<ThreadScreen> {
       onReply: (st) async {
         final posted = await _actions.openReply(context, st);
         if (posted != null && mounted) {
-          _loadContext();
+          unawaited(_loadContext());
         }
       },
       onToggleBoost: (st) async {

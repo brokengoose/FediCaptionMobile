@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
@@ -62,7 +64,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
     final l10n = context.l10n;
 
     try {
-      HapticFeedback.mediumImpact();
+      unawaited(HapticFeedback.mediumImpact());
       if (!mounted) return;
       final origin = _resolveShareOrigin(globalPosition);
 

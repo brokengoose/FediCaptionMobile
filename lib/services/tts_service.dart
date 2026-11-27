@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -65,13 +66,15 @@ class TtsService extends ChangeNotifier {
 
   void _configure(FlutterTts tts) {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-      tts.setSharedInstance(true);
-      tts.setIosAudioCategory(IosTextToSpeechAudioCategory.playback, [
-        IosTextToSpeechAudioCategoryOptions.allowBluetooth,
-        IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
-        IosTextToSpeechAudioCategoryOptions.mixWithOthers,
-        IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
-      ], IosTextToSpeechAudioMode.spokenAudio);
+      unawaited(tts.setSharedInstance(true));
+      unawaited(
+        tts.setIosAudioCategory(IosTextToSpeechAudioCategory.playback, [
+          IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+          IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+          IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+        ], IosTextToSpeechAudioMode.spokenAudio),
+      );
     }
 
     tts.setCompletionHandler(_resetState);
@@ -212,12 +215,14 @@ class TtsService extends ChangeNotifier {
     _isSpeaking = true;
     _safeNotify();
 
-    started.exitCode.catchError((_) => -1).whenComplete(() {
-      if (_speakGeneration == gen && !_disposed) {
-        _linuxProcess = null;
-        _resetState();
-      }
-    });
+    unawaited(
+      started.exitCode.catchError((_) => -1).whenComplete(() {
+        if (_speakGeneration == gen && !_disposed) {
+          _linuxProcess = null;
+          _resetState();
+        }
+      }),
+    );
   }
 
   Future<void> _stopLinuxProcess() async {
@@ -230,7 +235,7 @@ class TtsService extends ChangeNotifier {
 
   void _killProcessQuietly(Process proc) {
     try {
-      proc.kill(ProcessSignal.sigterm);
+      proc.kill();
     } catch (_) {
       // Ignore if the speech process has already exited.
     }
@@ -262,7 +267,7 @@ class TtsService extends ChangeNotifier {
     if (proc != null) {
       _killProcessQuietly(proc);
     }
-    _tts?.stop().catchError((_) {});
+    _tts?.stop().ignore();
     super.dispose();
   }
 }

@@ -112,8 +112,6 @@ void main() {
 
       const limits = InstanceLimits(
         maxCharacters: 800,
-        maxMediaAttachments: 4,
-        altTextLimit: 1500,
         instanceTitle: 'infosec.exchange',
         translationEnabled: true,
       );

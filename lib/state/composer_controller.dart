@@ -318,7 +318,6 @@ class ComposerController extends ChangeNotifier {
           MediaBinaryPayload(
             bytes: downloaded.bytes,
             mimeType: downloaded.mimeType,
-            isVideo: false,
           ),
         ];
       } else if (attachment.isVideo && attachment.filePath != null) {
@@ -472,13 +471,7 @@ class ComposerController extends ChangeNotifier {
       if (await file.exists()) {
         if (!att.isVideo) {
           final bytes = await file.readAsBytes();
-          return [
-            MediaBinaryPayload(
-              bytes: bytes,
-              mimeType: att.mimeType,
-              isVideo: false,
-            ),
-          ];
+          return [MediaBinaryPayload(bytes: bytes, mimeType: att.mimeType)];
         } else {
           return _videoFrameExtractor.extractKeyframes(
             att.filePath!,
@@ -496,7 +489,6 @@ class ComposerController extends ChangeNotifier {
             MediaBinaryPayload(
               bytes: downloaded.bytes,
               mimeType: downloaded.mimeType,
-              isVideo: false,
             ),
           ];
         } catch (_) {

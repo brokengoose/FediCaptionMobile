@@ -42,8 +42,6 @@ final CaptionLanguagePack enCaptionLanguagePack = CaptionLanguagePack(
     'Alt text:',
     'AI generated description:',
   ],
-  capitalizeFirstLetter: true,
-  usesWordSpaces: true,
 );
 
 /// English deterministic inclusive-language heuristics.
@@ -62,7 +60,6 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
     'uppity',
     'whitelist/blacklist',
   ],
-  matchCaseOnReplacement: true,
   rules: [
     BiasHeuristicRule(
       pattern: RegExp(r'\bmankind\b', caseSensitive: false),

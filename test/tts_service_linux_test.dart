@@ -25,7 +25,7 @@ class _FakeProcess implements Process {
   bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
     killed = true;
     killSignals.add(signal);
-    finish(0);
+    finish();
     return true;
   }
 
@@ -80,7 +80,7 @@ void main() {
         expect(tts.isSpeaking, isTrue);
         expect(tts.isSpeakingKey('post-1'), isTrue);
 
-        proc.finish(0);
+        proc.finish();
         await pumpEventQueue();
 
         expect(tts.isSpeaking, isFalse);
@@ -113,7 +113,6 @@ void main() {
         key: 'alt-1',
         text: 'Hello Linux',
         languageName: 'French',
-        speechRate: 0.5,
       );
 
       expect(attempted, ['spd-say', 'espeak-ng']);

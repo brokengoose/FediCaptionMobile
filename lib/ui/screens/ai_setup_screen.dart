@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -35,7 +37,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _detectInitialProvider();
+        unawaited(_detectInitialProvider());
       }
     });
   }
@@ -67,7 +69,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
 
     final effectiveProvider = widget.app.settings.activeProvider;
     if (effectiveProvider != AiProviderType.none) {
-      widget.app.refreshModelsFor(effectiveProvider);
+      unawaited(widget.app.refreshModelsFor(effectiveProvider));
     }
   }
 

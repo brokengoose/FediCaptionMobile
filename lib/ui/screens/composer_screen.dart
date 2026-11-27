@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -58,7 +60,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
       replyToStatus: widget.replyToStatus,
       editingStatus: widget.editingStatus,
     );
-    _controller.loadEditSourceIfNeeded();
+    unawaited(_controller.loadEditSourceIfNeeded());
     HardwareKeyboard.instance.addHandler(_handleComposerKeyEvent);
   }
 
@@ -79,7 +81,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
         (key == LogicalKeyboardKey.enter ||
             key == LogicalKeyboardKey.numpadEnter)) {
       if (_controller.canSubmit) {
-        _handleSubmit();
+        unawaited(_handleSubmit());
       }
       return true;
     }
@@ -550,7 +552,7 @@ class _ReplyContextCardState extends State<_ReplyContextCard> {
         !widget.app.isResolvingQuote(quoteUrl)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          widget.app.resolveQuotedStatus(quoteUrl);
+          unawaited(widget.app.resolveQuotedStatus(quoteUrl));
         }
       });
     }

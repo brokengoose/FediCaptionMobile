@@ -136,7 +136,8 @@ class QuoteCacheController extends ChangeNotifier {
     try {
       return await future;
     } finally {
-      _inFlightFutures.remove(key);
+      // Only drops the map entry; the future itself was awaited above.
+      unawaited(_inFlightFutures.remove(key));
       _safeNotify();
     }
   }

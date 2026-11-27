@@ -18,7 +18,7 @@ void main() {
 
       final quoted = MastodonStatus(
         id: 'q1',
-        createdAt: DateTime.utc(2026, 11, 26, 1, 0),
+        createdAt: DateTime.utc(2026, 11, 26, 1),
         account: const MastodonAccount(
           id: 'acc_bob',
           username: 'bob',
@@ -31,7 +31,7 @@ void main() {
 
       final parentStatus = MastodonStatus(
         id: 'p1',
-        createdAt: DateTime.utc(2026, 11, 26, 2, 0),
+        createdAt: DateTime.utc(2026, 11, 26, 2),
         account: const MastodonAccount(
           id: 'acc_alice',
           username: 'alice',
@@ -51,7 +51,6 @@ void main() {
             id: 'm1',
             type: 'image',
             url: '',
-            previewUrl: '',
             description: 'A detailed sunset over Lake Superior',
           ),
         ],

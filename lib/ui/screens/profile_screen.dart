@@ -1,6 +1,8 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -61,7 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _account = widget.initialAccount;
     _scrollController.addListener(_onScroll);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -95,7 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) KeyboardNavHelper.ensureKeyVisible(key);
     });
     if (next >= _statuses.length - 3 && !_isLoadingMore && _hasMore) {
-      _loadMore();
+      unawaited(_loadMore());
     }
 
     // Same screen-reader feedback as the main timeline's j/k navigation.
@@ -136,7 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
       onReply: () {
         final st = _selectedStatus;
-        if (st != null) _actions.openReply(context, st);
+        if (st != null) unawaited(_actions.openReply(context, st));
       },
       onFavorite: () async {
         final st = _selectedStatus?.displayStatus;
@@ -178,7 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         !_isLoadingMore &&
         _hasMore &&
         _statuses.isNotEmpty) {
-      _loadMore();
+      unawaited(_loadMore());
     }
   }
 
@@ -203,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         accountId: widget.accountId,
       );
       final relFuture = _isOwnProfile
-          ? Future<MastodonRelationship?>.value(null)
+          ? Future<MastodonRelationship?>.value()
           : widget.app.mastodon.fetchRelationship(
               instanceUrl: session.instanceUrl,
               accessToken: session.accessToken,

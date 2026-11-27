@@ -97,10 +97,7 @@ class BiasCheckService {
         LanguageRegistry.detectScriptLanguage(
           '${enrichedInput.postText}\n${enrichedInput.spoilerText}',
         );
-    final biasPack = LanguagePackRegistry.biasPackFor(
-      effectiveContentLang,
-      fallbackToEnglish: false,
-    );
+    final biasPack = LanguagePackRegistry.biasPackFor(effectiveContentLang);
 
     // Always compute local deterministic check so it can act as offline fallback or safety backstop.
     final localResult = LocalBiasHeuristics.evaluate(
@@ -329,7 +326,6 @@ class BiasCheckService {
       suggestedAlternateWording: (suggested != null && suggested.isNotEmpty)
           ? suggested
           : null,
-      usedLocalFallback: false,
     );
   }
 
@@ -366,7 +362,6 @@ class BiasCheckService {
       suggestedAlternateWording:
           aiResult.suggestedAlternateWording ??
           localResult.suggestedAlternateWording,
-      usedLocalFallback: false,
     );
   }
 

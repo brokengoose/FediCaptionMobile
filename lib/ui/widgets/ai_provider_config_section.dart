@@ -78,9 +78,11 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
     if (!widget.skipInitialRefresh) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        widget.app.refreshOnDeviceAiStatus();
+        unawaited(widget.app.refreshOnDeviceAiStatus());
         if (widget.app.settings.activeProvider != AiProviderType.none) {
-          widget.app.refreshModelsFor(widget.app.settings.activeProvider);
+          unawaited(
+            widget.app.refreshModelsFor(widget.app.settings.activeProvider),
+          );
         }
       });
     }
@@ -97,15 +99,21 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
       final credentials = buildCredentials();
       final openAiUrl = _openAiUrlCtrl.text.trim();
       final localUrl = _localUrlCtrl.text.trim();
-      Future(() async {
-        await app.updateCredentials(credentials);
-        // Merge onto settings as they are at save time so a sibling flush
-        // (e.g. Settings' language field) isn't overwritten by a stale copy.
-        await app.updateSettings(
-          _withBaseUrls(app.settings, openAiUrl: openAiUrl, localUrl: localUrl),
-          autoRefreshModels: false,
-        );
-      });
+      unawaited(
+        Future(() async {
+          await app.updateCredentials(credentials);
+          // Merge onto settings as they are at save time so a sibling flush
+          // (e.g. Settings' language field) isn't overwritten by a stale copy.
+          await app.updateSettings(
+            _withBaseUrls(
+              app.settings,
+              openAiUrl: openAiUrl,
+              localUrl: localUrl,
+            ),
+            autoRefreshModels: false,
+          );
+        }),
+      );
     }
     _geminiKeyCtrl.dispose();
     _openAiKeyCtrl.dispose();
@@ -242,7 +250,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                   .toList(),
               onChanged: widget.enabled
                   ? (next) {
-                      if (next != null) _handleProviderChange(next);
+                      if (next != null) unawaited(_handleProviderChange(next));
                     }
                   : null,
             ),
@@ -384,12 +392,14 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                       onChanged: widget.enabled
                           ? (modelId) {
                               if (modelId != null) {
-                                widget.app.updateSettings(
-                                  s.withModelForProvider(
-                                    activeProvider,
-                                    modelId,
+                                unawaited(
+                                  widget.app.updateSettings(
+                                    s.withModelForProvider(
+                                      activeProvider,
+                                      modelId,
+                                    ),
+                                    autoRefreshModels: false,
                                   ),
-                                  autoRefreshModels: false,
                                 );
                               }
                             }
@@ -405,7 +415,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                           ? null
                           : () {
                               _saveDebounce?.cancel();
-                              _persistInputsAndRefresh(activeProvider);
+                              unawaited(
+                                _persistInputsAndRefresh(activeProvider),
+                              );
                             },
                       icon: isLoadingModels
                           ? const SizedBox(

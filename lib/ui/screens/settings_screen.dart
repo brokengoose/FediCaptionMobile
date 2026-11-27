@@ -56,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _textPrefsDebounce!.cancel();
       final lang = _languageCtrl.text;
       final instructions = _customInstructionsCtrl.text;
-      Future(() => _saveTextPrefs(lang, instructions));
+      unawaited(Future(() => _saveTextPrefs(lang, instructions)));
     }
     _languageCtrl.dispose();
     _customInstructionsCtrl.dispose();
@@ -161,9 +161,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     .toList(),
                 onChanged: (next) {
                   if (next != null) {
-                    widget.app.updateSettings(
-                      s.copyWith(defaultDetailLevel: next),
-                      autoRefreshModels: false,
+                    unawaited(
+                      widget.app.updateSettings(
+                        s.copyWith(defaultDetailLevel: next),
+                        autoRefreshModels: false,
+                      ),
                     );
                   }
                 },
@@ -194,9 +196,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
                 onChanged: (count) {
                   if (count != null) {
-                    widget.app.updateSettings(
-                      s.copyWith(videoKeyframeCount: count),
-                      autoRefreshModels: false,
+                    unawaited(
+                      widget.app.updateSettings(
+                        s.copyWith(videoKeyframeCount: count),
+                        autoRefreshModels: false,
+                      ),
                     );
                   }
                 },
@@ -271,15 +275,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Slider(
                 value: displayedSpeechRate,
                 min: 0.25,
-                max: 1.0,
                 divisions: 15,
                 label: l10n.settingsTtsSpeedLabel(formattedSpeed),
                 onChanged: (next) => setState(() => _draggingSpeechRate = next),
                 onChangeEnd: (next) {
                   setState(() => _draggingSpeechRate = null);
-                  widget.app.updateSettings(
-                    s.copyWith(ttsSpeechRate: next),
-                    autoRefreshModels: false,
+                  unawaited(
+                    widget.app.updateSettings(
+                      s.copyWith(ttsSpeechRate: next),
+                      autoRefreshModels: false,
+                    ),
                   );
                 },
               ),
@@ -294,9 +299,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 groupValue: s.altTextPolicy,
                 onChanged: (next) {
                   if (next != null) {
-                    widget.app.updateSettings(
-                      s.copyWith(altTextPolicy: next),
-                      autoRefreshModels: false,
+                    unawaited(
+                      widget.app.updateSettings(
+                        s.copyWith(altTextPolicy: next),
+                        autoRefreshModels: false,
+                      ),
                     );
                   }
                 },
@@ -333,9 +340,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 groupValue: s.biasPolicy,
                 onChanged: (next) {
                   if (next != null) {
-                    widget.app.updateSettings(
-                      s.copyWith(biasPolicy: next),
-                      autoRefreshModels: false,
+                    unawaited(
+                      widget.app.updateSettings(
+                        s.copyWith(biasPolicy: next),
+                        autoRefreshModels: false,
+                      ),
                     );
                   }
                 },
@@ -374,9 +383,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 groupValue: s.themePreference,
                 onChanged: (next) {
                   if (next != null) {
-                    widget.app.updateSettings(
-                      s.copyWith(themePreference: next),
-                      autoRefreshModels: false,
+                    unawaited(
+                      widget.app.updateSettings(
+                        s.copyWith(themePreference: next),
+                        autoRefreshModels: false,
+                      ),
                     );
                   }
                 },
@@ -406,7 +417,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   items: [
                     DropdownMenuItem<String?>(
-                      value: null,
                       child: Text(
                         l10n.settingsAppLanguageSystemDefault(
                           LanguageRegistry.nativeNameFor(systemLanguageCode),
@@ -422,9 +432,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                   ],
                   onChanged: (next) {
-                    widget.app.updateSettings(
-                      s.copyWith(appLocale: next, clearAppLocale: next == null),
-                      autoRefreshModels: false,
+                    unawaited(
+                      widget.app.updateSettings(
+                        s.copyWith(
+                          appLocale: next,
+                          clearAppLocale: next == null,
+                        ),
+                        autoRefreshModels: false,
+                      ),
                     );
                   },
                 ),

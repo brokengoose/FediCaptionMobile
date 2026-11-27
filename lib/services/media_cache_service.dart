@@ -83,7 +83,8 @@ class MediaCacheService {
     try {
       return await future;
     } finally {
-      _inFlight.remove(trimmed);
+      // Only drops the map entry; the future itself was awaited above.
+      unawaited(_inFlight.remove(trimmed));
     }
   }
 
@@ -258,8 +259,8 @@ class MediaCacheService {
     final dataFile = File(p.join(dir.path, '$key.bin'));
     final metaFile = File(p.join(dir.path, '$key.mime'));
     try {
-      await dataFile.writeAsBytes(entry.bytes, flush: false);
-      await metaFile.writeAsString(entry.mimeType, flush: false);
+      await dataFile.writeAsBytes(entry.bytes);
+      await metaFile.writeAsString(entry.mimeType);
     } catch (_) {
       // Best-effort disk write.
     }

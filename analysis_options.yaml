@@ -7,6 +7,10 @@ analyzer:
     - windows/**
     - linux/**
     - lib/l10n/generated/**
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
 include: package:flutter_lints/flutter.yaml
 
 linter:
@@ -16,3 +20,6 @@ linter:
     avoid_print: true
     use_super_parameters: true
     prefer_single_quotes: true
+    unawaited_futures: true
+    discarded_futures: true
+    avoid_redundant_argument_values: true

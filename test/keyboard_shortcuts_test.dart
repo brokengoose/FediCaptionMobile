@@ -21,7 +21,7 @@ MastodonStatus _sampleStatus(
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: DateTime.utc(2026, 11, 23, 12, 0),
+    createdAt: DateTime.utc(2026, 11, 23, 12),
     account: MastodonAccount(
       id: 'acc_$id',
       username: 'user$id',

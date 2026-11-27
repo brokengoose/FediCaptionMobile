@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
@@ -110,7 +111,6 @@ class TimelineMediaAiController extends ChangeNotifier {
           MediaBinaryPayload(
             bytes: downloaded.bytes,
             mimeType: downloaded.mimeType,
-            isVideo: false,
           ),
         ],
         draftPostContext: postContext,
@@ -121,7 +121,7 @@ class TimelineMediaAiController extends ChangeNotifier {
       while (_descriptions.length > maxEntries) {
         _descriptions.remove(_descriptions.keys.first);
       }
-      _persistCache();
+      unawaited(_persistCache());
       AccessibilityAnnouncer.announce(l10n.mediaAiAnnounceReady(caption));
     } catch (e) {
       _errors[attachment.id] = e.toString();

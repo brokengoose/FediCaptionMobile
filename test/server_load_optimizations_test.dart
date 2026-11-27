@@ -63,11 +63,7 @@ void main() {
       final before = img.decodeJpg(rawJpg);
       expect(before?.exif.imageIfd.hasMake, isTrue);
 
-      final result = ImageUploadOptimizer.optimizeBytes(
-        rawJpg,
-        maxDimension: 2048,
-        jpegQuality: 85,
-      );
+      final result = ImageUploadOptimizer.optimizeBytes(rawJpg);
 
       expect(result, isNotNull);
       expect(result!.mimeType, 'image/jpeg');
