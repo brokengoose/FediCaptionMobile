@@ -85,7 +85,7 @@
   - macOS with Xcode & CocoaPods (`brew install cocoapods`), targeting **macOS 12.0+** (Universal `x86_64` Intel + `arm64` Apple Silicon)
 - **Windows (`x64` & `ARM64`)**:
   - **Runtime (end users)**: Windows 10 or Windows 11 (`x64` or native `ARM64` for Snapdragon / Copilot+ PCs). No Edge WebView2 Runtime is required — OAuth opens in your default browser, video uses Windows Media Foundation (`video_player_win`), TTS uses Windows SAPI, and TLS uses the native Windows Certificate Store (`crypt32.lib`).
-  - **Building from source**: Visual Studio 2022 (or Visual Studio Build Tools) with the **Desktop development with C++** workload (MSVC C++17 toolchain, CMake `>= 3.14`, Windows SDK; plus **MSVC C++ ARM64 build tools** and **C++ ATL for ARM64** when building for `ARM64`) and `flutter config --enable-windows-desktop` (also built automatically in CI for both `x64` and `ARM64` via [.github/workflows/windows-build.yml](.github/workflows/windows-build.yml)).
+  - **Building from source**: Visual Studio 2022 (or Visual Studio Build Tools) with the **Desktop development with C++** workload (MSVC C++17 toolchain, CMake `>= 3.14`, Windows SDK; plus **MSVC C++ ARM64 build tools** and **C++ ATL for ARM64** when building for `ARM64`) and `flutter config --enable-windows-desktop` (also built automatically in CI for both `x64` and `ARM64` via [.github/workflows/windows-build.yml](.github/workflows/windows-build.yml), called from [ci.yml](.github/workflows/ci.yml)).
 - **Linux (`x64` & `ARM64` / `aarch64`)**:
   - **Runtime (end users)**:
     - **`libmpv` is required to launch** (`video_player_media_kit` links `libmpv` at startup for video & GIFV playback):
@@ -115,11 +115,14 @@
    flutter pub get
    flutter gen-l10n
    ```
-2. Run static analysis and tests:
+2. Run the same checks as CI (formatting, static analysis, tests, version consistency):
    ```bash
+   dart format --output=none --set-exit-if-changed lib test
    flutter analyze
    flutter test
+   ./scripts/check_versions.sh
    ```
+   CI uses the exact Flutter release pinned in [`.flutter-version`](.flutter-version); the minimum supported SDK is declared in `pubspec.yaml`. When bumping the app version, update `VERSION`, `version:` in `pubspec.yaml`, and `AppConstants.appVersion` together (the script checks they match).
 3. Launch on iOS Simulator, Android Emulator, connected phone, or desktop (`macos`, `windows`, `linux`):
    ```bash
    flutter run
@@ -128,7 +131,7 @@
    flutter run -d linux
    ```
    *(On macOS Android Emulator, launch the AVD with `-audio coreaudio` for host TTS audio playback.)*
-4. Build release desktop bundles locally (or let GitHub Actions build Windows & Linux via [.github/workflows/windows-build.yml](.github/workflows/windows-build.yml) and [.github/workflows/linux-build.yml](.github/workflows/linux-build.yml)):
+4. Build release desktop bundles locally (or let GitHub Actions build Windows & Linux: [.github/workflows/ci.yml](.github/workflows/ci.yml) verifies the code, compile-checks Android/iOS/macOS, then calls [windows-build.yml](.github/workflows/windows-build.yml) and [linux-build.yml](.github/workflows/linux-build.yml) and attaches the bundles to the GitHub Release on `v*` tags):
    ```bash
    flutter build macos --release
    flutter build windows --release
@@ -148,7 +151,7 @@
 ## Project Structure
 
 ```text
-.github/workflows/                       # CI release builds (linux-build.yml, windows-build.yml)
+.github/workflows/                       # CI: ci.yml (verify + platform checks + release) calling linux-build.yml / windows-build.yml
 docs/ADDING_A_LANGUAGE.md                # Contributor guide for UI translations & domain language packs
 lib/
 ├── core/
