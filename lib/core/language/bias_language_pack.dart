@@ -66,17 +66,16 @@ class BiasComponentLabels {
   });
 
   const BiasComponentLabels.english()
-      : postText = 'Post Text',
-        contentWarning = 'Content Warning',
-        _attachmentLabel = _defaultAttachmentLabel,
-        _linkLabel = _defaultLinkLabel,
-        _referencedMessageLabel = _defaultReferencedMessageLabel,
-        cleanSummary = 'No racial or gender bias detected.',
-        localCleanSummary =
-            'No racial or gender bias detected via local check.',
-        _findingsSummary = _defaultFindingsSummary,
-        _aiFallbackBiasSummary = _defaultAiFallbackBiasSummary,
-        aiFallbackCleanSummary = 'No racial or gender bias detected.';
+    : postText = 'Post Text',
+      contentWarning = 'Content Warning',
+      _attachmentLabel = _defaultAttachmentLabel,
+      _linkLabel = _defaultLinkLabel,
+      _referencedMessageLabel = _defaultReferencedMessageLabel,
+      cleanSummary = 'No racial or gender bias detected.',
+      localCleanSummary = 'No racial or gender bias detected via local check.',
+      _findingsSummary = _defaultFindingsSummary,
+      _aiFallbackBiasSummary = _defaultAiFallbackBiasSummary,
+      aiFallbackCleanSummary = 'No racial or gender bias detected.';
 
   final String postText;
   final String contentWarning;

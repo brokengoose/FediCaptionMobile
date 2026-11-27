@@ -76,19 +76,16 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
         throw StateError(l10n.imageViewerInvalidUrl);
       }
 
-      final cached = await MediaCacheService.instance.getOrFetch(widget.imageUrl);
+      final cached = await MediaCacheService.instance.getOrFetch(
+        widget.imageUrl,
+      );
       final mimeType = cached.mimeType;
       final fileName = _deriveFileName(uri, mimeType);
 
       AccessibilityAnnouncer.announce(l10n.imageViewerAnnounceShare);
       await SharePlus.instance.share(
         ShareParams(
-          files: [
-            XFile.fromData(
-              cached.bytes,
-              mimeType: mimeType,
-            ),
-          ],
+          files: [XFile.fromData(cached.bytes, mimeType: mimeType)],
           fileNameOverrides: [fileName],
           sharePositionOrigin: origin,
         ),
@@ -118,8 +115,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
   }
 
   String _deriveFileName(Uri uri, String mimeType) {
-    final lastSegment =
-        uri.pathSegments.isNotEmpty ? uri.pathSegments.last.trim() : '';
+    final lastSegment = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last.trim()
+        : '';
     if (lastSegment.isNotEmpty && lastSegment.contains('.')) {
       return lastSegment;
     }
@@ -180,12 +178,10 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                   maxScale: 4.0,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onLongPressStart: (details) => _handleShare(
-                      globalPosition: details.globalPosition,
-                    ),
-                    onSecondaryTapUp: (details) => _handleShare(
-                      globalPosition: details.globalPosition,
-                    ),
+                    onLongPressStart: (details) =>
+                        _handleShare(globalPosition: details.globalPosition),
+                    onSecondaryTapUp: (details) =>
+                        _handleShare(globalPosition: details.globalPosition),
                     child: SizedBox.expand(
                       child: Image(
                         image: DiskCachedNetworkImage(widget.imageUrl),
@@ -193,8 +189,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return const Center(
-                            child:
-                                CircularProgressIndicator(color: Colors.white),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
                           );
                         },
                         errorBuilder: (_, _, _) => Center(
@@ -232,9 +229,7 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
                 child: SingleChildScrollView(
                   child: Text(
                     trimmedAlt,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
+                    style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: Colors.white),
                   ),
                 ),

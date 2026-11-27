@@ -21,14 +21,17 @@ class TtsService extends ChangeNotifier {
     FlutterTts? tts,
     bool? isLinuxOverride,
     LinuxProcessStarter? linuxProcessStarter,
-  })  : _isLinux = isLinuxOverride ??
-            (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux),
-        _linuxProcessStarter = linuxProcessStarter ?? Process.start,
-        _tts = (isLinuxOverride ??
-                    (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux)) &&
-                tts == null
-            ? null
-            : (tts ?? FlutterTts()) {
+  }) : _isLinux =
+           isLinuxOverride ??
+           (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux),
+       _linuxProcessStarter = linuxProcessStarter ?? Process.start,
+       _tts =
+           (isLinuxOverride ??
+                   (!kIsWeb &&
+                       defaultTargetPlatform == TargetPlatform.linux)) &&
+               tts == null
+           ? null
+           : (tts ?? FlutterTts()) {
     if (_tts != null) {
       _configure(_tts);
     }
@@ -63,16 +66,12 @@ class TtsService extends ChangeNotifier {
   void _configure(FlutterTts tts) {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
       tts.setSharedInstance(true);
-      tts.setIosAudioCategory(
-        IosTextToSpeechAudioCategory.playback,
-        [
-          IosTextToSpeechAudioCategoryOptions.allowBluetooth,
-          IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
-          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
-          IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
-        ],
-        IosTextToSpeechAudioMode.spokenAudio,
-      );
+      tts.setIosAudioCategory(IosTextToSpeechAudioCategory.playback, [
+        IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+        IosTextToSpeechAudioCategoryOptions.allowBluetoothA2DP,
+        IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+        IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+      ], IosTextToSpeechAudioMode.spokenAudio);
     }
 
     tts.setCompletionHandler(_resetState);

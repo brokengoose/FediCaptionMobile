@@ -16,7 +16,10 @@ void main() {
   group('AiProviderService dynamic model discovery', () {
     test('filters Gemini models to those supporting generateContent', () async {
       final mockClient = MockClient((request) async {
-        expect(request.url.toString(), contains('generativelanguage.googleapis.com/v1beta/models'));
+        expect(
+          request.url.toString(),
+          contains('generativelanguage.googleapis.com/v1beta/models'),
+        );
         return http.Response(
           jsonEncode({
             'models': [
@@ -76,29 +79,38 @@ void main() {
       expect(ids, isNot(contains('text-embedding-3-small')));
     });
 
-    test('queries Anthropic models with x-api-key and anthropic-version headers', () async {
-      final mockClient = MockClient((request) async {
-        expect(request.headers['x-api-key'], 'sk-ant-test');
-        expect(request.headers['anthropic-version'], AppConstants.anthropicVersion);
-        return http.Response(
-          jsonEncode({
-            'data': [
-              {'id': 'claude-sonnet-4-20250514', 'display_name': 'Claude Sonnet 4'},
-            ],
-          }),
-          200,
+    test(
+      'queries Anthropic models with x-api-key and anthropic-version headers',
+      () async {
+        final mockClient = MockClient((request) async {
+          expect(request.headers['x-api-key'], 'sk-ant-test');
+          expect(
+            request.headers['anthropic-version'],
+            AppConstants.anthropicVersion,
+          );
+          return http.Response(
+            jsonEncode({
+              'data': [
+                {
+                  'id': 'claude-sonnet-4-20250514',
+                  'display_name': 'Claude Sonnet 4',
+                },
+              ],
+            }),
+            200,
+          );
+        });
+
+        final service = AiProviderService(client: mockClient);
+        final models = await service.fetchAvailableModels(
+          provider: AiProviderType.anthropic,
+          settings: const AppSettings(),
+          credentials: const AiCredentials(anthropicApiKey: 'sk-ant-test'),
         );
-      });
 
-      final service = AiProviderService(client: mockClient);
-      final models = await service.fetchAvailableModels(
-        provider: AiProviderType.anthropic,
-        settings: const AppSettings(),
-        credentials: const AiCredentials(anthropicApiKey: 'sk-ant-test'),
-      );
-
-      expect(models.first.id, 'claude-sonnet-4-20250514');
-    });
+        expect(models.first.id, 'claude-sonnet-4-20250514');
+      },
+    );
 
     test('queries Ollama /api/tags for local LAN provider and sorts models alphabetically', () async {
       final mockClient = MockClient((request) async {
@@ -124,14 +136,11 @@ void main() {
         credentials: const AiCredentials(),
       );
 
-      expect(
-        models.map((m) => m.id).toList(),
-        [
-          'llama3.2-vision:latest',
-          'mistral:latest',
-          'qwen2.5vl:latest',
-        ],
-      );
+      expect(models.map((m) => m.id).toList(), [
+        'llama3.2-vision:latest',
+        'mistral:latest',
+        'qwen2.5vl:latest',
+      ]);
       expect(models.any((m) => m.id == 'on-device-fallback'), isFalse);
     });
 
@@ -171,49 +180,56 @@ void main() {
         credentials: const AiCredentials(openAiApiKey: 'sk-test'),
       );
 
-      expect(
-        models.map((m) => m.id).toList(),
-        ['gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'o3-mini'],
-      );
+      expect(models.map((m) => m.id).toList(), [
+        'gpt-4.1',
+        'gpt-4o',
+        'gpt-4o-mini',
+        'o3-mini',
+      ]);
     });
 
-    test('generateAltText cleans output and prepends mandatory prefix', () async {
-      final mockClient = MockClient((request) async {
-        return http.Response(
-          jsonEncode({
-            'candidates': [
-              {
-                'content': {
-                  'parts': [
-                    {'text': '"Photo of a wooden lighthouse overlooking rocky cliffs."'},
-                  ],
+    test(
+      'generateAltText cleans output and prepends mandatory prefix',
+      () async {
+        final mockClient = MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {
+                        'text': '"Photo of a wooden lighthouse overlooking rocky cliffs."',
+                      },
+                    ],
+                  },
                 },
-              },
-            ],
-          }),
-          200,
+              ],
+            }),
+            200,
+          );
+        });
+
+        final service = AiProviderService(client: mockClient);
+        final caption = await service.generateAltText(
+          settings: const AppSettings(activeProvider: AiProviderType.gemini),
+          credentials: const AiCredentials(geminiApiKey: 'test-key'),
+          isVideo: false,
+          detailLevel: CaptionDetailLevel.descriptive,
+          maxAltTextLength: 1500,
+          preExtractedMedia: [
+            MediaBinaryPayload(
+              bytes: Uint8List.fromList([1, 2, 3, 4]),
+              mimeType: 'image/jpeg',
+            ),
+          ],
         );
-      });
 
-      final service = AiProviderService(client: mockClient);
-      final caption = await service.generateAltText(
-        settings: const AppSettings(activeProvider: AiProviderType.gemini),
-        credentials: const AiCredentials(geminiApiKey: 'test-key'),
-        isVideo: false,
-        detailLevel: CaptionDetailLevel.descriptive,
-        maxAltTextLength: 1500,
-        preExtractedMedia: [
-          MediaBinaryPayload(
-            bytes: Uint8List.fromList([1, 2, 3, 4]),
-            mimeType: 'image/jpeg',
-          ),
-        ],
-      );
-
-      expect(
-        caption,
-        'AI generated description: A wooden lighthouse overlooking rocky cliffs.',
-      );
-    });
+        expect(
+          caption,
+          'AI generated description: A wooden lighthouse overlooking rocky cliffs.',
+        );
+      },
+    );
   });
 }

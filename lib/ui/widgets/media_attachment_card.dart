@@ -73,8 +73,9 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
 
         final authorAlt = (att.description ?? '').trim();
         final translatedAlt = (widget.translatedAltText ?? '').trim();
-        final displayedAuthorAlt =
-            translatedAlt.isNotEmpty ? translatedAlt : authorAlt;
+        final displayedAuthorAlt = translatedAlt.isNotEmpty
+            ? translatedAlt
+            : authorAlt;
         final aiAlt = widget.app.aiDescriptionForMedia(att.id);
         final isDescribing = widget.app.isDescribingMedia(att.id);
         final describeError = widget.app.mediaDescribeError(att.id);
@@ -105,19 +106,19 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
         final VoidCallback? describe = isDescribing
             ? null
             : () => widget.app.describeTimelineMedia(
-                  att,
-                  postContext: widget.postContext,
-                );
+                att,
+                postContext: widget.postContext,
+              );
 
         void toggleReadAloud() => widget.app.tts.toggleSpeak(
-              key: ttsKey,
-              text: effectiveAlt,
-              // AI captions are generated in the app's caption language.
-              languageName: aiAlt == null
-                  ? (widget.readAloudLanguage ?? widget.app.settings.language)
-                  : widget.app.settings.language,
-              speechRate: widget.app.settings.ttsSpeechRate,
-            );
+          key: ttsKey,
+          text: effectiveAlt,
+          // AI captions are generated in the app's caption language.
+          languageName: aiAlt == null
+              ? (widget.readAloudLanguage ?? widget.app.settings.language)
+              : widget.app.settings.language,
+          speechRate: widget.app.settings.ttsSpeechRate,
+        );
 
         return Container(
           margin: const EdgeInsets.only(top: 8),
@@ -138,11 +139,11 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                   onTap: openFullScreen,
                   label: hasAnyAlt
                       ? (att.isVideo
-                          ? l10n.mediaVideoWithAltSemantics(effectiveAlt)
-                          : l10n.mediaImageWithAltSemantics(effectiveAlt))
+                            ? l10n.mediaVideoWithAltSemantics(effectiveAlt)
+                            : l10n.mediaImageWithAltSemantics(effectiveAlt))
                       : (att.isVideo
-                          ? l10n.mediaVideoNoAltSemantics
-                          : l10n.mediaImageNoAltSemantics),
+                            ? l10n.mediaVideoNoAltSemantics
+                            : l10n.mediaImageNoAltSemantics),
                   child: AccessibleTip(
                     message: att.isVideo
                         ? l10n.mediaVideoOpenTip
@@ -187,40 +188,46 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                               ),
                             ),
                           ),
-                        if (att.isVideo)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black87,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.play_arrow, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  l10n.mediaVideoBadge,
-                                  style: const TextStyle(
+                          if (att.isVideo)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black87,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.play_arrow,
                                     color: Colors.white,
-                                    fontWeight: FontWeight.bold,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    l10n.mediaVideoBadge,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   ),
                 ),
 
               // Alt-text status bar & expandable toggle
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 color: att.hasAltText ? fedi.altPresentBg : fedi.altMissingBg,
                 child: Row(
                   children: [
@@ -229,8 +236,9 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           ? Icons.closed_caption
                           : Icons.warning_amber_rounded,
                       size: 18,
-                      color:
-                          att.hasAltText ? fedi.altPresentFg : fedi.altMissingFg,
+                      color: att.hasAltText
+                          ? fedi.altPresentFg
+                          : fedi.altMissingFg,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -238,7 +246,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                         att.hasAltText
                             ? l10n.mediaAltProvidedBadge
                             : l10n.mediaNoAltBadge,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: att.hasAltText
                                   ? fedi.altPresentFg
@@ -261,9 +270,13 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                                 : fedi.altMissingFg,
                           ),
                           icon: Icon(
-                            _altExpanded ? Icons.expand_less : Icons.expand_more,
+                            _altExpanded
+                                ? Icons.expand_less
+                                : Icons.expand_more,
                           ),
-                          label: Text(_altExpanded ? l10n.commonHide : l10n.commonShow),
+                          label: Text(
+                            _altExpanded ? l10n.commonHide : l10n.commonShow,
+                          ),
                         ),
                       ),
                   ],
@@ -283,7 +296,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           translatedAlt.isNotEmpty
                               ? l10n.mediaAuthorAltTranslatedHeading
                               : l10n.mediaAuthorAltHeading,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: fedi.subtleText,
                               ),
@@ -298,7 +312,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                         if (authorAlt.isNotEmpty) const Divider(height: 16),
                         Text(
                           l10n.mediaOnDemandAiHeading,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: scheme.primary,
                               ),
@@ -318,9 +333,7 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                   child: Text(
                     describeError,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
+                    style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: scheme.error),
                   ),
                 ),
@@ -339,8 +352,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                           label: isDescribing
                               ? l10n.mediaDescribingSemantics
                               : (aiAlt != null || att.hasAltText
-                                  ? l10n.mediaRedescribeSemantics
-                                  : l10n.mediaDescribeSemantics),
+                                    ? l10n.mediaRedescribeSemantics
+                                    : l10n.mediaDescribeSemantics),
                           child: AccessibleTip(
                             message: l10n.mediaDescribeTip,
                             child: OutlinedButton.icon(
@@ -358,8 +371,8 @@ class _MediaAttachmentCardState extends State<MediaAttachmentCard> {
                                 isDescribing
                                     ? l10n.mediaDescribingButton
                                     : (aiAlt != null || att.hasAltText
-                                        ? l10n.mediaRedescribeButton
-                                        : l10n.mediaDescribeButton),
+                                          ? l10n.mediaRedescribeButton
+                                          : l10n.mediaDescribeButton),
                               ),
                             ),
                           ),

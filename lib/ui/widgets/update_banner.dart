@@ -58,30 +58,27 @@ class UpdateBanner extends StatelessWidget {
               // exclude the visible copies so they aren't read twice.
               child: ExcludeSemantics(
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.updateBannerTitle(update.latestVersion),
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: fedi.updateBannerFg,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  Text(
-                    l10n.updateBannerSubtitle(update.currentVersion),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: fedi.updateBannerFg,
-                        ),
-                  ),
-                ],
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.updateBannerTitle(update.latestVersion),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: fedi.updateBannerFg,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      l10n.updateBannerSubtitle(update.currentVersion),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: fedi.updateBannerFg),
+                    ),
+                  ],
                 ),
               ),
             ),
             TextButton(
               onPressed: _openReleaseUrl,
-              style: TextButton.styleFrom(
-                foregroundColor: fedi.updateBannerFg,
-              ),
+              style: TextButton.styleFrom(foregroundColor: fedi.updateBannerFg),
               child: Text(
                 l10n.commonDownload,
                 style: const TextStyle(fontWeight: FontWeight.bold),

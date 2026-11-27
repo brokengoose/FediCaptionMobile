@@ -237,49 +237,47 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: _isInitializing
                         ? const CircularProgressIndicator(color: Colors.white)
                         : error != null
-                            ? Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.videocam_off,
-                                      size: 48,
-                                      color: Colors.white70,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      error,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    FilledButton.icon(
-                                      onPressed: _openInBrowser,
-                                      icon: const Icon(Icons.open_in_new),
-                                      label: Text(
-                                        l10n.videoPlayerOpenBrowserButton,
-                                      ),
-                                    ),
-                                  ],
+                        ? Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.videocam_off,
+                                  size: 48,
+                                  color: Colors.white70,
                                 ),
-                              )
-                            : isReady
-                                ? GestureDetector(
-                                    onTap: _togglePlayPause,
-                                    behavior: HitTestBehavior.opaque,
-                                    child: Center(
-                                      child: AspectRatio(
-                                        aspectRatio: c.value.aspectRatio > 0
-                                            ? c.value.aspectRatio
-                                            : 16 / 9,
-                                        child: VideoPlayer(c),
-                                      ),
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
+                                const SizedBox(height: 12),
+                                Text(
+                                  error,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                const SizedBox(height: 16),
+                                FilledButton.icon(
+                                  onPressed: _openInBrowser,
+                                  icon: const Icon(Icons.open_in_new),
+                                  label: Text(
+                                    l10n.videoPlayerOpenBrowserButton,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : isReady
+                        ? GestureDetector(
+                            onTap: _togglePlayPause,
+                            behavior: HitTestBehavior.opaque,
+                            child: Center(
+                              child: AspectRatio(
+                                aspectRatio: c.value.aspectRatio > 0
+                                    ? c.value.aspectRatio
+                                    : 16 / 9,
+                                child: VideoPlayer(c),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ),
 
@@ -322,8 +320,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             allowScrubbing: true,
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             colors: VideoProgressColors(
-                              playedColor:
-                                  Theme.of(context).colorScheme.primary,
+                              playedColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary,
                               bufferedColor: Colors.white38,
                               backgroundColor: Colors.white24,
                             ),
@@ -377,9 +376,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: SingleChildScrollView(
                       child: Text(
                         trimmedAlt,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
+                        style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: Colors.white),
                       ),
                     ),

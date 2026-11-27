@@ -49,7 +49,9 @@ class BiasCheckService {
     BiasComponentLabels labels = const BiasComponentLabels.english(),
   }) async {
     // 1. Extract URLs from post text + spoiler text and separate Mastodon status links vs external links.
-    final urls = HtmlUtils.extractUrls('${input.postText}\n${input.spoilerText}');
+    final urls = HtmlUtils.extractUrls(
+      '${input.postText}\n${input.spoilerText}',
+    );
     final referencedStatuses = List<ReferencedStatusContext>.from(
       input.referencedStatuses,
     );
@@ -92,9 +94,9 @@ class BiasCheckService {
 
     final effectiveContentLang =
         LanguageRegistry.resolveCode(contentLanguageCode) ??
-            LanguageRegistry.detectScriptLanguage(
-              '${enrichedInput.postText}\n${enrichedInput.spoilerText}',
-            );
+        LanguageRegistry.detectScriptLanguage(
+          '${enrichedInput.postText}\n${enrichedInput.spoilerText}',
+        );
     final biasPack = LanguagePackRegistry.biasPackFor(
       effectiveContentLang,
       fallbackToEnglish: false,
@@ -179,8 +181,8 @@ class BiasCheckService {
     final normalizedResp = LanguageRegistry.resolveCode(responseLanguageCode);
     final languageInstruction =
         (normalizedResp != null && normalizedResp != 'en')
-            ? ' Write "summary", "bias_type", and "explanation" in ${LanguageRegistry.englishNameFor(normalizedResp)}, while keeping "suggested_alternate_wording" in the draft\'s original language.'
-            : '';
+        ? ' Write "summary", "bias_type", and "explanation" in ${LanguageRegistry.englishNameFor(normalizedResp)}, while keeping "suggested_alternate_wording" in the draft\'s original language.'
+        : '';
 
     return 'You are an objective, fair racial and gender bias reviewer for social media posts. '
         'Analyze all provided components (post text, content warning, attached images/video keyframes and their alt-text, linked webpage excerpts, and referenced/replied-to messages) '
@@ -224,7 +226,9 @@ class BiasCheckService {
     buffer.writeln();
 
     buffer.writeln('=== ${labels.postText} ===');
-    buffer.writeln(input.postText.trim().isEmpty ? '(empty)' : input.postText.trim());
+    buffer.writeln(
+      input.postText.trim().isEmpty ? '(empty)' : input.postText.trim(),
+    );
     buffer.writeln();
 
     if (input.spoilerText.trim().isNotEmpty) {
@@ -255,7 +259,9 @@ class BiasCheckService {
     }
 
     for (final ref in input.referencedStatuses) {
-      buffer.writeln('=== ${labels.referencedMessageLabel(ref.authorHandle)} ===');
+      buffer.writeln(
+        '=== ${labels.referencedMessageLabel(ref.authorHandle)} ===',
+      );
       if (ref.spoilerText.trim().isNotEmpty) {
         buffer.writeln('${labels.contentWarning}: ${ref.spoilerText.trim()}');
       }
@@ -269,7 +275,9 @@ class BiasCheckService {
     final exampleAtt = labels.attachmentLabel(1);
     final exampleLink = labels.linkLabel('https://...');
     final exampleRef = labels.referencedMessageLabel('user');
-    buffer.writeln('Respond ONLY with a JSON object matching this exact schema:');
+    buffer.writeln(
+      'Respond ONLY with a JSON object matching this exact schema:',
+    );
     buffer.writeln('''
 {
   "has_bias": true or false,
@@ -306,20 +314,21 @@ class BiasCheckService {
 
     final hasBias = jsonBool(decoded['has_bias']) || findings.isNotEmpty;
     final summary = jsonString(decoded['summary'])?.trim();
-    final suggested =
-        jsonString(decoded['suggested_alternate_wording'])?.trim();
+    final suggested = jsonString(decoded['suggested_alternate_wording'])
+        ?.trim();
 
     return BiasCheckResult(
       hasBias: hasBias,
       summary: (summary != null && summary.isNotEmpty)
           ? summary
           : (hasBias
-              ? labels.aiFallbackBiasSummary(checkedComponents.join(', '))
-              : labels.aiFallbackCleanSummary),
+                ? labels.aiFallbackBiasSummary(checkedComponents.join(', '))
+                : labels.aiFallbackCleanSummary),
       checkedComponents: checkedComponents,
       findings: findings,
-      suggestedAlternateWording:
-          (suggested != null && suggested.isNotEmpty) ? suggested : null,
+      suggestedAlternateWording: (suggested != null && suggested.isNotEmpty)
+          ? suggested
+          : null,
       usedLocalFallback: false,
     );
   }
@@ -341,8 +350,8 @@ class BiasCheckService {
                   localFinding.excerpt!.toLowerCase(),
                 ) ||
                 (f.excerpt ?? '').toLowerCase().contains(
-                      localFinding.excerpt!.toLowerCase(),
-                    )),
+                  localFinding.excerpt!.toLowerCase(),
+                )),
       );
       if (!alreadyCovered) {
         mergedFindings.add(localFinding);
@@ -355,7 +364,8 @@ class BiasCheckService {
       checkedComponents: aiResult.checkedComponents,
       findings: mergedFindings,
       suggestedAlternateWording:
-          aiResult.suggestedAlternateWording ?? localResult.suggestedAlternateWording,
+          aiResult.suggestedAlternateWording ??
+          localResult.suggestedAlternateWording,
       usedLocalFallback: false,
     );
   }

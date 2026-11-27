@@ -271,9 +271,7 @@ class AppTheme {
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(
-          minimumSize: _minButtonSize,
-        ),
+        style: IconButton.styleFrom(minimumSize: _minButtonSize),
       ),
       dividerTheme: DividerThemeData(
         color: extraColors.cardBorder,

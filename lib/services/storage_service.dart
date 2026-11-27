@@ -19,17 +19,19 @@ class StorageService {
   StorageService({
     FlutterSecureStorage? secureStorage,
     bool? enableLinuxKeyringFallback,
-  })  : _hasCustomSecureStorage = secureStorage != null,
-        _enableLinuxKeyringFallback = enableLinuxKeyringFallback ??
-            (secureStorage == null &&
-                !kIsWeb &&
-                defaultTargetPlatform == TargetPlatform.linux),
-        _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              iOptions: IOSOptions(
-                accessibility: KeychainAccessibility.first_unlock_this_device,
-              ),
-            );
+  }) : _hasCustomSecureStorage = secureStorage != null,
+       _enableLinuxKeyringFallback =
+           enableLinuxKeyringFallback ??
+           (secureStorage == null &&
+               !kIsWeb &&
+               defaultTargetPlatform == TargetPlatform.linux),
+       _secureStorage =
+           secureStorage ??
+           const FlutterSecureStorage(
+             iOptions: IOSOptions(
+               accessibility: KeychainAccessibility.first_unlock_this_device,
+             ),
+           );
 
   final bool _hasCustomSecureStorage;
   final bool _enableLinuxKeyringFallback;
@@ -147,10 +149,7 @@ class StorageService {
         accessToken.isEmpty) {
       return null;
     }
-    return MastodonSession(
-      instanceUrl: instanceUrl,
-      accessToken: accessToken,
-    );
+    return MastodonSession(instanceUrl: instanceUrl, accessToken: accessToken);
   }
 
   Future<void> saveSession(MastodonSession session) async {
@@ -178,13 +177,16 @@ class StorageService {
         final key = (item['key'] as String?)?.trim() ?? '';
         final instanceUrl = (item['instanceUrl'] as String?)?.trim() ?? '';
         final accountId = (item['accountId'] as String?)?.trim() ?? '';
-        final effectiveKey =
-            key.isNotEmpty ? key : StoredAccount.buildKey(instanceUrl, accountId);
+        final effectiveKey = key.isNotEmpty
+            ? key
+            : StoredAccount.buildKey(instanceUrl, accountId);
         if (effectiveKey.isEmpty) continue;
         final token =
             await _readSecret(_accountTokenSecretKey(effectiveKey)) ?? '';
-        final account =
-            StoredAccount.fromMetadataJson(item, accessToken: token);
+        final account = StoredAccount.fromMetadataJson(
+          item,
+          accessToken: token,
+        );
         if (account != null) {
           accounts.add(account);
         }
@@ -207,7 +209,10 @@ class StorageService {
     StoredAccount account, {
     bool setActive = true,
   }) async {
-    await _writeSecret(_accountTokenSecretKey(account.key), account.accessToken);
+    await _writeSecret(
+      _accountTokenSecretKey(account.key),
+      account.accessToken,
+    );
     final existing = await loadAccounts();
     final updated = <StoredAccount>[];
     var replaced = false;
@@ -394,8 +399,9 @@ class StorageService {
       if (decoded is! Map<String, dynamic>) return null;
       final fetchedMs = (decoded['fetched_at_ms'] as num?)?.toInt() ?? 0;
       if (fetchedMs <= 0) return null;
-      final age = DateTime.now()
-          .difference(DateTime.fromMillisecondsSinceEpoch(fetchedMs));
+      final age = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(fetchedMs),
+      );
       if (age > _instanceLimitsTtl) return null;
       if (!decoded.containsKey('translation_enabled')) return null;
       return InstanceLimits(

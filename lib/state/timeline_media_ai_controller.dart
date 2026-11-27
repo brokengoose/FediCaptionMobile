@@ -24,7 +24,7 @@ class TimelineMediaAiController extends ChangeNotifier {
     required this._aiProvider,
     AppLocalizations Function()? l10nProvider,
     this.maxEntries = 200,
-  })  : _l10nProvider = l10nProvider ?? (() => resolveAppLocalizations());
+  }) : _l10nProvider = l10nProvider ?? (() => resolveAppLocalizations());
 
   final MastodonService _mastodon;
   final AiProviderService _aiProvider;

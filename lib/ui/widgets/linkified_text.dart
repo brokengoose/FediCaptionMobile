@@ -23,8 +23,8 @@ class LinkifiedText extends StatefulWidget {
     this.mentions = const [],
     this.onTapMention,
     this.onTapUrl,
-  })  : _content = htmlContent,
-        _isHtml = true;
+  }) : _content = htmlContent,
+       _isHtml = true;
 
   const LinkifiedText.plain(
     String plainText, {
@@ -33,10 +33,10 @@ class LinkifiedText extends StatefulWidget {
     this.maxLines,
     this.overflow = TextOverflow.clip,
     this.onTapUrl,
-  })  : _content = plainText,
-        _isHtml = false,
-        mentions = const [],
-        onTapMention = null;
+  }) : _content = plainText,
+       _isHtml = false,
+       mentions = const [],
+       onTapMention = null;
 
   final String _content;
   final bool _isHtml;
@@ -145,8 +145,8 @@ class _LinkifiedTextState extends State<LinkifiedText> {
         if (visibleText.isEmpty) return;
 
         if (href.isNotEmpty) {
-          final isMention = classes.contains('mention') &&
-              !classes.contains('hashtag');
+          final isMention =
+              classes.contains('mention') && !classes.contains('hashtag');
           final matchedMention = isMention ? _findMentionByUrl(href) : null;
 
           spans.add(
@@ -171,17 +171,21 @@ class _LinkifiedTextState extends State<LinkifiedText> {
 
       TextStyle? nextStyle = currentStyle;
       if (tag == 'strong' || tag == 'b') {
-        nextStyle = (currentStyle ?? const TextStyle())
-            .copyWith(fontWeight: FontWeight.bold);
+        nextStyle = (currentStyle ?? const TextStyle()).copyWith(
+          fontWeight: FontWeight.bold,
+        );
       } else if (tag == 'em' || tag == 'i') {
-        nextStyle = (currentStyle ?? const TextStyle())
-            .copyWith(fontStyle: FontStyle.italic);
+        nextStyle = (currentStyle ?? const TextStyle()).copyWith(
+          fontStyle: FontStyle.italic,
+        );
       } else if (tag == 'code' || tag == 'pre') {
-        nextStyle = (currentStyle ?? const TextStyle())
-            .copyWith(fontFamily: 'monospace');
+        nextStyle = (currentStyle ?? const TextStyle()).copyWith(
+          fontFamily: 'monospace',
+        );
       }
 
-      final isBlock = tag == 'p' ||
+      final isBlock =
+          tag == 'p' ||
           tag == 'div' ||
           tag == 'blockquote' ||
           tag == 'li' ||
@@ -191,7 +195,9 @@ class _LinkifiedTextState extends State<LinkifiedText> {
         spans.add(const TextSpan(text: '\n• '));
       } else if (tag == 'li') {
         spans.add(const TextSpan(text: '• '));
-      } else if (isBlock && spans.isNotEmpty && !_endsWithDoubleNewline(spans)) {
+      } else if (isBlock &&
+          spans.isNotEmpty &&
+          !_endsWithDoubleNewline(spans)) {
         spans.add(TextSpan(text: _endsWithNewline(spans) ? '\n' : '\n\n'));
       }
 
@@ -266,8 +272,9 @@ class _LinkifiedTextState extends State<LinkifiedText> {
         );
       }
 
-      final (:url, :trailing) =
-          HtmlUtils.splitTrailingUrlPunctuation(match.group(0) ?? '');
+      final (:url, :trailing) = HtmlUtils.splitTrailingUrlPunctuation(
+        match.group(0) ?? '',
+      );
 
       if (url.isNotEmpty) {
         spans.add(

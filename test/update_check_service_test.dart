@@ -24,8 +24,7 @@ void main() {
           return http.Response(
             jsonEncode({
               'tag_name': 'v1.2.0',
-              'html_url':
-                  'https://github.com/brokengoose/FediCaptionMobile/releases/tag/v1.2.0',
+              'html_url': 'https://github.com/brokengoose/FediCaptionMobile/releases/tag/v1.2.0',
             }),
             200,
           );
@@ -41,22 +40,25 @@ void main() {
       expect(update.releaseUrl, contains('releases/tag/v1.2.0'));
     });
 
-    test('falls back to VERSION file on main branch when no GitHub release exists', () async {
-      final mockClient = MockClient((request) async {
-        if (request.url.path.endsWith('/releases/latest')) {
+    test(
+      'falls back to VERSION file on main branch when no GitHub release exists',
+      () async {
+        final mockClient = MockClient((request) async {
+          if (request.url.path.endsWith('/releases/latest')) {
+            return http.Response('Not found', 404);
+          }
+          if (request.url.path.endsWith('/main/VERSION')) {
+            return http.Response('1.3.0\n', 200);
+          }
           return http.Response('Not found', 404);
-        }
-        if (request.url.path.endsWith('/main/VERSION')) {
-          return http.Response('1.3.0\n', 200);
-        }
-        return http.Response('Not found', 404);
-      });
+        });
 
-      final service = UpdateCheckService(client: mockClient);
-      final update = await service.checkForUpdate(currentVersion: '1.0.0');
+        final service = UpdateCheckService(client: mockClient);
+        final update = await service.checkForUpdate(currentVersion: '1.0.0');
 
-      expect(update, isNotNull);
-      expect(update!.latestVersion, '1.3.0');
-    });
+        expect(update, isNotNull);
+        expect(update!.latestVersion, '1.3.0');
+      },
+    );
   });
 }

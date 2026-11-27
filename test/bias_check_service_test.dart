@@ -50,10 +50,7 @@ void main() {
 
       expect(result.hasBias, isTrue);
       expect(result.usedLocalFallback, isTrue);
-      expect(
-        result.findings.any((f) => f.location == 'Post Text'),
-        isTrue,
-      );
+      expect(result.findings.any((f) => f.location == 'Post Text'), isTrue);
       expect(
         result.findings.any(
           (f) => f.location == 'Link (https://example.org/post)',
@@ -81,9 +78,7 @@ void main() {
       );
 
       final result = await service.checkDraft(
-        input: const BiasCheckInput(
-          postText: 'Quit bitching about the rain.',
-        ),
+        input: const BiasCheckInput(postText: 'Quit bitching about the rain.'),
         settings: const AppSettings(activeProvider: AiProviderType.gemini),
         credentials: const AiCredentials(geminiApiKey: 'key'),
       );
@@ -149,10 +144,7 @@ void main() {
       expect(result.usedLocalFallback, isFalse);
       expect(result.hasBias, isTrue);
       expect(result.summary, 'Possible bias.');
-      expect(
-        result.findings.single.excerpt,
-        '42',
-      );
+      expect(result.findings.single.excerpt, '42');
     });
 
     test('sends the Gemini API key in a header, never in the URL', () async {

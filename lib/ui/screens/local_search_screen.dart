@@ -18,10 +18,7 @@ import '../widgets/status_card.dart';
 /// Instant client-side search screen over locally cached timelines, bookmarks,
 /// favorites, notifications, and media alt-text — zero Mastodon server load.
 class LocalSearchScreen extends StatefulWidget {
-  const LocalSearchScreen({
-    super.key,
-    required this.app,
-  });
+  const LocalSearchScreen({super.key, required this.app});
 
   final AppController app;
 
@@ -161,9 +158,7 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
                     const SizedBox(height: 8),
                     Text(
                       l10n.searchEmptyDescription,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
+                      style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(color: fedi.subtleText),
                       textAlign: TextAlign.center,
                     ),
@@ -172,59 +167,63 @@ class _LocalSearchScreenState extends State<LocalSearchScreen> {
               ),
             )
           : _results.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      l10n.searchNoResults(query),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.only(top: 6, bottom: 32),
-                  itemCount: _results.length,
-                  itemBuilder: (context, index) {
-                    final status = _results[index];
-                    return RepaintBoundary(
-                      key: ValueKey('search_${status.id}'),
-                      child: StatusCard(
-                        status: status,
-                        app: widget.app,
-                        onOpenProfile: (acc) =>
-                            _actions.openProfile(context, acc),
-                        onOpenThread: (st) => _actions.openThread(context, st),
-                        onReply: (st) => _actions.openReply(context, st),
-                        onToggleBoost: (st) async {
-                          final updated =
-                              await _actions.toggleBoost(context, st);
-                          if (updated != null) _refreshResults();
-                        },
-                        onToggleFavorite: (st) async {
-                          final updated =
-                              await _actions.toggleFavorite(context, st);
-                          if (updated != null) _refreshResults();
-                        },
-                        onToggleBookmark: (st) async {
-                          final updated =
-                              await _actions.toggleBookmark(context, st);
-                          if (updated != null) _refreshResults();
-                        },
-                        onEdit: (st) async {
-                          final edited = await _actions.openEdit(context, st);
-                          if (edited != null) _refreshResults();
-                        },
-                        onDelete: (st) async {
-                          final deleted =
-                              await _actions.confirmAndDelete(context, st);
-                          if (deleted) _refreshResults();
-                        },
-                      ),
-                    );
-                  },
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  l10n.searchNoResults(query),
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
                 ),
+              ),
+            )
+          : ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(top: 6, bottom: 32),
+              itemCount: _results.length,
+              itemBuilder: (context, index) {
+                final status = _results[index];
+                return RepaintBoundary(
+                  key: ValueKey('search_${status.id}'),
+                  child: StatusCard(
+                    status: status,
+                    app: widget.app,
+                    onOpenProfile: (acc) => _actions.openProfile(context, acc),
+                    onOpenThread: (st) => _actions.openThread(context, st),
+                    onReply: (st) => _actions.openReply(context, st),
+                    onToggleBoost: (st) async {
+                      final updated = await _actions.toggleBoost(context, st);
+                      if (updated != null) _refreshResults();
+                    },
+                    onToggleFavorite: (st) async {
+                      final updated = await _actions.toggleFavorite(
+                        context,
+                        st,
+                      );
+                      if (updated != null) _refreshResults();
+                    },
+                    onToggleBookmark: (st) async {
+                      final updated = await _actions.toggleBookmark(
+                        context,
+                        st,
+                      );
+                      if (updated != null) _refreshResults();
+                    },
+                    onEdit: (st) async {
+                      final edited = await _actions.openEdit(context, st);
+                      if (edited != null) _refreshResults();
+                    },
+                    onDelete: (st) async {
+                      final deleted = await _actions.confirmAndDelete(
+                        context,
+                        st,
+                      );
+                      if (deleted) _refreshResults();
+                    },
+                  ),
+                );
+              },
+            ),
     );
   }
 }

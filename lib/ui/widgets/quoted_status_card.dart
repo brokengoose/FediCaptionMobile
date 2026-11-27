@@ -73,9 +73,7 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
             Expanded(
               child: Text(
                 l10n.quotedPostLoading,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: fedi.subtleText),
               ),
             ),
@@ -102,9 +100,9 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                   child: Text(
                     l10n.quotedPostLoadError,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: fedi.subtleText,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: fedi.subtleText,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 if (widget.onRetry != null)
@@ -147,9 +145,9 @@ class _QuotedStatusCardState extends State<QuotedStatusCard> {
                 Text(
                   l10n.quotedPostBadge,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: scheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),

@@ -50,7 +50,10 @@ class HtmlUtils {
     final normalized = htmlContent
         .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
         .replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n')
-        .replaceAll(RegExp(r'</(p|div|li|blockquote)>', caseSensitive: false), '\n');
+        .replaceAll(
+          RegExp(r'</(p|div|li|blockquote)>', caseSensitive: false),
+          '\n',
+        );
 
     final document = html_parser.parse(normalized);
     final rawText = document.body?.text ?? document.documentElement?.text ?? '';
@@ -66,8 +69,9 @@ class HtmlUtils {
     final seen = <String>{};
     final result = <String>[];
     for (final match in urlRegex.allMatches(text)) {
-      final (:url, trailing: _) =
-          splitTrailingUrlPunctuation(match.group(0) ?? '');
+      final (:url, trailing: _) = splitTrailingUrlPunctuation(
+        match.group(0) ?? '',
+      );
       if (url.isNotEmpty && seen.add(url)) {
         result.add(url);
       }
@@ -115,7 +119,8 @@ class HtmlUtils {
     if (container == null) return null;
 
     // Inspect either inside the first <p>/<div>/<span> or directly in the fragment.
-    final bool isWrapperElement = container is dom.Element &&
+    final bool isWrapperElement =
+        container is dom.Element &&
         const {'p', 'div', 'span'}.contains(container.localName?.toLowerCase());
     final dom.Node targetParent = isWrapperElement ? container : fragment;
 
@@ -159,21 +164,25 @@ class HtmlUtils {
     // Must begin with text matching `RE:` (case-insensitive).
     if (first is! dom.Text) return null;
     final rawFirstText = first.text;
-    final reMatch = RegExp(r'^\s*RE\s*:\s*', caseSensitive: false)
-        .firstMatch(rawFirstText);
+    final reMatch = RegExp(
+      r'^\s*RE\s*:\s*',
+      caseSensitive: false,
+    ).firstMatch(rawFirstText);
     if (reMatch == null) return null;
 
     final afterRe = rawFirstText.substring(reMatch.end);
 
     // Case 1: `RE: https://...` directly inside the same text node.
     if (afterRe.trim().isNotEmpty) {
-      final bareUrlMatch =
-          RegExp(r'^(https?://[^\s<>()"\[\]]+)', caseSensitive: false)
-              .firstMatch(afterRe.trimLeft());
+      final bareUrlMatch = RegExp(
+        r'^(https?://[^\s<>()"\[\]]+)',
+        caseSensitive: false,
+      ).firstMatch(afterRe.trimLeft());
       if (bareUrlMatch == null) return null;
 
-      final (:url, trailing: _) =
-          splitTrailingUrlPunctuation(bareUrlMatch.group(1) ?? '');
+      final (:url, trailing: _) = splitTrailingUrlPunctuation(
+        bareUrlMatch.group(1) ?? '',
+      );
       if (url.isEmpty) return null;
 
       final trimmedLeft = afterRe.trimLeft();

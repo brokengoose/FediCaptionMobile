@@ -101,8 +101,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Same screen-reader feedback as the main timeline's j/k navigation.
     final target = status.displayStatus;
     final snippet = target.plainText.trim();
-    final preview =
-        snippet.length > 90 ? '${snippet.substring(0, 90)}…' : snippet;
+    final preview = snippet.length > 90
+        ? '${snippet.substring(0, 90)}…'
+        : snippet;
     AccessibilityAnnouncer.announce(
       context.l10n.timelineAnnouncePostSelection(
         next + 1,
@@ -268,7 +269,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() => _isUpdatingFollow = true);
     final l10n = context.l10n;
-    final targetName = _account?.effectiveDisplayName ?? l10n.commonUserFallback;
+    final targetName =
+        _account?.effectiveDisplayName ?? l10n.commonUserFallback;
     try {
       final MastodonRelationship updated;
       if (rel?.following == true || rel?.requested == true) {
@@ -298,9 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.profileErrorSubscription(e.toString())),
-        ),
+        SnackBar(content: Text(l10n.profileErrorSubscription(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => _isUpdatingFollow = false);
@@ -314,7 +314,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() => _isUpdatingFollow = true);
     final l10n = context.l10n;
-    final targetName = _account?.effectiveDisplayName ?? l10n.commonUserFallback;
+    final targetName =
+        _account?.effectiveDisplayName ?? l10n.commonUserFallback;
     try {
       final nextNotify = !rel.notifying;
       final updated = await widget.app.mastodon.followAccount(
@@ -333,9 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.profileErrorNotifications(e.toString())),
-        ),
+        SnackBar(content: Text(l10n.profileErrorNotifications(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => _isUpdatingFollow = false);
@@ -370,9 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: fedi.cardBorder),
-        ),
+        border: Border(bottom: BorderSide(color: fedi.cardBorder)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,16 +388,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Text(
                       account.effectiveDisplayName,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
+                      style: Theme.of(context).textTheme.titleLarge
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
                       account.handle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
+                      style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(color: fedi.subtleText),
                     ),
                     if (rel?.followedBy == true)
@@ -408,9 +401,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           l10n.profileFollowsYou,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: scheme.primary,
                                 fontWeight: FontWeight.bold,
@@ -437,20 +428,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             account.effectiveDisplayName,
                           )
                         : (rel?.requested == true
-                            ? l10n.profileRequestedSemantics
-                            : l10n.profileSubscribeSemantics(
-                                account.effectiveDisplayName,
-                              )),
+                              ? l10n.profileRequestedSemantics
+                              : l10n.profileSubscribeSemantics(
+                                  account.effectiveDisplayName,
+                                )),
                     child: rel?.following == true
                         ? OutlinedButton.icon(
-                            onPressed:
-                                _isUpdatingFollow ? null : _toggleSubscribe,
+                            onPressed: _isUpdatingFollow
+                                ? null
+                                : _toggleSubscribe,
                             icon: const Icon(Icons.person_remove),
                             label: Text(l10n.profileUnsubscribe),
                           )
                         : FilledButton.icon(
-                            onPressed:
-                                _isUpdatingFollow ? null : _toggleSubscribe,
+                            onPressed: _isUpdatingFollow
+                                ? null
+                                : _toggleSubscribe,
                             icon: const Icon(Icons.person_add),
                             label: Text(
                               rel?.requested == true
@@ -602,10 +595,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : null,
               onToggleCw: target.spoilerText.trim().isNotEmpty
                   ? () => setState(() {
-                        if (!_expandedCwIds.remove(target.id)) {
-                          _expandedCwIds.add(target.id);
-                        }
-                      })
+                      if (!_expandedCwIds.remove(target.id)) {
+                        _expandedCwIds.add(target.id);
+                      }
+                    })
                   : null,
               onOpenProfile: (acc) => _actions.openProfile(
                 context,

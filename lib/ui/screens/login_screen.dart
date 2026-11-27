@@ -27,8 +27,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _instanceController =
-      TextEditingController(text: 'mastodon.social');
+  final TextEditingController _instanceController = TextEditingController(
+    text: 'mastodon.social',
+  );
   final TextEditingController _tokenController = TextEditingController();
   bool _showTokenFallback = false;
   bool _obscureToken = true;
@@ -49,7 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return ListenableBuilder(
       listenable: widget.app,
       builder: (context, _) {
-        final busy = widget.app.isAuthenticating || widget.app.isSwitchingAccount;
+        final busy =
+            widget.app.isAuthenticating || widget.app.isSwitchingAccount;
         final error = widget.app.authError;
         final savedAccounts = widget.app.accounts;
 
@@ -100,9 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           l10n.loginWelcomeTitle,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
+                          style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -110,9 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         l10n.loginTagline,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
+                        style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(color: fedi.subtleText),
                       ),
                       const SizedBox(height: 20),
@@ -159,9 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
-                                          ?.copyWith(
-                                            color: fedi.biasWarningFg,
-                                          ),
+                                          ?.copyWith(color: fedi.biasWarningFg),
                                     ),
                                   ],
                                 ),
@@ -192,8 +188,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: busy
                             ? null
                             : () async {
-                                final ok = await widget.app
-                                    .loginWithOAuth(_instanceController.text);
+                                final ok = await widget.app.loginWithOAuth(
+                                  _instanceController.text,
+                                );
                                 if (ok &&
                                     widget.isAddingAccount &&
                                     context.mounted) {
@@ -204,7 +201,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.login),
                         label: Text(
@@ -279,11 +278,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: busy
                               ? null
                               : () async {
-                                  final ok =
-                                      await widget.app.loginWithAccessToken(
-                                    rawInstanceUrl: _instanceController.text,
-                                    accessToken: _tokenController.text,
-                                  );
+                                  final ok = await widget.app
+                                      .loginWithAccessToken(
+                                        rawInstanceUrl:
+                                            _instanceController.text,
+                                        accessToken: _tokenController.text,
+                                      );
                                   if (ok &&
                                       widget.isAddingAccount &&
                                       context.mounted) {
@@ -304,9 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           header: true,
                           child: Text(
                             l10n.loginSavedAccountsHeader,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
+                            style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ),

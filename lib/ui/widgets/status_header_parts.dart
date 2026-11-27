@@ -40,17 +40,22 @@ class StatusAuthorHeader extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final fedi = context.fediColors;
     final l10n = context.l10n;
-    final compactTime =
-        TimeUtils.formatRelativeCompact(status.createdAt, l10n: l10n);
-    final verboseTime =
-        TimeUtils.formatRelativeAccessible(status.createdAt, l10n: l10n);
+    final compactTime = TimeUtils.formatRelativeCompact(
+      status.createdAt,
+      l10n: l10n,
+    );
+    final verboseTime = TimeUtils.formatRelativeAccessible(
+      status.createdAt,
+      l10n: l10n,
+    );
     final VoidCallback? openPermalink = status.permalinkUrl.isNotEmpty
         ? () => _openPermalink(status.permalinkUrl)
         : null;
 
     return Row(
-      crossAxisAlignment:
-          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: compact
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         AccessibleAvatar(
           imageUrl: status.account.avatar,
@@ -83,18 +88,14 @@ class StatusAuthorHeader extends StatelessWidget {
                     children: [
                       Text(
                         status.account.effectiveDisplayName,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
+                        style: Theme.of(context).textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         status.account.handle,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
+                        style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: fedi.subtleText),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -129,13 +130,14 @@ class StatusAuthorHeader extends StatelessWidget {
                     children: [
                       Text(
                         compactTime,
-                        style: (compact
-                                ? Theme.of(context).textTheme.labelSmall
-                                : Theme.of(context).textTheme.labelMedium)
-                            ?.copyWith(
-                          color: scheme.primary,
-                          decoration: TextDecoration.underline,
-                        ),
+                        style:
+                            (compact
+                                    ? Theme.of(context).textTheme.labelSmall
+                                    : Theme.of(context).textTheme.labelMedium)
+                                ?.copyWith(
+                                  color: scheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
                       ),
                       const SizedBox(width: 2),
                       Icon(
@@ -189,13 +191,14 @@ class ContentWarningBanner extends StatelessWidget {
           Expanded(
             child: Text(
               l10n.cwBannerText(spoilerText),
-              style: (compact
-                      ? Theme.of(context).textTheme.bodySmall
-                      : Theme.of(context).textTheme.bodyMedium)
-                  ?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: fedi.biasWarningFg,
-              ),
+              style:
+                  (compact
+                          ? Theme.of(context).textTheme.bodySmall
+                          : Theme.of(context).textTheme.bodyMedium)
+                      ?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: fedi.biasWarningFg,
+                      ),
             ),
           ),
           const SizedBox(width: 8),

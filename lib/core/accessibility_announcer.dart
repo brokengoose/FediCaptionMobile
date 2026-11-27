@@ -11,10 +11,7 @@ class AccessibilityAnnouncer {
   /// Active announcement direction, synchronized with the app's resolved locale.
   static TextDirection defaultTextDirection = TextDirection.ltr;
 
-  static void announce(
-    String message, {
-    TextDirection? textDirection,
-  }) {
+  static void announce(String message, {TextDirection? textDirection}) {
     final trimmed = message.trim();
     if (trimmed.isEmpty) return;
     final views = WidgetsBinding.instance.platformDispatcher.views;

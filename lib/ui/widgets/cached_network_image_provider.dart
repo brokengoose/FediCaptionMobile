@@ -15,11 +15,7 @@ import '../../services/media_cache_service.dart';
 /// cache across restarts and deduplicates simultaneous requests for the same URL.
 @immutable
 class DiskCachedNetworkImage extends ImageProvider<DiskCachedNetworkImage> {
-  const DiskCachedNetworkImage(
-    this.url, {
-    this.scale = 1.0,
-    this.cacheService,
-  });
+  const DiskCachedNetworkImage(this.url, {this.scale = 1.0, this.cacheService});
 
   final String url;
   final double scale;

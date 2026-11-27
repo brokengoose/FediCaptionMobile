@@ -142,10 +142,12 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
     required String localUrl,
   }) {
     return base.copyWith(
-      openAiBaseUrl:
-          openAiUrl.isEmpty ? AppConstants.openAiDefaultBaseUrl : openAiUrl,
-      localBaseUrl:
-          localUrl.isEmpty ? AppConstants.localDefaultBaseUrl : localUrl,
+      openAiBaseUrl: openAiUrl.isEmpty
+          ? AppConstants.openAiDefaultBaseUrl
+          : openAiUrl,
+      localBaseUrl: localUrl.isEmpty
+          ? AppConstants.localDefaultBaseUrl
+          : localUrl,
     );
   }
 
@@ -161,10 +163,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
 
   Future<void> _persistInputsAndRefresh(AiProviderType provider) async {
     await widget.app.updateCredentials(buildCredentials());
-    await widget.app.updateSettings(
-      buildSettings(),
-      autoRefreshModels: false,
-    );
+    await widget.app.updateSettings(buildSettings(), autoRefreshModels: false);
     if (provider != AiProviderType.none) {
       await widget.app.refreshModelsFor(provider);
     }
@@ -218,7 +217,9 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
             AiModelOption(id: selectedModel, displayName: selectedModel),
           );
         }
-        final sortedModels = AiProviderService.sortAlphabetically(dropdownModels);
+        final sortedModels = AiProviderService.sortAlphabetically(
+          dropdownModels,
+        );
         final effectiveModel = sortedModels.any((m) => m.id == selectedModel)
             ? selectedModel
             : (sortedModels.isNotEmpty ? sortedModels.first.id : null);
@@ -257,7 +258,8 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 label: l10n.aiConfigGeminiApiKeyLabel,
                 hint: l10n.aiConfigGeminiApiKeyHint,
                 l10n: l10n,
-                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.gemini),
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.gemini),
               ),
 
             if (activeProvider == AiProviderType.openai) ...[
@@ -266,7 +268,8 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 enabled: widget.enabled,
                 keyboardType: TextInputType.url,
                 autocorrect: false,
-                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.openai),
                 decoration: InputDecoration(
                   labelText: l10n.aiConfigOpenAiBaseUrlLabel,
                   hintText: AppConstants.openAiDefaultBaseUrl,
@@ -280,7 +283,8 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                 label: l10n.aiConfigOpenAiApiKeyLabel,
                 hint: l10n.aiConfigOpenAiApiKeyHint,
                 l10n: l10n,
-                onChanged: (_) => _scheduleSyncAndRefresh(AiProviderType.openai),
+                onChanged: (_) =>
+                    _scheduleSyncAndRefresh(AiProviderType.openai),
               ),
             ],
 
@@ -336,9 +340,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
                     if (widget.showNoAiTitle) ...[
                       Text(
                         l10n.aiConfigNoAiSelectedTitle,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
+                        style: Theme.of(context).textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 6),
@@ -442,9 +444,7 @@ class AiProviderConfigSectionState extends State<AiProviderConfigSection> {
           tooltip: _obscureApiKey
               ? l10n.aiConfigShowApiKey
               : l10n.aiConfigHideApiKey,
-          icon: Icon(
-            _obscureApiKey ? Icons.visibility : Icons.visibility_off,
-          ),
+          icon: Icon(_obscureApiKey ? Icons.visibility : Icons.visibility_off),
           onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
         ),
       ),

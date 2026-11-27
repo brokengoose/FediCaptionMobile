@@ -31,7 +31,8 @@ MastodonStatus _status(
 }) {
   return MastodonStatus(
     id: id,
-    createdAt: createdAt ?? DateTime.utc(2026, 11, 23, 12, 0, int.tryParse(id) ?? 0),
+    createdAt:
+        createdAt ?? DateTime.utc(2026, 11, 23, 12, 0, int.tryParse(id) ?? 0),
     account: MastodonAccount(
       id: 'acc_$id',
       username: authorName.toLowerCase(),
@@ -42,7 +43,9 @@ MastodonStatus _status(
     contentHtml: contentHtml,
     spoilerText: spoilerText,
     url: url ?? 'https://example.social/@${authorName.toLowerCase()}/$id',
-    uri: url ?? 'https://example.social/users/${authorName.toLowerCase()}/statuses/$id',
+    uri:
+        url ??
+        'https://example.social/users/${authorName.toLowerCase()}/statuses/$id',
     mediaAttachments: media,
   );
 }
@@ -91,22 +94,27 @@ void main() {
       expect(result.extension, 'png');
     });
 
-    test('returns null for animated multi-frame GIFs to preserve animation', () {
-      final anim = img.Image(width: 16, height: 16);
-      img.fill(anim, color: img.ColorRgb8(255, 0, 0));
-      final frame2 = img.Image(width: 16, height: 16);
-      img.fill(frame2, color: img.ColorRgb8(0, 255, 0));
-      anim.addFrame(frame2);
-      final gifBytes = Uint8List.fromList(img.encodeGif(anim));
+    test(
+      'returns null for animated multi-frame GIFs to preserve animation',
+      () {
+        final anim = img.Image(width: 16, height: 16);
+        img.fill(anim, color: img.ColorRgb8(255, 0, 0));
+        final frame2 = img.Image(width: 16, height: 16);
+        img.fill(frame2, color: img.ColorRgb8(0, 255, 0));
+        anim.addFrame(frame2);
+        final gifBytes = Uint8List.fromList(img.encodeGif(anim));
 
-      final result = ImageUploadOptimizer.optimizeBytes(gifBytes);
-      expect(result, isNull);
-    });
+        final result = ImageUploadOptimizer.optimizeBytes(gifBytes);
+        expect(result, isNull);
+      },
+    );
   });
 
   group('MediaCacheService', () {
     test('persists to disk across RAM clears and deduplicates concurrent requests', () async {
-      final tempDir = await Directory.systemTemp.createTemp('fedicaption_cache_test_');
+      final tempDir = await Directory.systemTemp.createTemp(
+        'fedicaption_cache_test_',
+      );
       addTearDown(() async {
         if (await tempDir.exists()) {
           await tempDir.delete(recursive: true);
@@ -142,7 +150,9 @@ void main() {
 
       // Clear RAM cache and fetch again -> served from persistent disk cache!
       cache.clearMemory();
-      final diskHit = await cache.getOrFetch('https://cdn.example.social/avatar1.png');
+      final diskHit = await cache.getOrFetch(
+        'https://cdn.example.social/avatar1.png',
+      );
       expect(networkCalls, 1);
       expect(diskHit.bytes, [1, 2, 3, 4, 5]);
       expect(diskHit.mimeType, 'image/png');
@@ -187,71 +197,74 @@ void main() {
 
       // Deletion propagates across cached timelines.
       cache.removeStatusEverywhere('20');
-      expect(
-        cache.timelineFor(TimelineType.home)!.statuses.map((s) => s.id),
-        ['30', '10'],
-      );
+      expect(cache.timelineFor(TimelineType.home)!.statuses.map((s) => s.id), [
+        '30',
+        '10',
+      ]);
     });
 
-    test('removeStatusEverywhere also drops notifications about the deleted post', () {
-      final cache = TimelineCacheController();
-      addTearDown(cache.dispose);
-      final post = _status('40');
-      final other = _status('41');
-      MastodonNotification notif(String id, String type, MastodonStatus? s) =>
-          MastodonNotification(
-            id: id,
-            type: type,
-            createdAt: DateTime.utc(2026, 11, 27),
-            account: post.account,
-            status: s,
-          );
-      cache.putNotifications(
-        [
+    test(
+      'removeStatusEverywhere also drops notifications about the deleted post',
+      () {
+        final cache = TimelineCacheController();
+        addTearDown(cache.dispose);
+        final post = _status('40');
+        final other = _status('41');
+        MastodonNotification notif(String id, String type, MastodonStatus? s) =>
+            MastodonNotification(
+              id: id,
+              type: type,
+              createdAt: DateTime.utc(2026, 11, 27),
+              account: post.account,
+              status: s,
+            );
+        cache.putNotifications([
           notif('n1', 'favourite', post),
           notif('n2', 'follow', null),
           notif('n3', 'mention', other),
-        ],
-        hasMore: false,
-      );
+        ], hasMore: false);
 
-      cache.removeStatusEverywhere('40');
+        cache.removeStatusEverywhere('40');
 
-      expect(
-        cache.notifications!.notifications.map((n) => n.id),
-        ['n2', 'n3'],
-      );
-    });
+        expect(cache.notifications!.notifications.map((n) => n.id), [
+          'n2',
+          'n3',
+        ]);
+      },
+    );
   });
 
   group('QuoteCacheController & MastodonService optimizations', () {
-    test('seedStatuses resolves quoted URLs locally with 0 server requests', () async {
-      var serverHits = 0;
-      final mockClient = MockClient((req) async {
-        serverHits++;
-        return http.Response('{"statuses": []}', 200);
-      });
-      final mastodon = MastodonService(client: mockClient);
-      final quotes = QuoteCacheController(mastodon: mastodon);
-      addTearDown(quotes.dispose);
+    test(
+      'seedStatuses resolves quoted URLs locally with 0 server requests',
+      () async {
+        var serverHits = 0;
+        final mockClient = MockClient((req) async {
+          serverHits++;
+          return http.Response('{"statuses": []}', 200);
+        });
+        final mastodon = MastodonService(client: mockClient);
+        final quotes = QuoteCacheController(mastodon: mastodon);
+        addTearDown(quotes.dispose);
 
-      final seeded = _status(
-        '123456789',
-        url: 'https://remote.example/@bob/123456789',
-        contentHtml: '<p>Already in timeline!</p>',
-      );
-      quotes.seedStatuses([seeded]);
+        final seeded = _status(
+          '123456789',
+          url: 'https://remote.example/@bob/123456789',
+          contentHtml: '<p>Already in timeline!</p>',
+        );
+        quotes.seedStatuses([seeded]);
 
-      final resolved = await quotes.resolve(
-        'https://remote.example/@bob/123456789/',
-        session: const MastodonSession(
-          instanceUrl: 'https://mastodon.social',
-          accessToken: 'tok',
-        ),
-      );
-      expect(resolved?.id, '123456789');
-      expect(serverHits, 0);
-    });
+        final resolved = await quotes.resolve(
+          'https://remote.example/@bob/123456789/',
+          session: const MastodonSession(
+            instanceUrl: 'https://mastodon.social',
+            accessToken: 'tok',
+          ),
+        );
+        expect(resolved?.id, '123456789');
+        expect(serverHits, 0);
+      },
+    );
 
     test('same-instance status URLs use cheap /api/v1/statuses/{id} instead of search', () async {
       final requestedPaths = <String>[];
@@ -356,12 +369,12 @@ void main() {
       var pdfBodyEmitted = false;
       final mockClient = MockClient.streaming((request, bodyStream) async {
         if (request.url.path.endsWith('.pdf')) {
-          final stream = Stream<List<int>>.fromIterable([
-            List<int>.filled(1024, 65),
-          ]).map((chunk) {
-            pdfBodyEmitted = true;
-            return chunk;
-          });
+          final stream =
+              Stream<List<int>>.fromIterable([List<int>.filled(1024, 65)])
+                  .map((chunk) {
+                    pdfBodyEmitted = true;
+                    return chunk;
+                  });
           return http.StreamedResponse(
             stream,
             200,

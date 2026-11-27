@@ -29,7 +29,8 @@ class OnDeviceAiStatus {
     return parts.join('\n');
   }
 
-  bool get isPromptReady => promptAvailability == EdgeGenAIAvailability.available;
+  bool get isPromptReady =>
+      promptAvailability == EdgeGenAIAvailability.available;
   bool get isImageDescriberReady =>
       imageDescriptionAvailability == EdgeGenAIAvailability.available;
 
@@ -99,8 +100,8 @@ class OnDeviceAiService {
   OnDeviceAiService({
     EdgeGenAIPrompt? promptClient,
     EdgeGenAIImageDescriber? imageDescriberClient,
-  })  : _prompt = promptClient ?? EdgeGenAIPrompt(),
-        _imageDescriber = imageDescriberClient ?? EdgeGenAIImageDescriber();
+  }) : _prompt = promptClient ?? EdgeGenAIPrompt(),
+       _imageDescriber = imageDescriberClient ?? EdgeGenAIImageDescriber();
 
   final EdgeGenAIPrompt _prompt;
   final EdgeGenAIImageDescriber _imageDescriber;

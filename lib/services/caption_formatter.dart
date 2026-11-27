@@ -41,8 +41,7 @@ class CaptionFormatter {
 
     if (activePack.capitalizeFirstLetter && cleaned.isNotEmpty) {
       final firstRune = String.fromCharCode(cleaned.runes.first);
-      cleaned =
-          firstRune.toUpperCase() + cleaned.substring(firstRune.length);
+      cleaned = firstRune.toUpperCase() + cleaned.substring(firstRune.length);
     }
 
     final prefixed = '${activePack.captionPrefix}$cleaned'.trimRight();

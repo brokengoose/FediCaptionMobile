@@ -92,25 +92,25 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
 
     final (badgeBg, badgeFg, badgeIcon) = switch (att.status) {
       AttachmentStatus.scanning => (
-          scheme.primaryContainer,
-          scheme.onPrimaryContainer,
-          Icons.auto_awesome,
-        ),
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+        Icons.auto_awesome,
+      ),
       AttachmentStatus.ready => (
-          fedi.altPresentBg,
-          fedi.altPresentFg,
-          Icons.check_circle_outline,
-        ),
+        fedi.altPresentBg,
+        fedi.altPresentFg,
+        Icons.check_circle_outline,
+      ),
       AttachmentStatus.missingAltText => (
-          fedi.altMissingBg,
-          fedi.altMissingFg,
-          Icons.warning_amber_rounded,
-        ),
+        fedi.altMissingBg,
+        fedi.altMissingFg,
+        Icons.warning_amber_rounded,
+      ),
       AttachmentStatus.error => (
-          scheme.errorContainer,
-          scheme.onErrorContainer,
-          Icons.error_outline,
-        ),
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        Icons.error_outline,
+      ),
     };
 
     return Card(
@@ -131,11 +131,13 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                     children: [
                       Text(
                         att.isVideo
-                            ? l10n.composerAttachmentVideoLabel(widget.index + 1)
-                            : l10n.composerAttachmentImageLabel(widget.index + 1),
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
+                            ? l10n.composerAttachmentVideoLabel(
+                                widget.index + 1,
+                              )
+                            : l10n.composerAttachmentImageLabel(
+                                widget.index + 1,
+                              ),
+                        style: Theme.of(context).textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -170,9 +172,7 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                               const SizedBox(width: 6),
                               Text(
                                 att.status.localizedLabel(l10n),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
+                                style: Theme.of(context).textTheme.labelMedium
                                     ?.copyWith(
                                       color: badgeFg,
                                       fontWeight: FontWeight.bold,
@@ -187,7 +187,9 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                 ),
                 IconButton(
                   onPressed: widget.onRemove,
-                  tooltip: l10n.composerRemoveAttachmentTooltip(widget.index + 1),
+                  tooltip: l10n.composerRemoveAttachmentTooltip(
+                    widget.index + 1,
+                  ),
                   icon: Icon(Icons.delete_outline, color: scheme.error),
                 ),
               ],
@@ -197,9 +199,7 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
               const SizedBox(height: 8),
               Text(
                 att.errorMessage!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: scheme.error),
               ),
             ],
@@ -266,11 +266,11 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                 final VoidCallback? toggleReadAloud = att.altText.trim().isEmpty
                     ? null
                     : () => widget.tts.toggleSpeak(
-                          key: ttsKey,
-                          text: att.altText,
-                          languageName: widget.language,
-                          speechRate: widget.ttsSpeechRate,
-                        );
+                        key: ttsKey,
+                        text: att.altText,
+                        languageName: widget.language,
+                        speechRate: widget.ttsSpeechRate,
+                      );
                 return Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -356,11 +356,7 @@ class _ComposerAttachmentTileState extends State<ComposerAttachmentTile> {
                 alignment: AlignmentDirectional.bottomEnd,
                 child: Padding(
                   padding: EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.videocam,
-                    size: 18,
-                    color: Colors.white,
-                  ),
+                  child: Icon(Icons.videocam, size: 18, color: Colors.white),
                 ),
               ),
           ],

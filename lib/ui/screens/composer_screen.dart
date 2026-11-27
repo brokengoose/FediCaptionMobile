@@ -171,22 +171,24 @@ class _ComposerScreenState extends State<ComposerScreen> {
           context: context,
           isScrollControlled: true,
           useSafeArea: true,
-          builder: (_) => BiasReviewSheet(
-            result: biasResult,
-            policy: biasPolicy,
-          ),
+          builder: (_) =>
+              BiasReviewSheet(result: biasResult, policy: biasPolicy),
         );
 
         if (!mounted) return;
         switch (action) {
           case BiasReviewAction.useSuggestedInComposer:
             if (biasResult.suggestedAlternateWording != null) {
-              _controller.replacePostText(biasResult.suggestedAlternateWording!);
+              _controller.replacePostText(
+                biasResult.suggestedAlternateWording!,
+              );
             }
             return;
           case BiasReviewAction.useSuggestedAndPublishNow:
             if (biasResult.suggestedAlternateWording != null) {
-              _controller.replacePostText(biasResult.suggestedAlternateWording!);
+              _controller.replacePostText(
+                biasResult.suggestedAlternateWording!,
+              );
             }
             await _publishAndClose();
             return;
@@ -227,17 +229,19 @@ class _ComposerScreenState extends State<ComposerScreen> {
         final overLimit = _controller.isOverCharacterLimit;
         final limits = _controller.limits;
 
-        final submitShortcut =
-            KeyboardNavHelper.primaryShortcutLabel(context, 'Enter');
+        final submitShortcut = KeyboardNavHelper.primaryShortcutLabel(
+          context,
+          'Enter',
+        );
         final submitLabel = _controller.isCheckingBias
             ? l10n.composerCheckingBias
             : _controller.isPublishing
-                ? (_controller.isEditing
-                    ? l10n.composerSaving
-                    : l10n.composerPublishing)
-                : (_controller.isEditing
-                    ? l10n.composerSaveChanges
-                    : l10n.composerPublish);
+            ? (_controller.isEditing
+                  ? l10n.composerSaving
+                  : l10n.composerPublishing)
+            : (_controller.isEditing
+                  ? l10n.composerSaveChanges
+                  : l10n.composerPublish);
 
         return Scaffold(
           appBar: AppBar(
@@ -245,8 +249,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
               _controller.isEditing
                   ? l10n.composerTitleEdit
                   : (_controller.isReply
-                      ? l10n.composerTitleReply
-                      : l10n.composerTitleNew),
+                        ? l10n.composerTitleReply
+                        : l10n.composerTitleNew),
             ),
             actions: [
               Padding(
@@ -348,7 +352,8 @@ class _ComposerScreenState extends State<ComposerScreen> {
                           limits.maxCharacters,
                           remaining,
                         ),
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
                               color: overLimit ? scheme.error : fedi.subtleText,
                               fontWeight: overLimit
                                   ? FontWeight.bold
@@ -405,9 +410,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
                       _controller.attachments.length,
                       limits.maxMediaAttachments,
                     ),
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
+                    style: Theme.of(context).textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -476,14 +479,14 @@ class _ComposerScreenState extends State<ComposerScreen> {
                     ttsSpeechRate: widget.app.settings.ttsSpeechRate,
                     onAltTextChanged: (text) =>
                         _controller.updateAttachmentAltText(
-                      _controller.attachments[i].localId,
-                      text,
-                    ),
+                          _controller.attachments[i].localId,
+                          text,
+                        ),
                     onDetailLevelChanged: (level) =>
                         _controller.updateAttachmentDetailLevel(
-                      _controller.attachments[i].localId,
-                      level,
-                    ),
+                          _controller.attachments[i].localId,
+                          level,
+                        ),
                     onRescan: () => _controller.scanAttachmentWithAi(
                       _controller.attachments[i].localId,
                     ),
@@ -504,10 +507,7 @@ class _ComposerScreenState extends State<ComposerScreen> {
 /// Content Warning, quoted post if present, full body, and media attachments)
 /// above the composer input area.
 class _ReplyContextCard extends StatefulWidget {
-  const _ReplyContextCard({
-    required this.app,
-    required this.status,
-  });
+  const _ReplyContextCard({required this.app, required this.status});
 
   final AppController app;
   final MastodonStatus status;
@@ -517,7 +517,9 @@ class _ReplyContextCard extends StatefulWidget {
 }
 
 class _ReplyContextCardState extends State<_ReplyContextCard> {
-  late final StatusActionHandler _actions = StatusActionHandler(app: widget.app);
+  late final StatusActionHandler _actions = StatusActionHandler(
+    app: widget.app,
+  );
   bool _cwRevealed = true;
   LeadingQuoteMatch? _leadingQuote;
 
@@ -585,9 +587,9 @@ class _ReplyContextCardState extends State<_ReplyContextCard> {
                 child: Text(
                   l10n.composerReplyingTo(target.account.handle),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: scheme.primary,
+                  ),
                 ),
               ),
             ],
@@ -612,11 +614,13 @@ class _ReplyContextCardState extends State<_ReplyContextCard> {
               builder: (context, _) {
                 final quoteMatch = _leadingQuote;
                 final quoteUrl = quoteMatch?.quoteUrl;
-                final embeddedQuote = target.quotedStatus ??
+                final embeddedQuote =
+                    target.quotedStatus ??
                     (quoteUrl != null
                         ? widget.app.cachedQuotedStatus(quoteUrl)
                         : null);
-                final isLoadingQuote = target.quotedStatus == null &&
+                final isLoadingQuote =
+                    target.quotedStatus == null &&
                     quoteUrl != null &&
                     (widget.app.isResolvingQuote(quoteUrl) ||
                         !widget.app.hasResolvedQuote(quoteUrl));
@@ -642,9 +646,9 @@ class _ReplyContextCardState extends State<_ReplyContextCard> {
                         onOpenThread: (st) => _actions.openThread(context, st),
                         onRetry: quoteUrl != null
                             ? () => widget.app.resolveQuotedStatus(
-                                  quoteUrl,
-                                  forceRetry: true,
-                                )
+                                quoteUrl,
+                                forceRetry: true,
+                              )
                             : null,
                       ),
                     if (hasQuoteWindow && bodyPlainText.isNotEmpty)
@@ -673,9 +677,7 @@ class _ReplyContextCardState extends State<_ReplyContextCard> {
                       l10n: l10n,
                     ),
                   ),
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
+                  style: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(color: fedi.subtleText),
                 ),
               ),

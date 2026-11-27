@@ -159,8 +159,10 @@ class TimelineCacheController extends ChangeNotifier {
       }
     }
     if (existing.quotedStatus != null) {
-      final nextQuoted =
-          _replaceStatusIn(existing.quotedStatus!, updatedTarget);
+      final nextQuoted = _replaceStatusIn(
+        existing.quotedStatus!,
+        updatedTarget,
+      );
       if (!identical(nextQuoted, existing.quotedStatus)) {
         current = current.copyWith(quotedStatus: nextQuoted);
       }
@@ -221,8 +223,7 @@ class TimelineCacheController extends ChangeNotifier {
         s.id == targetId || s.displayStatus.id == targetId;
     var changed = false;
     for (final entry in _timelines.entries.toList()) {
-      final filtered =
-          entry.value.statuses.where((s) => !matches(s)).toList();
+      final filtered = entry.value.statuses.where((s) => !matches(s)).toList();
       if (filtered.length != entry.value.statuses.length) {
         changed = true;
         _timelines[entry.key] = CachedTimelinePage(

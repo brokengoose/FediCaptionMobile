@@ -13,10 +13,7 @@ import '../widgets/ai_provider_config_section.dart';
 /// letting them configure an AI provider (on-device, cloud API, local LAN server,
 /// and alphabetically sorted model drop-down) or choose **No AI**.
 class AiSetupScreen extends StatefulWidget {
-  const AiSetupScreen({
-    super.key,
-    required this.app,
-  });
+  const AiSetupScreen({super.key, required this.app});
 
   final AppController app;
 
@@ -48,15 +45,17 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
     if (!mounted) return;
 
     final currentProvider = widget.app.settings.activeProvider;
-    final canAutoDefault = !_userChangedProvider &&
+    final canAutoDefault =
+        !_userChangedProvider &&
         !widget.app.settings.aiSetupCompleted &&
         (currentProvider == AiProviderType.onDevice ||
             currentProvider == AiProviderType.none);
 
     var defaultedNoAi = false;
     if (canAutoDefault) {
-      final recommended =
-          status.isUsable ? AiProviderType.onDevice : AiProviderType.none;
+      final recommended = status.isUsable
+          ? AiProviderType.onDevice
+          : AiProviderType.none;
       widget.app.selectInitialSetupProvider(recommended);
       defaultedNoAi = recommended == AiProviderType.none;
     }
@@ -78,9 +77,8 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
     try {
       final configState = _configKey.currentState;
       final providerOverride = forceNoAi ? AiProviderType.none : null;
-      final settings = configState?.buildSettings(
-            providerOverride: providerOverride,
-          ) ??
+      final settings =
+          configState?.buildSettings(providerOverride: providerOverride) ??
           widget.app.settings.copyWith(
             activeProvider:
                 providerOverride ?? widget.app.settings.activeProvider,
@@ -107,7 +105,8 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
     return ListenableBuilder(
       listenable: widget.app,
       builder: (context, _) {
-        final isNone = widget.app.settings.activeProvider == AiProviderType.none;
+        final isNone =
+            widget.app.settings.activeProvider == AiProviderType.none;
         final controlsDisabled = _isSaving || _isDetectingOnDeviceAi;
         final noAiNotice = _defaultedToNoAi
             ? l10n.aiSetupNoAiDefaultNotice
@@ -127,20 +126,14 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Icon(
-                        Icons.auto_awesome,
-                        size: 48,
-                        color: scheme.primary,
-                      ),
+                      Icon(Icons.auto_awesome, size: 48, color: scheme.primary),
                       const SizedBox(height: 12),
                       Semantics(
                         header: true,
                         child: Text(
                           l10n.aiSetupHeading,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
+                          style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -150,9 +143,7 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                             ? l10n.aiSetupIntroWithHandle(account.handle)
                             : l10n.aiSetupIntroWithoutHandle,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
+                        style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(color: fedi.subtleText),
                       ),
                       const SizedBox(height: 24),
@@ -161,8 +152,9 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color:
-                                scheme.surfaceContainerHighest.withAlpha(115),
+                            color: scheme.surfaceContainerHighest.withAlpha(
+                              115,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: fedi.cardBorder),
                           ),
@@ -203,8 +195,9 @@ class _AiSetupScreenState extends State<AiSetupScreen> {
                       const SizedBox(height: 24),
 
                       FilledButton.icon(
-                        onPressed:
-                            controlsDisabled ? null : () => _finishSetup(),
+                        onPressed: controlsDisabled
+                            ? null
+                            : () => _finishSetup(),
                         icon: Icon(isNone ? Icons.check : Icons.arrow_forward),
                         label: Text(
                           isNone

@@ -26,9 +26,9 @@ class ComposerController extends ChangeNotifier {
     this.editingStatus,
     VideoFrameExtractor? videoFrameExtractor,
     ImageUploadOptimizer? imageOptimizer,
-  })  : _videoFrameExtractor =
-            videoFrameExtractor ?? const VideoFrameExtractor(),
-        _imageOptimizer = imageOptimizer ?? const ImageUploadOptimizer() {
+  }) : _videoFrameExtractor =
+           videoFrameExtractor ?? const VideoFrameExtractor(),
+       _imageOptimizer = imageOptimizer ?? const ImageUploadOptimizer() {
     if (replyToStatus != null) {
       final target = replyToStatus!.displayStatus;
       final mention = target.account.handle;
@@ -89,13 +89,10 @@ class ComposerController extends ChangeNotifier {
   /// Media already uploaded during an earlier (failed) publish attempt,
   /// keyed by attachment `localId`.
   final Map<
-      String,
-      ({
-        String id,
-        String accessToken,
-        String filePath,
-        String description,
-      })> _uploadedMedia = {};
+    String,
+    ({String id, String accessToken, String filePath, String description})
+  >
+  _uploadedMedia = {};
 
   bool _isLoadingSource = false;
   bool _isCheckingBias = false;
@@ -172,8 +169,7 @@ class ComposerController extends ChangeNotifier {
         _showContentWarning = true;
       }
     } catch (e) {
-      _errorMessage =
-          app.l10n.composerErrorFallbackEditSource(e.toString());
+      _errorMessage = app.l10n.composerErrorFallbackEditSource(e.toString());
     } finally {
       _isLoadingSource = false;
       _safeNotify();
@@ -206,8 +202,9 @@ class ComposerController extends ChangeNotifier {
     required bool isVideo,
   }) async {
     if (!canAddMoreMedia) {
-      _errorMessage =
-          app.l10n.composerErrorMaxMedia(limits.maxMediaAttachments);
+      _errorMessage = app.l10n.composerErrorMaxMedia(
+        limits.maxMediaAttachments,
+      );
       _safeNotify();
       return;
     }
@@ -236,7 +233,8 @@ class ComposerController extends ChangeNotifier {
       }
     }
 
-    final shouldAutoScan = app.settings.isAiEnabled && app.settings.autoGenerate;
+    final shouldAutoScan =
+        app.settings.isAiEnabled && app.settings.autoGenerate;
     final initial = ComposerAttachment(
       localId: localId,
       isVideo: isVideo,
@@ -273,11 +271,7 @@ class ComposerController extends ChangeNotifier {
       final nextStatus = altText.trim().isNotEmpty
           ? AttachmentStatus.ready
           : AttachmentStatus.missingAltText;
-      return a.copyWith(
-        altText: altText,
-        status: nextStatus,
-        clearError: true,
-      );
+      return a.copyWith(altText: altText, status: nextStatus, clearError: true);
     }).toList();
     _safeNotify();
   }
@@ -301,10 +295,7 @@ class ComposerController extends ChangeNotifier {
     final attachment = _attachments[index];
     _updateAttachment(
       localId,
-      attachment.copyWith(
-        status: AttachmentStatus.scanning,
-        clearError: true,
-      ),
+      attachment.copyWith(status: AttachmentStatus.scanning, clearError: true),
     );
 
     final loc = app.l10n;
@@ -336,8 +327,8 @@ class ComposerController extends ChangeNotifier {
         final size = await file.exists() ? await file.length() : 0;
         final canSendInlineGemini =
             app.settings.activeProvider == AiProviderType.gemini &&
-                size > 0 &&
-                size <= AppConstants.geminiInlineVideoMaxBytes;
+            size > 0 &&
+            size <= AppConstants.geminiInlineVideoMaxBytes;
         if (!canSendInlineGemini) {
           preExtracted = await _videoFrameExtractor.extractKeyframes(
             attachment.filePath!,
@@ -366,8 +357,9 @@ class ComposerController extends ChangeNotifier {
         latest.copyWith(
           altText: caption,
           status: AttachmentStatus.ready,
-          extractedFrames:
-              preExtracted.isNotEmpty ? preExtracted : latest.extractedFrames,
+          extractedFrames: preExtracted.isNotEmpty
+              ? preExtracted
+              : latest.extractedFrames,
           previewBytes: preExtracted.isNotEmpty
               ? preExtracted.first.bytes
               : latest.previewBytes,
@@ -450,7 +442,9 @@ class ComposerController extends ChangeNotifier {
         settings: app.settings,
         credentials: app.credentials,
         session: app.session,
-        contentLanguageCode: _language.trim().isNotEmpty ? _language.trim() : null,
+        contentLanguageCode: _language.trim().isNotEmpty
+            ? _language.trim()
+            : null,
         responseLanguageCode: app.effectiveLocale.languageCode,
         labels: biasComponentLabelsFrom(loc),
       );
@@ -588,7 +582,9 @@ class ComposerController extends ChangeNotifier {
           instanceUrl: session.instanceUrl,
           accessToken: session.accessToken,
           statusText: textController.text.trim(),
-          spoilerText: _showContentWarning ? spoilerController.text.trim() : null,
+          spoilerText: _showContentWarning
+              ? spoilerController.text.trim()
+              : null,
           visibility: _visibility,
           inReplyToId: replyToStatus?.displayStatus.id,
           language: _language.trim().isEmpty ? null : _language.trim(),

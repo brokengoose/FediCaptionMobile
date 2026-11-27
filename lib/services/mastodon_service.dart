@@ -38,17 +38,17 @@ class OAuthAppCredentials {
 /// timelines, profiles, relationships, media uploads, and editing own posts with alt-text.
 class MastodonService {
   MastodonService({http.Client? client})
-      : _client = client ?? http.Client(),
-        _ownsClient = client == null;
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
 
   final http.Client _client;
   final bool _ownsClient;
 
   static const Duration _profileCacheTtl = Duration(minutes: 3);
   final Map<String, ({MastodonAccount account, DateTime fetchedAt})>
-      _accountCache = {};
+  _accountCache = {};
   final Map<String, ({MastodonRelationship? relationship, DateTime fetchedAt})>
-      _relationshipCache = {};
+  _relationshipCache = {};
 
   /// Clears short-lived in-memory profile/relationship caches (e.g. on logout).
   void clearSessionCaches() {
@@ -344,8 +344,10 @@ class MastodonService {
     final rel = (list.isEmpty || list.first is! Map<String, dynamic>)
         ? null
         : MastodonRelationship.fromJson(list.first as Map<String, dynamic>);
-    _relationshipCache[cacheKey] =
-        (relationship: rel, fetchedAt: DateTime.now());
+    _relationshipCache[cacheKey] = (
+      relationship: rel,
+      fetchedAt: DateTime.now(),
+    );
     return rel;
   }
 
@@ -365,8 +367,10 @@ class MastodonService {
     );
     final rel = MastodonRelationship.fromJson(decoded);
     final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
-    _relationshipCache[cacheKey] =
-        (relationship: rel, fetchedAt: DateTime.now());
+    _relationshipCache[cacheKey] = (
+      relationship: rel,
+      fetchedAt: DateTime.now(),
+    );
     return rel;
   }
 
@@ -384,8 +388,10 @@ class MastodonService {
     );
     final rel = MastodonRelationship.fromJson(decoded);
     final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
-    _relationshipCache[cacheKey] =
-        (relationship: rel, fetchedAt: DateTime.now());
+    _relationshipCache[cacheKey] = (
+      relationship: rel,
+      fetchedAt: DateTime.now(),
+    );
     return rel;
   }
 
@@ -434,8 +440,9 @@ class MastodonService {
         baseUri.host.toLowerCase() != targetUri.host.toLowerCase()) {
       return null;
     }
-    final segments =
-        targetUri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    final segments = targetUri.pathSegments
+        .where((s) => s.trim().isNotEmpty)
+        .toList();
     if (segments.length < 2) return null;
     final last = segments.last;
     if (!RegExp(r'^\d{6,}$').hasMatch(last)) return null;
@@ -519,7 +526,9 @@ class MastodonService {
       req.fields['description'] = description.trim();
     }
 
-    final streamed = await _client.send(req).timeout(const Duration(seconds: 90));
+    final streamed = await _client
+        .send(req)
+        .timeout(const Duration(seconds: 90));
     final res = await http.Response.fromStream(streamed);
     _ensureSuccess(res, 'Failed to upload media');
 
@@ -659,14 +668,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
     required bool currentlyFavourited,
-  }) =>
-      _postStatusAction(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-        statusId: statusId,
-        action: currentlyFavourited ? 'unfavourite' : 'favourite',
-        errorContext: 'Failed to update favorite',
-      );
+  }) => _postStatusAction(
+    instanceUrl: instanceUrl,
+    accessToken: accessToken,
+    statusId: statusId,
+    action: currentlyFavourited ? 'unfavourite' : 'favourite',
+    errorContext: 'Failed to update favorite',
+  );
 
   /// Boosts (`reblog`) or unboosts [statusId] depending on [currentlyReblogged].
   Future<MastodonStatus> toggleReblog({
@@ -674,14 +682,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
     required bool currentlyReblogged,
-  }) =>
-      _postStatusAction(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-        statusId: statusId,
-        action: currentlyReblogged ? 'unreblog' : 'reblog',
-        errorContext: 'Failed to update boost',
-      );
+  }) => _postStatusAction(
+    instanceUrl: instanceUrl,
+    accessToken: accessToken,
+    statusId: statusId,
+    action: currentlyReblogged ? 'unreblog' : 'reblog',
+    errorContext: 'Failed to update boost',
+  );
 
   /// Bookmarks or unbookmarks [statusId] depending on [currentlyBookmarked].
   Future<MastodonStatus> toggleBookmark({
@@ -689,14 +696,13 @@ class MastodonService {
     required String accessToken,
     required String statusId,
     required bool currentlyBookmarked,
-  }) =>
-      _postStatusAction(
-        instanceUrl: instanceUrl,
-        accessToken: accessToken,
-        statusId: statusId,
-        action: currentlyBookmarked ? 'unbookmark' : 'bookmark',
-        errorContext: 'Failed to update bookmark',
-      );
+  }) => _postStatusAction(
+    instanceUrl: instanceUrl,
+    accessToken: accessToken,
+    statusId: statusId,
+    action: currentlyBookmarked ? 'unbookmark' : 'bookmark',
+    errorContext: 'Failed to update bookmark',
+  );
 
   /// Translates a status via the connected Mastodon instance's built-in
   /// translation API (`POST /api/v1/statuses/:id/translate`).
@@ -736,8 +742,10 @@ class MastodonService {
         statusCode: res.statusCode,
       );
     }
-    final contentType =
-        (res.headers['content-type'] ?? 'image/jpeg').split(';').first.trim();
+    final contentType = (res.headers['content-type'] ?? 'image/jpeg')
+        .split(';')
+        .first
+        .trim();
     return (bytes: res.bodyBytes, mimeType: contentType);
   }
 
@@ -761,10 +769,7 @@ class MastodonService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     final res = await _client
-        .get(
-          _buildUri(instanceUrl, path),
-          headers: _authHeaders(accessToken),
-        )
+        .get(_buildUri(instanceUrl, path), headers: _authHeaders(accessToken))
         .timeout(timeout);
     _ensureSuccess(res, errorContext);
     return jsonDecode(res.body) as Map<String, dynamic>;
@@ -840,9 +845,9 @@ class MastodonService {
   };
 
   Map<String, String> _authHeaders(String accessToken) => {
-        ..._baseHeaders,
-        'Authorization': 'Bearer $accessToken',
-      };
+    ..._baseHeaders,
+    'Authorization': 'Bearer $accessToken',
+  };
 
   void _ensureSuccess(http.Response res, String fallbackMessage) {
     if (res.statusCode >= 200 && res.statusCode < 300) return;

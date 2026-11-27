@@ -219,14 +219,15 @@ class TranslationService {
     if (cleaned.length < 4) return null;
 
     if (_nativeLanguageDetect != null) {
-      final detected = normalizeLanguageCode(await _nativeLanguageDetect(cleaned));
+      final detected = normalizeLanguageCode(
+        await _nativeLanguageDetect(cleaned),
+      );
       if (detected != null) return detected;
     } else if (_isApplePlatform) {
       try {
-        final raw = await _appleChannel.invokeMethod<String>(
-          'detectLanguage',
-          {'text': cleaned},
-        );
+        final raw = await _appleChannel.invokeMethod<String>('detectLanguage', {
+          'text': cleaned,
+        });
         final detected = normalizeLanguageCode(raw);
         if (detected != null) return detected;
       } catch (_) {
@@ -257,7 +258,8 @@ class TranslationService {
     InstanceLimits? instanceLimits,
   }) async {
     final src = normalizeLanguageCode(sourceLanguage) ?? sourceLanguage.trim();
-    final tgt = normalizeLanguageCode(targetLanguage) ?? currentOsLanguageCode();
+    final tgt =
+        normalizeLanguageCode(targetLanguage) ?? currentOsLanguageCode();
     final trimmedText = text.trim();
     final trimmedSpoiler = (spoilerText ?? '').trim();
     final cleanedAlts = <String, String>{
@@ -373,7 +375,8 @@ class TranslationService {
       }
     }
 
-    final failure = configuredAiError ?? mastodonError ?? mlKitError ?? appleError;
+    final failure =
+        configuredAiError ?? mastodonError ?? mlKitError ?? appleError;
     if (failure != null) {
       throw StateError(_formatFriendlyError(failure));
     }
@@ -392,8 +395,9 @@ class TranslationService {
     required Future<String> Function(String input) translateField,
   }) async {
     final translatedBody = text.isEmpty ? '' : await translateField(text);
-    final translatedCw =
-        spoilerText.isEmpty ? null : await translateField(spoilerText);
+    final translatedCw = spoilerText.isEmpty
+        ? null
+        : await translateField(spoilerText);
     final translatedAlts = <String, String>{};
     for (final entry in altTexts.entries) {
       translatedAlts[entry.key] = await translateField(entry.value);
@@ -561,8 +565,9 @@ class TranslationService {
       targetLanguage: targetLanguage,
     );
     final translatedBody = res.plainContent;
-    final translatedCw =
-        res.spoilerText.trim().isEmpty ? null : res.spoilerText.trim();
+    final translatedCw = res.spoilerText.trim().isEmpty
+        ? null
+        : res.spoilerText.trim();
     final translatedAlts = res.mediaDescriptions;
     if (translatedBody.isEmpty &&
         translatedCw == null &&
@@ -613,14 +618,11 @@ class TranslationService {
         targetLanguage: targetLanguage,
       );
     }
-    final translated = await _appleChannel.invokeMethod<String>(
-      'translate',
-      {
-        'text': text,
-        'sourceLanguage': sourceLanguage,
-        'targetLanguage': targetLanguage,
-      },
-    );
+    final translated = await _appleChannel.invokeMethod<String>('translate', {
+      'text': text,
+      'sourceLanguage': sourceLanguage,
+      'targetLanguage': targetLanguage,
+    });
     if (translated == null || translated.trim().isEmpty) {
       throw StateError('Apple Translation returned an empty response.');
     }

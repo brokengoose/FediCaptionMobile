@@ -46,7 +46,8 @@ class QuoteCacheController extends ChangeNotifier {
   }
 
   bool hasResolved(String url) => _cache.containsKey(_normalizeKey(url));
-  bool isResolving(String url) => _inFlightFutures.containsKey(_normalizeKey(url));
+  bool isResolving(String url) =>
+      _inFlightFutures.containsKey(_normalizeKey(url));
 
   /// Pre-populates the quote cache with statuses already fetched from timelines,
   /// threads, notifications, or profiles so subsequent `RE: <url>` resolutions

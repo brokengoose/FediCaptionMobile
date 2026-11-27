@@ -26,8 +26,8 @@ class LinkPreviewFetcher {
     this.maxDownloadBytes = 128 * 1024,
     this.cacheTtl = const Duration(minutes: 15),
     this.maxCacheEntries = 60,
-  })  : _client = client ?? http.Client(),
-        _ownsClient = client == null;
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null;
 
   final http.Client _client;
   final bool _ownsClient;
@@ -38,8 +38,11 @@ class LinkPreviewFetcher {
   static const int _maxHtmlChars = 120000;
   static const int _maxExcerptChars = 1500;
 
-  final LinkedHashMap<String, ({LinkedPageExcerpt? excerpt, DateTime fetchedAt})>
-      _cache = LinkedHashMap();
+  final LinkedHashMap<
+    String,
+    ({LinkedPageExcerpt? excerpt, DateTime fetchedAt})
+  >
+  _cache = LinkedHashMap();
 
   /// Closes the internally owned HTTP client (no-op if an external client was injected).
   void dispose() {
@@ -73,8 +76,9 @@ class LinkPreviewFetcher {
               'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.1',
         });
 
-      final streamed =
-          await _client.send(request).timeout(const Duration(seconds: 8));
+      final streamed = await _client
+          .send(request)
+          .timeout(const Duration(seconds: 8));
 
       if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
         await streamed.stream.drain<void>().catchError((_) {});
@@ -82,8 +86,8 @@ class LinkPreviewFetcher {
         return null;
       }
 
-      final contentType =
-          (streamed.headers['content-type'] ?? '').toLowerCase();
+      final contentType = (streamed.headers['content-type'] ?? '')
+          .toLowerCase();
       if (contentType.isNotEmpty &&
           !contentType.contains('html') &&
           !contentType.contains('text/plain') &&
@@ -109,10 +113,7 @@ class LinkPreviewFetcher {
     }
   }
 
-  Future<List<int>> _readBoundedBytes(
-    http.ByteStream stream,
-    int limit,
-  ) async {
+  Future<List<int>> _readBoundedBytes(http.ByteStream stream, int limit) async {
     final buffer = <int>[];
     final completer = Completer<List<int>>();
     late StreamSubscription<List<int>> sub;
@@ -187,7 +188,9 @@ class LinkPreviewFetcher {
     }
 
     // Strip non-content tags before extracting body excerpt.
-    for (final tag in doc.querySelectorAll('script, style, noscript, svg, nav, footer')) {
+    for (final tag in doc.querySelectorAll(
+      'script, style, noscript, svg, nav, footer',
+    )) {
       tag.remove();
     }
 

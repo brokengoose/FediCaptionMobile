@@ -102,8 +102,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
     }
 
     final snippet = target.plainText.trim();
-    final preview =
-        snippet.length > 90 ? '${snippet.substring(0, 90)}…' : snippet;
+    final preview = snippet.length > 90
+        ? '${snippet.substring(0, 90)}…'
+        : snippet;
     AccessibilityAnnouncer.announce(
       context.l10n.timelineAnnouncePostSelection(
         next + 1,
@@ -471,10 +472,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   : null,
               onToggleCw: target.spoilerText.trim().isNotEmpty
                   ? () => setState(() {
-                        if (!_expandedCwIds.remove(target.id)) {
-                          _expandedCwIds.add(target.id);
-                        }
-                      })
+                      if (!_expandedCwIds.remove(target.id)) {
+                        _expandedCwIds.add(target.id);
+                      }
+                    })
                   : null,
               onOpenProfile: (acc) => _actions.openProfile(context, acc),
               onOpenThread: (st) {

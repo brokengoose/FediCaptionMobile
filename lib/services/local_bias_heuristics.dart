@@ -136,7 +136,7 @@ class LocalBiasHeuristics {
   }
 
   static ({List<BiasFinding> findings, String rewritten, bool modified})
-      _scanAndRewrite(
+  _scanAndRewrite(
     String text,
     String location, {
     required List<BiasHeuristicRule> rules,
@@ -174,7 +174,8 @@ class LocalBiasHeuristics {
 
   static String _matchCapitalization(String original, String replacement) {
     if (original.isEmpty || replacement.isEmpty) return replacement;
-    if (original == original.toUpperCase() && original != original.toLowerCase()) {
+    if (original == original.toUpperCase() &&
+        original != original.toLowerCase()) {
       return replacement.toUpperCase();
     }
     if (original[0] == original[0].toUpperCase() &&

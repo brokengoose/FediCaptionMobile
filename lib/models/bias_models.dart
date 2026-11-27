@@ -31,7 +31,8 @@ class BiasFinding {
     final location = jsonString(json['location'])?.trim() ?? '';
     return BiasFinding(
       location: location.isNotEmpty ? location : 'Post Text',
-      biasType: jsonString(json['bias_type']) ??
+      biasType:
+          jsonString(json['bias_type']) ??
           jsonString(json['biasType']) ??
           'Potential Racial or Gender Bias',
       explanation: jsonString(json['explanation']) ?? '',

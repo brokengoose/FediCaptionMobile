@@ -24,10 +24,7 @@ import 'login_screen.dart';
 /// - Theme selection (System Auto-Detect, Dark, Light, WCAG AAA High Contrast)
 /// - Account info, dynamic instance limits, and GitHub attribution
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({
-    super.key,
-    required this.app,
-  });
+  const SettingsScreen({super.key, required this.app});
 
   final AppController app;
 
@@ -99,22 +96,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final displayedSpeechRate = _draggingSpeechRate ?? s.ttsSpeechRate;
         final formattedSpeed = (displayedSpeechRate * 2).toStringAsFixed(2);
         const supportedLocales = AppLocalizations.supportedLocales;
-        final supportedTags =
-            supportedLocales.map((loc) => loc.toLanguageTag()).toSet();
+        final supportedTags = supportedLocales
+            .map((loc) => loc.toLanguageTag())
+            .toSet();
         final selectedAppLocale = s.resolvedAppLocale != null
             ? resolveSupportedLocale(s.resolvedAppLocale).toLanguageTag()
             : null;
         final effectiveSelectedLocale =
-            (selectedAppLocale != null && supportedTags.contains(selectedAppLocale))
-                ? selectedAppLocale
-                : null;
+            (selectedAppLocale != null &&
+                supportedTags.contains(selectedAppLocale))
+            ? selectedAppLocale
+            : null;
         final systemLanguageCode =
             WidgetsBinding.instance.platformDispatcher.locale.languageCode;
         final osModeLabel = widget.app.themeController.platformHighContrast
             ? l10n.settingsOsModeHighContrast
             : (widget.app.themeController.platformBrightness == Brightness.dark
-                ? l10n.settingsOsModeDark
-                : l10n.settingsOsModeLight);
+                  ? l10n.settingsOsModeDark
+                  : l10n.settingsOsModeLight);
 
         return Scaffold(
           appBar: AppBar(title: Text(l10n.settingsTitle)),
@@ -266,9 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               Text(
                 l10n.settingsTtsSpeedSubtitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: fedi.subtleText),
               ),
               Slider(
@@ -277,8 +274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 max: 1.0,
                 divisions: 15,
                 label: l10n.settingsTtsSpeedLabel(formattedSpeed),
-                onChanged: (next) =>
-                    setState(() => _draggingSpeechRate = next),
+                onChanged: (next) => setState(() => _draggingSpeechRate = next),
                 onChangeEnd: (next) {
                   setState(() => _draggingSpeechRate = null);
                   widget.app.updateSettings(
@@ -290,9 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 8),
               Text(
                 l10n.settingsAltPolicyLabel,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: fedi.subtleText),
               ),
               const SizedBox(height: 8),
@@ -331,9 +325,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 4),
               Text(
                 l10n.settingsBiasPolicyLabel,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: fedi.subtleText),
               ),
               const SizedBox(height: 8),
@@ -354,7 +346,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           contentPadding: EdgeInsets.zero,
                           value: mode,
                           title: Text(mode.localizedLabel(l10n)),
-                          subtitle: Text(mode.localizedBiasPolicySubtitle(l10n)),
+                          subtitle: Text(
+                            mode.localizedBiasPolicySubtitle(l10n),
+                          ),
                         ),
                       )
                       .toList(),
@@ -372,9 +366,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 4),
               Text(
                 l10n.settingsDetectedOsMode(osModeLabel),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: fedi.subtleText),
               ),
               const SizedBox(height: 8),
@@ -403,7 +395,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (supportedLocales.length > 1) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String?>(
-                  key: ValueKey('app_locale_${effectiveSelectedLocale ?? 'sys'}'),
+                  key: ValueKey(
+                    'app_locale_${effectiveSelectedLocale ?? 'sys'}',
+                  ),
                   initialValue: effectiveSelectedLocale,
                   isExpanded: true,
                   decoration: InputDecoration(
@@ -429,10 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                   onChanged: (next) {
                     widget.app.updateSettings(
-                      s.copyWith(
-                        appLocale: next,
-                        clearAppLocale: next == null,
-                      ),
+                      s.copyWith(appLocale: next, clearAppLocale: next == null),
                       autoRefreshModels: false,
                     );
                   },
@@ -474,9 +465,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         acc.effectiveDisplayName,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
+                        style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(acc.fullHandle),
@@ -551,10 +540,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.icon,
-  });
+  const _SectionHeader({required this.title, required this.icon});
 
   final String title;
   final IconData icon;
@@ -569,9 +555,7 @@ class _SectionHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             title,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
+            style: Theme.of(context).textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),
         ],

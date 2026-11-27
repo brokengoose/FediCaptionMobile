@@ -39,8 +39,9 @@ class AccessibleAvatar extends StatelessWidget {
       radius: radius,
       backgroundColor: scheme.primaryContainer,
       foregroundColor: scheme.onPrimaryContainer,
-      backgroundImage:
-          imageUrl.isNotEmpty ? DiskCachedNetworkImage(imageUrl) : null,
+      backgroundImage: imageUrl.isNotEmpty
+          ? DiskCachedNetworkImage(imageUrl)
+          : null,
       onBackgroundImageError: imageUrl.isNotEmpty ? (_, _) {} : null,
       child: imageUrl.isEmpty
           ? Text(
@@ -57,8 +58,8 @@ class AccessibleAvatar extends StatelessWidget {
       return ExcludeSemantics(child: avatar);
     }
 
-    final tipText = semanticLabel ??
-        context.l10n.avatarViewProfileSemantics(displayName);
+    final tipText =
+        semanticLabel ?? context.l10n.avatarViewProfileSemantics(displayName);
     return AccessibleButtonSemantics(
       label: tipText,
       onTap: onTap,
@@ -66,7 +67,9 @@ class AccessibleAvatar extends StatelessWidget {
         message: tipText,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppConstants.minTouchTargetSize / 2),
+          borderRadius: BorderRadius.circular(
+            AppConstants.minTouchTargetSize / 2,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(
               minWidth: AppConstants.minTouchTargetSize,

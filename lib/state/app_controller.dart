@@ -49,20 +49,21 @@ class AppController extends ChangeNotifier {
     UpdateCheckService? updateCheckService,
     TtsService? ttsService,
     ThemeController? themeController,
-  })  : storage = storageService ?? StorageService(),
-        mastodon = mastodonService ?? MastodonService(),
-        _ownsMastodon = mastodonService == null,
-        onDeviceAi = onDeviceAiService ?? OnDeviceAiService(),
-        _linkPreviewFetcher = linkPreviewFetcher ?? LinkPreviewFetcher(),
-        _ownsLinkPreviewFetcher = linkPreviewFetcher == null,
-        updateChecker = updateCheckService ?? UpdateCheckService(),
-        _ownsUpdateChecker = updateCheckService == null,
-        tts = ttsService ?? TtsService(),
-        themeController = themeController ?? ThemeController() {
+  }) : storage = storageService ?? StorageService(),
+       mastodon = mastodonService ?? MastodonService(),
+       _ownsMastodon = mastodonService == null,
+       onDeviceAi = onDeviceAiService ?? OnDeviceAiService(),
+       _linkPreviewFetcher = linkPreviewFetcher ?? LinkPreviewFetcher(),
+       _ownsLinkPreviewFetcher = linkPreviewFetcher == null,
+       updateChecker = updateCheckService ?? UpdateCheckService(),
+       _ownsUpdateChecker = updateCheckService == null,
+       tts = ttsService ?? TtsService(),
+       themeController = themeController ?? ThemeController() {
     _ownsAiProvider = aiProviderService == null;
-    aiProvider = aiProviderService ??
-        AiProviderService(onDeviceAiService: onDeviceAi);
-    translation = translationService ??
+    aiProvider =
+        aiProviderService ?? AiProviderService(onDeviceAiService: onDeviceAi);
+    translation =
+        translationService ??
         TranslationService(
           onDeviceAi: onDeviceAi,
           aiProvider: aiProvider,
@@ -88,7 +89,9 @@ class AppController extends ChangeNotifier {
       l10nProvider: () => l10n,
     );
     for (final provider in AiProviderType.values) {
-      _modelsByProvider[provider] = AiProviderService.defaultModelsFor(provider);
+      _modelsByProvider[provider] = AiProviderService.defaultModelsFor(
+        provider,
+      );
     }
   }
 
@@ -191,8 +194,9 @@ class AppController extends ChangeNotifier {
       resolveAppLocalizations(_settings.resolvedAppLocale);
 
   void _syncAnnouncementDirection() {
-    AccessibilityAnnouncer.defaultTextDirection =
-        resolveTextDirection(effectiveLocale);
+    AccessibilityAnnouncer.defaultTextDirection = resolveTextDirection(
+      effectiveLocale,
+    );
   }
 
   OnDeviceAiStatus get onDeviceAiStatus => _onDeviceAiStatus;
@@ -206,7 +210,8 @@ class AppController extends ChangeNotifier {
   int get timelineRefreshNonce => _timelineRefreshNonce;
 
   List<AiModelOption> modelsFor(AiProviderType provider) =>
-      _modelsByProvider[provider] ?? AiProviderService.defaultModelsFor(provider);
+      _modelsByProvider[provider] ??
+      AiProviderService.defaultModelsFor(provider);
 
   bool isLoadingModels(AiProviderType provider) =>
       _loadingModels.contains(provider);
@@ -228,8 +233,7 @@ class AppController extends ChangeNotifier {
   Future<MastodonStatus?> resolveQuotedStatus(
     String url, {
     bool forceRetry = false,
-  }) =>
-      quoteCache.resolve(url, session: _session, forceRetry: forceRetry);
+  }) => quoteCache.resolve(url, session: _session, forceRetry: forceRetry);
 
   /// Loads persisted settings, secure credentials, Mastodon session, instance limits,
   /// and runs the startup GitHub version check.
@@ -283,7 +287,7 @@ class AppController extends ChangeNotifier {
             _currentAccount = _accountFromStored(target);
             _instanceLimits =
                 await storage.loadCachedInstanceLimits(target.instanceUrl) ??
-                    const InstanceLimits();
+                const InstanceLimits();
           }
         }
       } else {
@@ -445,7 +449,8 @@ class AppController extends ChangeNotifier {
     try {
       // On Windows & Linux, launch the user's default system browser with a
       // temporary RFC 8252 loopback listener (no Edge WebView2 required).
-      final useSystemBrowserLoopback = !kIsWeb &&
+      final useSystemBrowserLoopback =
+          !kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.windows ||
               defaultTargetPlatform == TargetPlatform.linux);
       final redirectUri = useSystemBrowserLoopback
@@ -495,7 +500,8 @@ class AppController extends ChangeNotifier {
       final callbackUri = Uri.parse(callbackResult);
       final code = callbackUri.queryParameters['code'];
       if (code == null || code.isEmpty) {
-        final err = callbackUri.queryParameters['error_description'] ??
+        final err =
+            callbackUri.queryParameters['error_description'] ??
             callbackUri.queryParameters['error'] ??
             l10n.authErrorCancelled;
         throw MastodonApiException(err);
@@ -747,7 +753,8 @@ class AppController extends ChangeNotifier {
     bool autoRefreshModels = true,
   }) async {
     final providerChanged = updated.activeProvider != _settings.activeProvider;
-    final urlChanged = updated.openAiBaseUrl != _settings.openAiBaseUrl ||
+    final urlChanged =
+        updated.openAiBaseUrl != _settings.openAiBaseUrl ||
         updated.localBaseUrl != _settings.localBaseUrl;
 
     _settings = updated;
@@ -855,14 +862,13 @@ class AppController extends ChangeNotifier {
   Future<void> describeTimelineMedia(
     MastodonMediaAttachment attachment, {
     String? postContext,
-  }) =>
-      mediaAi.describeMedia(
-        attachment: attachment,
-        settings: _settings,
-        credentials: _credentials,
-        maxAltTextLength: _instanceLimits.altTextLimit,
-        postContext: postContext,
-      );
+  }) => mediaAi.describeMedia(
+    attachment: attachment,
+    settings: _settings,
+    credentials: _credentials,
+    maxAltTextLength: _instanceLimits.altTextLimit,
+    postContext: postContext,
+  );
 
   void notifyTimelinesShouldRefresh() {
     timelineCache.markAllStale();
@@ -881,7 +887,9 @@ class AppController extends ChangeNotifier {
   String _buildOAuthLandingHtml() {
     final loc = l10n;
     final locale = effectiveLocale;
-    final dir = resolveTextDirection(locale) == TextDirection.rtl ? 'rtl' : 'ltr';
+    final dir = resolveTextDirection(locale) == TextDirection.rtl
+        ? 'rtl'
+        : 'ltr';
     const esc = HtmlEscape();
     final lang = esc.convert(locale.toLanguageTag());
     final title = esc.convert(loc.oauthLandingTitle);

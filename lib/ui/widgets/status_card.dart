@@ -119,12 +119,12 @@ class _StatusCardState extends State<StatusCard> {
     super.didUpdateWidget(oldWidget);
     final statusChanged =
         oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
-            oldWidget.status.displayStatus.contentHtml !=
-                widget.status.displayStatus.contentHtml ||
-            oldWidget.status.displayStatus.spoilerText !=
-                widget.status.displayStatus.spoilerText ||
-            oldWidget.status.displayStatus.editedAt !=
-                widget.status.displayStatus.editedAt;
+        oldWidget.status.displayStatus.contentHtml !=
+            widget.status.displayStatus.contentHtml ||
+        oldWidget.status.displayStatus.spoilerText !=
+            widget.status.displayStatus.spoilerText ||
+        oldWidget.status.displayStatus.editedAt !=
+            widget.status.displayStatus.editedAt;
     if (oldWidget.status.displayStatus.id != widget.status.displayStatus.id ||
         (oldWidget.enableReadAloud && !widget.enableReadAloud)) {
       final oldKey = 'post_full_${oldWidget.status.displayStatus.id}';
@@ -152,8 +152,9 @@ class _StatusCardState extends State<StatusCard> {
 
   String _translatableBodyPlainText() {
     final target = widget.status.displayStatus;
-    final bodyHtml =
-        _leadingQuote != null ? _leadingQuote!.remainingHtml : target.contentHtml;
+    final bodyHtml = _leadingQuote != null
+        ? _leadingQuote!.remainingHtml
+        : target.contentHtml;
     return HtmlUtils.htmlToPlainText(bodyHtml).trim();
   }
 
@@ -256,7 +257,8 @@ class _StatusCardState extends State<StatusCard> {
   String _buildPostReadAloudText(AppLocalizations l10n) {
     final target = widget.status.displayStatus;
     final quoteUrl = _leadingQuote?.quoteUrl;
-    final embeddedQuote = target.quotedStatus ??
+    final embeddedQuote =
+        target.quotedStatus ??
         (quoteUrl != null ? widget.app.cachedQuotedStatus(quoteUrl) : null);
     final translation = _showingTranslation ? _translationResult : null;
 
@@ -317,340 +319,354 @@ class _StatusCardState extends State<StatusCard> {
       container: true,
       selected: widget.isKeyboardSelected ? true : null,
       child: Card(
-      semanticContainer: false,
-      shape: widget.isKeyboardSelected
-          ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: scheme.primary,
-                width: 2.5,
-              ),
-            )
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Boost banner (clickable booster profile)
-            if (outer.isBoost)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: AccessibleButtonSemantics(
-                  label: l10n.statusBoostedSemantics(
-                    outer.account.effectiveDisplayName,
-                  ),
-                  onTap: () => widget.onOpenProfile(outer.account),
-                  child: AccessibleTip(
-                    message: l10n.statusBoostedTip(
+        semanticContainer: false,
+        shape: widget.isKeyboardSelected
+            ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: scheme.primary, width: 2.5),
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Boost banner (clickable booster profile)
+              if (outer.isBoost)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: AccessibleButtonSemantics(
+                    label: l10n.statusBoostedSemantics(
                       outer.account.effectiveDisplayName,
                     ),
-                    child: InkWell(
-                      onTap: () => widget.onOpenProfile(outer.account),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 4,
-                        horizontal: 4,
+                    onTap: () => widget.onOpenProfile(outer.account),
+                    child: AccessibleTip(
+                      message: l10n.statusBoostedTip(
+                        outer.account.effectiveDisplayName,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.repeat, size: 16, color: fedi.subtleText),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              l10n.statusBoostedLabel(
-                                outer.account.effectiveDisplayName,
-                              ),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(color: fedi.subtleText),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                      child: InkWell(
+                        onTap: () => widget.onOpenProfile(outer.account),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 4,
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  ),
-                ),
-              ),
-
-            // On-device translation offer at the top of an opened post
-            if (_canOfferTranslation &&
-                _detectedLanguage != null &&
-                _osLanguage != null)
-              PostTranslationBanner(
-                sourceLanguageCode: _detectedLanguage!,
-                targetLanguageCode: _osLanguage!,
-                isTranslating: _isTranslating,
-                showingTranslation: _showingTranslation,
-                translationResult: _translationResult,
-                errorMessage: _translationError,
-                onTranslate: _handleTranslate,
-                onToggleOriginal: () {
-                  _stopReadAloudIfActive();
-                  setState(() => _showingTranslation = !_showingTranslation);
-                },
-              ),
-
-            // Top-of-post Read Aloud button for an opened post page
-            if (widget.enableReadAloud)
-              ListenableBuilder(
-                listenable: Listenable.merge([
-                  widget.app.tts,
-                  widget.app.mediaAi,
-                  widget.app.quoteCache,
-                  widget.app,
-                ]),
-                builder: (context, _) {
-                  final speechText = _buildPostReadAloudText(l10n);
-                  if (speechText.isEmpty) return const SizedBox.shrink();
-                  final isSpeaking = widget.app.tts.isSpeakingKey(_postTtsKey);
-                  void toggleReadAloud() => widget.app.tts.toggleSpeak(
-                        key: _postTtsKey,
-                        text: speechText,
-                        languageName: _resolveReadAloudLanguage(),
-                        speechRate: widget.app.settings.ttsSpeechRate,
-                      );
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: AccessibleButtonSemantics(
-                        toggled: isSpeaking,
-                        label: isSpeaking
-                            ? l10n.statusStopReadingPostSemantics
-                            : l10n.statusReadAloudPostSemantics,
-                        onTap: toggleReadAloud,
-                        child: AccessibleTip(
-                          message: isSpeaking
-                              ? l10n.statusStopReadingPostTip
-                              : l10n.statusReadAloudPostTip,
-                          child: FilledButton.tonalIcon(
-                            onPressed: toggleReadAloud,
-                            icon: Icon(
-                              isSpeaking ? Icons.stop : Icons.volume_up,
-                              size: 18,
-                            ),
-                            label: Text(
-                              isSpeaking
-                                  ? l10n.mediaStopReadingButton
-                                  : l10n.mediaReadAloudButton,
-                            ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.repeat,
+                                size: 16,
+                                color: fedi.subtleText,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  l10n.statusBoostedLabel(
+                                    outer.account.effectiveDisplayName,
+                                  ),
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(color: fedi.subtleText),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                ),
+
+              // On-device translation offer at the top of an opened post
+              if (_canOfferTranslation &&
+                  _detectedLanguage != null &&
+                  _osLanguage != null)
+                PostTranslationBanner(
+                  sourceLanguageCode: _detectedLanguage!,
+                  targetLanguageCode: _osLanguage!,
+                  isTranslating: _isTranslating,
+                  showingTranslation: _showingTranslation,
+                  translationResult: _translationResult,
+                  errorMessage: _translationError,
+                  onTranslate: _handleTranslate,
+                  onToggleOriginal: () {
+                    _stopReadAloudIfActive();
+                    setState(() => _showingTranslation = !_showingTranslation);
+                  },
+                ),
+
+              // Top-of-post Read Aloud button for an opened post page
+              if (widget.enableReadAloud)
+                ListenableBuilder(
+                  listenable: Listenable.merge([
+                    widget.app.tts,
+                    widget.app.mediaAi,
+                    widget.app.quoteCache,
+                    widget.app,
+                  ]),
+                  builder: (context, _) {
+                    final speechText = _buildPostReadAloudText(l10n);
+                    if (speechText.isEmpty) return const SizedBox.shrink();
+                    final isSpeaking = widget.app.tts.isSpeakingKey(
+                      _postTtsKey,
+                    );
+                    void toggleReadAloud() => widget.app.tts.toggleSpeak(
+                      key: _postTtsKey,
+                      text: speechText,
+                      languageName: _resolveReadAloudLanguage(),
+                      speechRate: widget.app.settings.ttsSpeechRate,
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: AccessibleButtonSemantics(
+                          toggled: isSpeaking,
+                          label: isSpeaking
+                              ? l10n.statusStopReadingPostSemantics
+                              : l10n.statusReadAloudPostSemantics,
+                          onTap: toggleReadAloud,
+                          child: AccessibleTip(
+                            message: isSpeaking
+                                ? l10n.statusStopReadingPostTip
+                                : l10n.statusReadAloudPostTip,
+                            child: FilledButton.tonalIcon(
+                              onPressed: toggleReadAloud,
+                              icon: Icon(
+                                isSpeaking ? Icons.stop : Icons.volume_up,
+                                size: 18,
+                              ),
+                              label: Text(
+                                isSpeaking
+                                    ? l10n.mediaStopReadingButton
+                                    : l10n.mediaReadAloudButton,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+              StatusAuthorHeader(
+                status: target,
+                onOpenProfile: widget.onOpenProfile,
               ),
 
-            StatusAuthorHeader(
-              status: target,
-              onOpenProfile: widget.onOpenProfile,
-            ),
-
-            const SizedBox(height: 8),
-
-            if (hasCw) ...[
-              ContentWarningBanner(
-                spoilerText: _showingTranslation &&
-                        (_translationResult?.translatedSpoiler ?? '').isNotEmpty
-                    ? _translationResult!.translatedSpoiler!
-                    : target.spoilerText,
-                revealed: cwRevealed,
-                onToggle: widget.onToggleCw ??
-                    () => setState(() => _cwRevealed = !_cwRevealed),
-              ),
               const SizedBox(height: 8),
-            ],
 
-            // Embedded Quoted Post (above reply) + Main post body + Media attachments
-            if (!hasCw || cwRevealed) ...[
-              ListenableBuilder(
-                listenable: widget.app.quoteCache,
-                builder: (context, _) {
-                  final quoteMatch = _leadingQuote;
-                  final quoteUrl = quoteMatch?.quoteUrl;
-                  final embeddedQuote = target.quotedStatus ??
-                      (quoteUrl != null
-                          ? widget.app.cachedQuotedStatus(quoteUrl)
-                          : null);
-                  final isLoadingQuote = target.quotedStatus == null &&
-                      quoteUrl != null &&
-                      (widget.app.isResolvingQuote(quoteUrl) ||
-                          !widget.app.hasResolvedQuote(quoteUrl));
-                  final hasQuoteWindow =
-                      target.quotedStatus != null || quoteUrl != null;
+              if (hasCw) ...[
+                ContentWarningBanner(
+                  spoilerText:
+                      _showingTranslation &&
+                          (_translationResult?.translatedSpoiler ?? '')
+                              .isNotEmpty
+                      ? _translationResult!.translatedSpoiler!
+                      : target.spoilerText,
+                  revealed: cwRevealed,
+                  onToggle:
+                      widget.onToggleCw ??
+                      () => setState(() => _cwRevealed = !_cwRevealed),
+                ),
+                const SizedBox(height: 8),
+              ],
 
-                  // Strip redundant leading `RE: <url>` from outer post text when displaying quote window.
-                  final bodyHtml = quoteMatch != null
-                      ? quoteMatch.remainingHtml
-                      : target.contentHtml;
-                  final bodyPlainText = HtmlUtils.htmlToPlainText(bodyHtml);
+              // Embedded Quoted Post (above reply) + Main post body + Media attachments
+              if (!hasCw || cwRevealed) ...[
+                ListenableBuilder(
+                  listenable: widget.app.quoteCache,
+                  builder: (context, _) {
+                    final quoteMatch = _leadingQuote;
+                    final quoteUrl = quoteMatch?.quoteUrl;
+                    final embeddedQuote =
+                        target.quotedStatus ??
+                        (quoteUrl != null
+                            ? widget.app.cachedQuotedStatus(quoteUrl)
+                            : null);
+                    final isLoadingQuote =
+                        target.quotedStatus == null &&
+                        quoteUrl != null &&
+                        (widget.app.isResolvingQuote(quoteUrl) ||
+                            !widget.app.hasResolvedQuote(quoteUrl));
+                    final hasQuoteWindow =
+                        target.quotedStatus != null || quoteUrl != null;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (hasQuoteWindow)
-                        QuotedStatusCard(
-                          app: widget.app,
-                          quotedStatus: embeddedQuote,
-                          quoteUrl: quoteUrl,
-                          isLoading: isLoadingQuote,
-                          onOpenProfile: widget.onOpenProfile,
-                          onOpenThread: widget.onOpenThread,
-                          onRetry: quoteUrl != null
-                              ? () => widget.app.resolveQuotedStatus(
+                    // Strip redundant leading `RE: <url>` from outer post text when displaying quote window.
+                    final bodyHtml = quoteMatch != null
+                        ? quoteMatch.remainingHtml
+                        : target.contentHtml;
+                    final bodyPlainText = HtmlUtils.htmlToPlainText(bodyHtml);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasQuoteWindow)
+                          QuotedStatusCard(
+                            app: widget.app,
+                            quotedStatus: embeddedQuote,
+                            quoteUrl: quoteUrl,
+                            isLoading: isLoadingQuote,
+                            onOpenProfile: widget.onOpenProfile,
+                            onOpenThread: widget.onOpenThread,
+                            onRetry: quoteUrl != null
+                                ? () => widget.app.resolveQuotedStatus(
                                     quoteUrl,
                                     forceRetry: true,
                                   )
-                              : null,
-                        ),
-                      if (hasQuoteWindow && bodyPlainText.isNotEmpty)
-                        const SizedBox(height: 6),
-                      if (bodyPlainText.isNotEmpty)
-                        AccessibleTip(
-                          message: l10n.statusOpenThreadTip,
-                          child: InkWell(
-                            onTap: () => widget.onOpenThread(target),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: _showingTranslation &&
-                                      (_translationResult?.translatedText ?? '')
-                                          .isNotEmpty
-                                  ? LinkifiedText.plain(
-                                      _translationResult!.translatedText,
-                                      style:
-                                          Theme.of(context).textTheme.bodyLarge,
-                                    )
-                                  : LinkifiedText.html(
-                                      bodyHtml,
-                                      style:
-                                          Theme.of(context).textTheme.bodyLarge,
-                                      mentions: target.mentions,
-                                      onTapMention: (mention) =>
-                                          widget.onOpenProfile(
-                                        mention.toStubAccount(),
+                                : null,
+                          ),
+                        if (hasQuoteWindow && bodyPlainText.isNotEmpty)
+                          const SizedBox(height: 6),
+                        if (bodyPlainText.isNotEmpty)
+                          AccessibleTip(
+                            message: l10n.statusOpenThreadTip,
+                            child: InkWell(
+                              onTap: () => widget.onOpenThread(target),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child:
+                                    _showingTranslation &&
+                                        (_translationResult?.translatedText ??
+                                                '')
+                                            .isNotEmpty
+                                    ? LinkifiedText.plain(
+                                        _translationResult!.translatedText,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge,
+                                      )
+                                    : LinkifiedText.html(
+                                        bodyHtml,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge,
+                                        mentions: target.mentions,
+                                        onTapMention: (mention) =>
+                                            widget.onOpenProfile(
+                                              mention.toStubAccount(),
+                                            ),
                                       ),
-                                    ),
+                              ),
                             ),
                           ),
+                      ],
+                    );
+                  },
+                ),
+                if (target.editedAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      l10n.statusEditedAt(
+                        TimeUtils.formatRelativeCompact(
+                          target.editedAt!,
+                          l10n: l10n,
                         ),
-                    ],
-                  );
-                },
-              ),
-              if (target.editedAt != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    l10n.statusEditedAt(
-                      TimeUtils.formatRelativeCompact(
-                        target.editedAt!,
-                        l10n: l10n,
                       ),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: fedi.subtleText),
                     ),
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: fedi.subtleText),
                   ),
-                ),
-              for (final media in target.mediaAttachments)
-                MediaAttachmentCard(
-                  attachment: media,
-                  app: widget.app,
-                  postContext: target.plainText,
-                  translatedAltText: _showingTranslation
-                      ? _translationResult?.translatedAltTexts[media.id]
-                      : null,
-                  readAloudLanguage: _resolveReadAloudLanguage(),
-                ),
-            ],
-
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-            const SizedBox(height: 4),
-
-            // Accessible Action Bar
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _ActionIcon(
-                  icon: Icons.reply,
-                  label: target.repliesCount > 0 ? '${target.repliesCount}' : '',
-                  semanticLabel: l10n.statusReplySemantics(
-                    target.account.effectiveDisplayName,
-                    target.repliesCount,
-                  ),
-                  onPressed: () => widget.onReply(target),
-                ),
-                _ActionIcon(
-                  icon: Icons.repeat,
-                  label: target.reblogsCount > 0 ? '${target.reblogsCount}' : '',
-                  active: target.reblogged,
-                  activeColor: scheme.secondary,
-                  semanticLabel: target.reblogged
-                      ? l10n.statusUnboostSemantics(target.reblogsCount)
-                      : l10n.statusBoostSemantics(target.reblogsCount),
-                  onPressed: () => widget.onToggleBoost(target),
-                ),
-                _ActionIcon(
-                  icon: target.favourited ? Icons.star : Icons.star_border,
-                  label: target.favouritesCount > 0
-                      ? '${target.favouritesCount}'
-                      : '',
-                  active: target.favourited,
-                  activeColor: scheme.primary,
-                  semanticLabel: target.favourited
-                      ? l10n.statusUnfavoriteSemantics(target.favouritesCount)
-                      : l10n.statusFavoriteSemantics(target.favouritesCount),
-                  onPressed: () => widget.onToggleFavorite(target),
-                ),
-                _ActionIcon(
-                  icon: target.bookmarked
-                      ? Icons.bookmark
-                      : Icons.bookmark_border,
-                  label: '',
-                  active: target.bookmarked,
-                  activeColor: scheme.primary,
-                  semanticLabel: target.bookmarked
-                      ? l10n.statusRemoveBookmarkSemantics
-                      : l10n.statusBookmarkSemantics,
-                  onPressed: () => widget.onToggleBookmark(target),
-                ),
-                _ActionIcon(
-                  icon: Icons.forum_outlined,
-                  label: l10n.statusThreadActionLabel,
-                  semanticLabel: l10n.statusThreadActionSemantics,
-                  onPressed: () => widget.onOpenThread(target),
-                ),
-                if (isOwnPost && widget.onEdit != null)
-                  _ActionIcon(
-                    icon: Icons.edit,
-                    label: l10n.statusEditActionLabel,
-                    semanticLabel: l10n.statusEditActionSemantics,
-                    onPressed: () => widget.onEdit!(target),
-                  ),
-                if (isOwnPost && widget.onDelete != null)
-                  _ActionIcon(
-                    icon: Icons.delete_outline,
-                    label: '',
-                    color: scheme.error,
-                    semanticLabel: l10n.statusDeleteActionSemantics,
-                    onPressed: () => widget.onDelete!(target),
+                for (final media in target.mediaAttachments)
+                  MediaAttachmentCard(
+                    attachment: media,
+                    app: widget.app,
+                    postContext: target.plainText,
+                    translatedAltText: _showingTranslation
+                        ? _translationResult?.translatedAltTexts[media.id]
+                        : null,
+                    readAloudLanguage: _resolveReadAloudLanguage(),
                   ),
               ],
-            ),
-          ],
+
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 4),
+
+              // Accessible Action Bar
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _ActionIcon(
+                    icon: Icons.reply,
+                    label: target.repliesCount > 0
+                        ? '${target.repliesCount}'
+                        : '',
+                    semanticLabel: l10n.statusReplySemantics(
+                      target.account.effectiveDisplayName,
+                      target.repliesCount,
+                    ),
+                    onPressed: () => widget.onReply(target),
+                  ),
+                  _ActionIcon(
+                    icon: Icons.repeat,
+                    label: target.reblogsCount > 0
+                        ? '${target.reblogsCount}'
+                        : '',
+                    active: target.reblogged,
+                    activeColor: scheme.secondary,
+                    semanticLabel: target.reblogged
+                        ? l10n.statusUnboostSemantics(target.reblogsCount)
+                        : l10n.statusBoostSemantics(target.reblogsCount),
+                    onPressed: () => widget.onToggleBoost(target),
+                  ),
+                  _ActionIcon(
+                    icon: target.favourited ? Icons.star : Icons.star_border,
+                    label: target.favouritesCount > 0
+                        ? '${target.favouritesCount}'
+                        : '',
+                    active: target.favourited,
+                    activeColor: scheme.primary,
+                    semanticLabel: target.favourited
+                        ? l10n.statusUnfavoriteSemantics(target.favouritesCount)
+                        : l10n.statusFavoriteSemantics(target.favouritesCount),
+                    onPressed: () => widget.onToggleFavorite(target),
+                  ),
+                  _ActionIcon(
+                    icon: target.bookmarked
+                        ? Icons.bookmark
+                        : Icons.bookmark_border,
+                    label: '',
+                    active: target.bookmarked,
+                    activeColor: scheme.primary,
+                    semanticLabel: target.bookmarked
+                        ? l10n.statusRemoveBookmarkSemantics
+                        : l10n.statusBookmarkSemantics,
+                    onPressed: () => widget.onToggleBookmark(target),
+                  ),
+                  _ActionIcon(
+                    icon: Icons.forum_outlined,
+                    label: l10n.statusThreadActionLabel,
+                    semanticLabel: l10n.statusThreadActionSemantics,
+                    onPressed: () => widget.onOpenThread(target),
+                  ),
+                  if (isOwnPost && widget.onEdit != null)
+                    _ActionIcon(
+                      icon: Icons.edit,
+                      label: l10n.statusEditActionLabel,
+                      semanticLabel: l10n.statusEditActionSemantics,
+                      onPressed: () => widget.onEdit!(target),
+                    ),
+                  if (isOwnPost && widget.onDelete != null)
+                    _ActionIcon(
+                      icon: Icons.delete_outline,
+                      label: '',
+                      color: scheme.error,
+                      semanticLabel: l10n.statusDeleteActionSemantics,
+                      onPressed: () => widget.onDelete!(target),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -709,10 +725,11 @@ class _ActionIcon extends StatelessWidget {
                     Text(
                       label,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: color,
-                            fontWeight:
-                                active ? FontWeight.bold : FontWeight.normal,
-                          ),
+                        color: color,
+                        fontWeight: active
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
                     ),
                   ],
                 ],

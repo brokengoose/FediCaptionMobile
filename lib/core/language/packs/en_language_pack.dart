@@ -69,24 +69,21 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'humanity',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"mankind" defaults to male terminology; consider "humanity" or "humankind".',
+      explanation: '"mankind" defaults to male terminology; consider "humanity" or "humankind".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bmanpower\b', caseSensitive: false),
       replacement: 'workforce',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"manpower" uses male-centered language; consider "workforce" or "staffing".',
+      explanation: '"manpower" uses male-centered language; consider "workforce" or "staffing".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bchairmen\b', caseSensitive: false),
       replacement: 'chairpersons',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"chairmen" assumes male leadership; consider "chairpersons" or "chairs".',
+      explanation: '"chairmen" assumes male leadership; consider "chairpersons" or "chairs".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bchairman\b', caseSensitive: false),
@@ -131,72 +128,63 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'hey everyone',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"hey guys" uses a male-default plural; consider "hey everyone" or "hey folks".',
+      explanation: '"hey guys" uses a male-default plural; consider "hey everyone" or "hey folks".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\byou\s+guys\b', caseSensitive: false),
       replacement: 'everyone',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"you guys" uses a male-default plural; consider "everyone" or "you all".',
+      explanation: '"you guys" uses a male-default plural; consider "everyone" or "you all".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bhusbands\s+and\s+wives\b', caseSensitive: false),
       replacement: 'spouses and partners',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"husbands and wives" assumes binary heterosexual couples; consider "spouses and partners".',
+      explanation: '"husbands and wives" assumes binary heterosexual couples; consider "spouses and partners".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bwhitelisted\b', caseSensitive: false),
       replacement: 'allowlisted',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"whitelisted" associates white with permitted/good; consider "allowlisted".',
+      explanation: '"whitelisted" associates white with permitted/good; consider "allowlisted".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bwhitelist\b', caseSensitive: false),
       replacement: 'allowlist',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"whitelist" associates white with permitted/good; consider "allowlist".',
+      explanation: '"whitelist" associates white with permitted/good; consider "allowlist".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bblacklisted\b', caseSensitive: false),
       replacement: 'blocklisted',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"blacklisted" associates black with bad/blocked; consider "blocklisted".',
+      explanation: '"blacklisted" associates black with bad/blocked; consider "blocklisted".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bblacklist\b', caseSensitive: false),
       replacement: 'blocklist',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"blacklist" associates black with bad/blocked; consider "blocklist".',
+      explanation: '"blacklist" associates black with bad/blocked; consider "blocklist".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bmaster\s*[/\-]\s*slave\b', caseSensitive: false),
       replacement: 'primary/replica',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"master/slave" draws on slavery terminology; consider "primary/replica" or "leader/follower".',
+      explanation: '"master/slave" draws on slavery terminology; consider "primary/replica" or "leader/follower".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bgrandfathered\b', caseSensitive: false),
       replacement: 'legacy-exempted',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"grandfathered" originates from Jim Crow voter disenfranchisement clauses; consider "legacy-exempted".',
+      explanation: '"grandfathered" originates from Jim Crow voter disenfranchisement clauses; consider "legacy-exempted".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bbusinessmen\b', caseSensitive: false),
@@ -226,49 +214,46 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'flight attendant',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"stewardess" is gendered occupational language; consider "flight attendant".',
+      explanation: '"stewardess" is gendered occupational language; consider "flight attendant".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bman-made\b', caseSensitive: false),
       replacement: 'human-made',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"man-made" uses male-default wording; consider "human-made" or "artificial".',
+      explanation: '"man-made" uses male-default wording; consider "human-made" or "artificial".',
     ),
     // Gendered pejoratives, slurs, and stereotypes (longer phrases before base words)
     BiasHeuristicRule(
-      pattern: RegExp(r'\bsons?\s+of\s+a\s+bitch(?:es)?\b', caseSensitive: false),
+      pattern: RegExp(
+        r'\bsons?\s+of\s+a\s+bitch(?:es)?\b',
+        caseSensitive: false,
+      ),
       replacement: 'jerk',
       category: BiasCategory.explicitGender,
       biasType: 'Explicit Gender Bias',
-      explanation:
-          '"son of a bitch" uses a gendered slur as an insult; consider neutral wording like "jerk".',
+      explanation: '"son of a bitch" uses a gendered slur as an insult; consider neutral wording like "jerk".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bbitching\b', caseSensitive: false),
       replacement: 'complaining',
       category: BiasCategory.explicitGender,
       biasType: 'Explicit Gender Bias',
-      explanation:
-          '"bitching" derives from a gendered slur used to demean complaining; consider "complaining" or "venting".',
+      explanation: '"bitching" derives from a gendered slur used to demean complaining; consider "complaining" or "venting".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bbitched\b', caseSensitive: false),
       replacement: 'complained',
       category: BiasCategory.explicitGender,
       biasType: 'Explicit Gender Bias',
-      explanation:
-          '"bitched" derives from a gendered slur; consider "complained" or "vented".',
+      explanation: '"bitched" derives from a gendered slur; consider "complained" or "vented".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bbitchy\b', caseSensitive: false),
       replacement: 'snappy',
       category: BiasCategory.explicitGender,
       biasType: 'Explicit Gender Bias',
-      explanation:
-          '"bitchy" is a gendered pejorative; consider "snappy", "irritable", or "rude".',
+      explanation: '"bitchy" is a gendered pejorative; consider "snappy", "irritable", or "rude".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bbitches\b', caseSensitive: false),
@@ -282,32 +267,28 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'complain',
       category: BiasCategory.explicitGender,
       biasType: 'Explicit Gender Bias',
-      explanation:
-          '"bitch" is a gendered slur/pejorative; consider neutral wording such as "complain" or "jerk".',
+      explanation: '"bitch" is a gendered slur/pejorative; consider neutral wording such as "complain" or "jerk".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bman\s+up\b', caseSensitive: false),
       replacement: 'step up',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"man up" equates courage or toughness with masculinity; consider "step up" or "be brave".',
+      explanation: '"man up" equates courage or toughness with masculinity; consider "step up" or "be brave".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bgrow\s+a\s+pair\b', caseSensitive: false),
       replacement: 'be brave',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"grow a pair" equates courage with male anatomy; consider "be brave" or "stand firm".',
+      explanation: '"grow a pair" equates courage with male anatomy; consider "be brave" or "stand firm".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bballsy\b', caseSensitive: false),
       replacement: 'bold',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"ballsy" associates boldness with male anatomy; consider "bold" or "gutsy".',
+      explanation: '"ballsy" associates boldness with male anatomy; consider "bold" or "gutsy".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(
@@ -325,8 +306,7 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'provocative',
       category: BiasCategory.explicitGender,
       biasType: 'Explicit Gender Bias',
-      explanation:
-          '"slutty" is a gendered pejorative used to shame women; consider neutral wording.',
+      explanation: '"slutty" is a gendered pejorative used to shame women; consider neutral wording.',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bsluts?\b', caseSensitive: false),
@@ -361,16 +341,14 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'homemakers',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"housewives" assumes domestic caregivers are women; consider "homemakers".',
+      explanation: '"housewives" assumes domestic caregivers are women; consider "homemakers".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bhousewife\b', caseSensitive: false),
       replacement: 'homemaker',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"housewife" assumes a domestic caregiver is a woman; consider "homemaker".',
+      explanation: '"housewife" assumes a domestic caregiver is a woman; consider "homemaker".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bsalesmen\b', caseSensitive: false),
@@ -391,32 +369,28 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'artisans',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"craftsmen" is gender-exclusive; consider "artisans" or "craftspeople".',
+      explanation: '"craftsmen" is gender-exclusive; consider "artisans" or "craftspeople".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bcraftsman\b', caseSensitive: false),
       replacement: 'artisan',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"craftsman" is gender-exclusive; consider "artisan" or "craftsperson".',
+      explanation: '"craftsman" is gender-exclusive; consider "artisan" or "craftsperson".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bfreshmen\b', caseSensitive: false),
       replacement: 'first-year students',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"freshmen" uses male-default language; consider "first-year students".',
+      explanation: '"freshmen" uses male-default language; consider "first-year students".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bfreshman\b', caseSensitive: false),
       replacement: 'first-year student',
       category: BiasCategory.implicitGender,
       biasType: 'Implicit Gender Bias',
-      explanation:
-          '"freshman" uses male-default language; consider "first-year student".',
+      explanation: '"freshman" uses male-default language; consider "first-year student".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bwaitresses\b', caseSensitive: false),
@@ -440,64 +414,56 @@ final BiasLanguagePack enBiasLanguagePack = BiasLanguagePack(
       replacement: 'cheated',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"gypped" derives from a derogatory stereotype of Romani people; consider "cheated" or "ripped off".',
+      explanation: '"gypped" derives from a derogatory stereotype of Romani people; consider "cheated" or "ripped off".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bgyp\b', caseSensitive: false),
       replacement: 'cheat',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"gyp" derives from a derogatory stereotype of Romani people; consider "cheat" or "scam".',
+      explanation: '"gyp" derives from a derogatory stereotype of Romani people; consider "cheat" or "scam".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bpow[\-\s]?wow\b', caseSensitive: false),
       replacement: 'meeting',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"powwow" appropriates an Indigenous ceremony for casual meetings; consider "meeting" or "huddle".',
+      explanation: '"powwow" appropriates an Indigenous ceremony for casual meetings; consider "meeting" or "huddle".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bspirit\s+animal\b', caseSensitive: false),
       replacement: 'kindred spirit',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"spirit animal" appropriates Indigenous spiritual traditions; consider "kindred spirit" or "mascot".',
+      explanation: '"spirit animal" appropriates Indigenous spiritual traditions; consider "kindred spirit" or "mascot".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bsold\s+down\s+the\s+river\b', caseSensitive: false),
       replacement: 'betrayed',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"sold down the river" originates from American chattel slavery; consider "betrayed".',
+      explanation: '"sold down the river" originates from American chattel slavery; consider "betrayed".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\buppity\b', caseSensitive: false),
       replacement: 'assertive',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"uppity" has a racially loaded history used to demean Black people; consider "assertive" or "arrogant".',
+      explanation: '"uppity" has a racially loaded history used to demean Black people; consider "assertive" or "arrogant".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bcotton[\-\s]picking\b', caseSensitive: false),
       replacement: 'darn',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"cotton-picking" is rooted in American slavery terminology; consider "darn".',
+      explanation: '"cotton-picking" is rooted in American slavery terminology; consider "darn".',
     ),
     BiasHeuristicRule(
       pattern: RegExp(r'\bmaster\s+bedroom\b', caseSensitive: false),
       replacement: 'primary bedroom',
       category: BiasCategory.implicitRacial,
       biasType: 'Implicit Racial Bias',
-      explanation:
-          '"master bedroom" carries historical associations with slavery; consider "primary bedroom".',
+      explanation: '"master bedroom" carries historical associations with slavery; consider "primary bedroom".',
     ),
   ],
 );

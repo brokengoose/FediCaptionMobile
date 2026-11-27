@@ -29,10 +29,7 @@ import 'timeline_screen.dart';
 /// - Full timeline switcher (Home, Local, Federated, Notifications, Bookmarks, Favorites, My Published Posts)
 /// - Accessible Compose button and Settings screen access
 class HomeShell extends StatefulWidget {
-  const HomeShell({
-    super.key,
-    required this.app,
-  });
+  const HomeShell({super.key, required this.app});
 
   final AppController app;
 
@@ -70,9 +67,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _openComposer() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ComposerScreen(app: widget.app),
-      ),
+      MaterialPageRoute<void>(builder: (_) => ComposerScreen(app: widget.app)),
     );
   }
 
@@ -86,9 +81,7 @@ class _HomeShellState extends State<HomeShell> {
 
   void _openSettings() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(app: widget.app),
-      ),
+      MaterialPageRoute<void>(builder: (_) => SettingsScreen(app: widget.app)),
     );
   }
 
@@ -262,51 +255,53 @@ class _HomeShellState extends State<HomeShell> {
                       message: l10n.homeProfileHeaderTip(activeHandle),
                       child: InkWell(
                         onTap: () => _selectTimeline(TimelineType.myPosts),
-                      borderRadius: BorderRadius.circular(10),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minHeight: AppConstants.minTouchTargetSize,
-                        ),
-                        child: Row(
-                          children: [
-                            AccessibleAvatar(
-                              imageUrl: account.avatar,
-                              displayName: account.effectiveDisplayName,
-                              radius: 18,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    selectedFullTitle,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.bold),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    activeHandle,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(color: fedi.subtleText),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                        borderRadius: BorderRadius.circular(10),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: AppConstants.minTouchTargetSize,
+                          ),
+                          child: Row(
+                            children: [
+                              AccessibleAvatar(
+                                imageUrl: account.avatar,
+                                displayName: account.effectiveDisplayName,
+                                radius: 18,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      selectedFullTitle,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      activeHandle,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: fedi.subtleText),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
             actions: [
               if (account != null)
                 hasMultipleAccounts
@@ -314,10 +309,8 @@ class _HomeShellState extends State<HomeShell> {
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: AccessibleButtonSemantics(
                           label: l10n.accountsSwitchTooltip(activeHandle),
-                          onTap: () => AccountSwitcherSheet.show(
-                            context,
-                            widget.app,
-                          ),
+                          onTap: () =>
+                              AccountSwitcherSheet.show(context, widget.app),
                           child: AccessibleTip(
                             message: l10n.accountsSwitchTooltip(activeHandle),
                             child: OutlinedButton(
@@ -399,110 +392,110 @@ class _HomeShellState extends State<HomeShell> {
               ? null
               : Drawer(
                   child: SafeArea(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  if (account != null)
-                    InkWell(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        _selectTimeline(TimelineType.myPosts);
-                      },
-                      child: DrawerHeader(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            AccessibleAvatar(
-                              imageUrl: account.avatar,
-                              displayName: account.effectiveDisplayName,
-                              radius: 26,
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        if (account != null)
+                          InkWell(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              _selectTimeline(TimelineType.myPosts);
+                            },
+                            child: DrawerHeader(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  AccessibleAvatar(
+                                    imageUrl: account.avatar,
+                                    displayName: account.effectiveDisplayName,
+                                    radius: 26,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    account.effectiveDisplayName,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    activeHandle,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: fedi.subtleText),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              account.effectiveDisplayName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              activeHandle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: fedi.subtleText),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          ),
+                        _drawerItem(
+                          icon: Icons.home_outlined,
+                          selectedIcon: Icons.home,
+                          type: TimelineType.home,
                         ),
-                      ),
+                        _drawerItem(
+                          icon: Icons.groups_outlined,
+                          selectedIcon: Icons.groups,
+                          type: TimelineType.local,
+                        ),
+                        _drawerItem(
+                          icon: Icons.public_outlined,
+                          selectedIcon: Icons.public,
+                          type: TimelineType.federated,
+                        ),
+                        _drawerItem(
+                          icon: Icons.notifications_outlined,
+                          selectedIcon: Icons.notifications,
+                          type: TimelineType.notifications,
+                        ),
+                        const Divider(),
+                        _drawerItem(
+                          icon: Icons.bookmark_outline,
+                          selectedIcon: Icons.bookmark,
+                          type: TimelineType.bookmarks,
+                        ),
+                        _drawerItem(
+                          icon: Icons.star_outline,
+                          selectedIcon: Icons.star,
+                          type: TimelineType.favorites,
+                        ),
+                        _drawerItem(
+                          icon: Icons.article_outlined,
+                          selectedIcon: Icons.article,
+                          type: TimelineType.myPosts,
+                        ),
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.switch_account_outlined),
+                          title: Text(l10n.accountsSwitchOrAddLabel),
+                          subtitle: hasMultipleAccounts
+                              ? Text(activeHandle)
+                              : null,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            AccountSwitcherSheet.show(context, widget.app);
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.settings_outlined),
+                          title: Text(l10n.homeDrawerSettings),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => SettingsScreen(app: widget.app),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  _drawerItem(
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    type: TimelineType.home,
                   ),
-                  _drawerItem(
-                    icon: Icons.groups_outlined,
-                    selectedIcon: Icons.groups,
-                    type: TimelineType.local,
-                  ),
-                  _drawerItem(
-                    icon: Icons.public_outlined,
-                    selectedIcon: Icons.public,
-                    type: TimelineType.federated,
-                  ),
-                  _drawerItem(
-                    icon: Icons.notifications_outlined,
-                    selectedIcon: Icons.notifications,
-                    type: TimelineType.notifications,
-                  ),
-                  const Divider(),
-                  _drawerItem(
-                    icon: Icons.bookmark_outline,
-                    selectedIcon: Icons.bookmark,
-                    type: TimelineType.bookmarks,
-                  ),
-                  _drawerItem(
-                    icon: Icons.star_outline,
-                    selectedIcon: Icons.star,
-                    type: TimelineType.favorites,
-                  ),
-                  _drawerItem(
-                    icon: Icons.article_outlined,
-                    selectedIcon: Icons.article,
-                    type: TimelineType.myPosts,
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.switch_account_outlined),
-                    title: Text(l10n.accountsSwitchOrAddLabel),
-                    subtitle: hasMultipleAccounts ? Text(activeHandle) : null,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      AccountSwitcherSheet.show(context, widget.app);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.settings_outlined),
-                    title: Text(l10n.homeDrawerSettings),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => SettingsScreen(app: widget.app),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
+                ),
           body: isWideLayout
               ? Row(
                   children: [
@@ -561,7 +554,9 @@ class _HomeShellState extends State<HomeShell> {
                             child: const Icon(Icons.notifications),
                           ),
                           label: Text(
-                            TimelineType.notifications.localizedShortLabel(l10n),
+                            TimelineType.notifications.localizedShortLabel(
+                              l10n,
+                            ),
                           ),
                         ),
                         NavigationRailDestination(
@@ -606,9 +601,7 @@ class _HomeShellState extends State<HomeShell> {
                       ],
                     ),
                     const VerticalDivider(width: 1),
-                    Expanded(
-                      child: contentColumn,
-                    ),
+                    Expanded(child: contentColumn),
                   ],
                 )
               : contentColumn,
@@ -648,7 +641,9 @@ class _HomeShellState extends State<HomeShell> {
                     NavigationDestination(
                       icon: const Icon(Icons.notifications_outlined),
                       selectedIcon: const Icon(Icons.notifications),
-                      label: TimelineType.notifications.localizedShortLabel(l10n),
+                      label: TimelineType.notifications.localizedShortLabel(
+                        l10n,
+                      ),
                     ),
                   ],
                 ),

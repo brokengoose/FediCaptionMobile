@@ -68,18 +68,15 @@ void main() {
 
         expect(calls, hasLength(1));
         expect(calls.single.$1, 'spd-say');
-        expect(
-          calls.single.$2,
-          [
-            '--wait',
-            '--rate',
-            '40',
-            '--language',
-            'es',
-            '--',
-            '-Leading dash alt text',
-          ],
-        );
+        expect(calls.single.$2, [
+          '--wait',
+          '--rate',
+          '40',
+          '--language',
+          'es',
+          '--',
+          '-Leading dash alt text',
+        ]);
         expect(tts.isSpeaking, isTrue);
         expect(tts.isSpeakingKey('post-1'), isTrue);
 
@@ -91,104 +88,103 @@ void main() {
       },
     );
 
-    test(
-      'falls back from spd-say to espeak-ng and espeak, and handles missing binaries',
-      () async {
-        final attempted = <String>[];
-        final espeakArgs = <List<String>>[];
-        final proc = _FakeProcess();
+    test('falls back from spd-say to espeak-ng and espeak, and handles missing binaries', () async {
+      final attempted = <String>[];
+      final espeakArgs = <List<String>>[];
+      final proc = _FakeProcess();
 
-        final ttsFallback = TtsService(
-          isLinuxOverride: true,
-          linuxProcessStarter: (exe, args) async {
-            attempted.add(exe);
-            if (exe == 'spd-say') {
-              throw const ProcessException('spd-say', [], 'No such file');
-            }
-            if (exe == 'espeak-ng') {
-              espeakArgs.add(args);
-              return proc;
-            }
-            fail('Unexpected executable $exe');
-          },
-        );
-        addTearDown(ttsFallback.dispose);
-
-        await ttsFallback.toggleSpeak(
-          key: 'alt-1',
-          text: 'Hello Linux',
-          languageName: 'French',
-          speechRate: 0.5,
-        );
-
-        expect(attempted, ['spd-say', 'espeak-ng']);
-        expect(espeakArgs.single, ['-s', '175', '-v', 'fr', '--', 'Hello Linux']);
-        expect(ttsFallback.isSpeakingKey('alt-1'), isTrue);
-
-        // Now verify espeak-ng -> espeak fallback.
-        final attemptedSecond = <String>[];
-        final proc2 = _FakeProcess();
-        final ttsEspeak = TtsService(
-          isLinuxOverride: true,
-          linuxProcessStarter: (exe, args) async {
-            attemptedSecond.add(exe);
-            if (exe == 'spd-say' || exe == 'espeak-ng') {
-              throw ProcessException(exe, args, 'Not found');
-            }
-            return proc2;
-          },
-        );
-        addTearDown(ttsEspeak.dispose);
-
-        await ttsEspeak.toggleSpeak(key: 'alt-2', text: 'Fallback test');
-        expect(attemptedSecond, ['spd-say', 'espeak-ng', 'espeak']);
-        expect(ttsEspeak.isSpeakingKey('alt-2'), isTrue);
-
-        // When none exist, no exception is thrown and speaking remains false.
-        final ttsNone = TtsService(
-          isLinuxOverride: true,
-          linuxProcessStarter: (exe, args) async {
-            throw ProcessException(exe, args, 'Not found');
-          },
-        );
-        addTearDown(ttsNone.dispose);
-
-        await ttsNone.toggleSpeak(key: 'alt-3', text: 'Silent');
-        expect(ttsNone.isSpeaking, isFalse);
-        expect(ttsNone.activeKey, isNull);
-      },
-    );
-
-    test('stop() and toggling the active key kill the process and clear state',
-        () async {
-      final procs = <_FakeProcess>[];
-      final tts = TtsService(
+      final ttsFallback = TtsService(
         isLinuxOverride: true,
         linuxProcessStarter: (exe, args) async {
-          final p = _FakeProcess();
-          procs.add(p);
-          return p;
+          attempted.add(exe);
+          if (exe == 'spd-say') {
+            throw const ProcessException('spd-say', [], 'No such file');
+          }
+          if (exe == 'espeak-ng') {
+            espeakArgs.add(args);
+            return proc;
+          }
+          fail('Unexpected executable $exe');
         },
       );
-      addTearDown(tts.dispose);
+      addTearDown(ttsFallback.dispose);
 
-      await tts.toggleSpeak(key: 'k1', text: 'First');
-      expect(tts.isSpeakingKey('k1'), isTrue);
+      await ttsFallback.toggleSpeak(
+        key: 'alt-1',
+        text: 'Hello Linux',
+        languageName: 'French',
+        speechRate: 0.5,
+      );
 
-      // Toggling the same key stops playback and kills the active process.
-      await tts.toggleSpeak(key: 'k1', text: 'First');
-      expect(procs[0].killed, isTrue);
-      expect(procs[0].killSignals, [ProcessSignal.sigterm]);
-      expect(tts.isSpeaking, isFalse);
-      expect(tts.activeKey, isNull);
+      expect(attempted, ['spd-say', 'espeak-ng']);
+      expect(espeakArgs.single, ['-s', '175', '-v', 'fr', '--', 'Hello Linux']);
+      expect(ttsFallback.isSpeakingKey('alt-1'), isTrue);
 
-      await tts.toggleSpeak(key: 'k2', text: 'Second');
-      expect(tts.isSpeakingKey('k2'), isTrue);
+      // Now verify espeak-ng -> espeak fallback.
+      final attemptedSecond = <String>[];
+      final proc2 = _FakeProcess();
+      final ttsEspeak = TtsService(
+        isLinuxOverride: true,
+        linuxProcessStarter: (exe, args) async {
+          attemptedSecond.add(exe);
+          if (exe == 'spd-say' || exe == 'espeak-ng') {
+            throw ProcessException(exe, args, 'Not found');
+          }
+          return proc2;
+        },
+      );
+      addTearDown(ttsEspeak.dispose);
 
-      await tts.stop();
-      expect(procs[1].killed, isTrue);
-      expect(tts.isSpeaking, isFalse);
-      expect(tts.activeKey, isNull);
+      await ttsEspeak.toggleSpeak(key: 'alt-2', text: 'Fallback test');
+      expect(attemptedSecond, ['spd-say', 'espeak-ng', 'espeak']);
+      expect(ttsEspeak.isSpeakingKey('alt-2'), isTrue);
+
+      // When none exist, no exception is thrown and speaking remains false.
+      final ttsNone = TtsService(
+        isLinuxOverride: true,
+        linuxProcessStarter: (exe, args) async {
+          throw ProcessException(exe, args, 'Not found');
+        },
+      );
+      addTearDown(ttsNone.dispose);
+
+      await ttsNone.toggleSpeak(key: 'alt-3', text: 'Silent');
+      expect(ttsNone.isSpeaking, isFalse);
+      expect(ttsNone.activeKey, isNull);
     });
+
+    test(
+      'stop() and toggling the active key kill the process and clear state',
+      () async {
+        final procs = <_FakeProcess>[];
+        final tts = TtsService(
+          isLinuxOverride: true,
+          linuxProcessStarter: (exe, args) async {
+            final p = _FakeProcess();
+            procs.add(p);
+            return p;
+          },
+        );
+        addTearDown(tts.dispose);
+
+        await tts.toggleSpeak(key: 'k1', text: 'First');
+        expect(tts.isSpeakingKey('k1'), isTrue);
+
+        // Toggling the same key stops playback and kills the active process.
+        await tts.toggleSpeak(key: 'k1', text: 'First');
+        expect(procs[0].killed, isTrue);
+        expect(procs[0].killSignals, [ProcessSignal.sigterm]);
+        expect(tts.isSpeaking, isFalse);
+        expect(tts.activeKey, isNull);
+
+        await tts.toggleSpeak(key: 'k2', text: 'Second');
+        expect(tts.isSpeakingKey('k2'), isTrue);
+
+        await tts.stop();
+        expect(procs[1].killed, isTrue);
+        expect(tts.isSpeaking, isFalse);
+        expect(tts.activeKey, isNull);
+      },
+    );
   });
 }

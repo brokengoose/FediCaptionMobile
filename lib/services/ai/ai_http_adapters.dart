@@ -95,15 +95,10 @@ class AiHttpAdapters {
         ],
       },
       'contents': [
-        {
-          'role': 'user',
-          'parts': parts,
-        },
+        {'role': 'user', 'parts': parts},
       ],
       if (expectJson)
-        'generationConfig': {
-          'responseMimeType': 'application/json',
-        },
+        'generationConfig': {'responseMimeType': 'application/json'},
     };
 
     final res = await _client
@@ -111,10 +106,7 @@ class AiHttpAdapters {
           uri,
           // Key goes in a header, never the URL: http.ClientException
           // stringifies the URI, and those messages are shown in the UI.
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': key,
-          },
+          headers: {'Content-Type': 'application/json', 'x-goog-api-key': key},
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 60));
@@ -128,10 +120,13 @@ class AiHttpAdapters {
     final decoded = jsonDecode(res.body) as Map<String, dynamic>;
     final candidates = (decoded['candidates'] as List<dynamic>?) ?? const [];
     if (candidates.isEmpty) {
-      throw const AiProviderException('Gemini returned no response candidates.');
+      throw const AiProviderException(
+        'Gemini returned no response candidates.',
+      );
     }
-    final content = (candidates.first as Map<String, dynamic>)['content']
-        as Map<String, dynamic>?;
+    final content =
+        (candidates.first as Map<String, dynamic>)['content']
+            as Map<String, dynamic>?;
     final outParts = (content?['parts'] as List<dynamic>?) ?? const [];
     final text = outParts
         .whereType<Map<String, dynamic>>()
@@ -213,8 +208,9 @@ class AiHttpAdapters {
     if (choices.isEmpty) {
       throw const AiProviderException('Provider returned no choices.');
     }
-    final message = (choices.first as Map<String, dynamic>)['message']
-        as Map<String, dynamic>?;
+    final message =
+        (choices.first as Map<String, dynamic>)['message']
+            as Map<String, dynamic>?;
     final content = (message?['content'] as String?)?.trim() ?? '';
     if (content.isEmpty) {
       throw const AiProviderException('Provider returned an empty message.');
@@ -255,10 +251,7 @@ class AiHttpAdapters {
       'max_tokens': 1024,
       'system': systemPrompt,
       'messages': [
-        {
-          'role': 'user',
-          'content': contentBlocks,
-        },
+        {'role': 'user', 'content': contentBlocks},
       ],
     };
 

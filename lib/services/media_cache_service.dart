@@ -15,10 +15,7 @@ import '../core/constants.dart';
 
 /// Cached remote media bytes and detected MIME type.
 class CachedMediaBytes {
-  const CachedMediaBytes({
-    required this.bytes,
-    required this.mimeType,
-  });
+  const CachedMediaBytes({required this.bytes, required this.mimeType});
 
   final Uint8List bytes;
   final String mimeType;
@@ -38,9 +35,9 @@ class MediaCacheService {
     this.maxDiskBytes = 150 * 1024 * 1024, // 150 MB
     this.maxAge = const Duration(days: 14),
     this.maxMemoryEntries = 48,
-  })  : _client = client ?? http.Client(),
-        _ownsClient = client == null,
-        _overrideDirectory = cacheDirectory;
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       _overrideDirectory = cacheDirectory;
 
   static final MediaCacheService instance = MediaCacheService();
 
@@ -113,17 +110,13 @@ class MediaCacheService {
         )
         .timeout(timeout);
 
-    if (res.statusCode < 200 || res.statusCode >= 300 || res.bodyBytes.isEmpty) {
-      throw HttpException(
-        'Failed to load media (${res.statusCode})',
-        uri: uri,
-      );
+    if (res.statusCode < 200 ||
+        res.statusCode >= 300 ||
+        res.bodyBytes.isEmpty) {
+      throw HttpException('Failed to load media (${res.statusCode})', uri: uri);
     }
 
-    final mimeType = _resolveMimeType(
-      res.headers['content-type'],
-      uri.path,
-    );
+    final mimeType = _resolveMimeType(res.headers['content-type'], uri.path);
     final result = CachedMediaBytes(bytes: res.bodyBytes, mimeType: mimeType);
     _putMemory(url, result);
     await _writeToDisk(url, result);

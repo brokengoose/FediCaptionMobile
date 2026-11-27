@@ -30,13 +30,7 @@ enum AiProviderType {
 
 /// Detail level for AI-generated image and video alt-text descriptions.
 enum CaptionDetailLevel {
-  concise(
-    'concise',
-    'Concise',
-    '1-2 sentences (150-300 characters)',
-    150,
-    300,
-  ),
+  concise('concise', 'Concise', '1-2 sentences (150-300 characters)', 150, 300),
   descriptive(
     'descriptive',
     'Descriptive',

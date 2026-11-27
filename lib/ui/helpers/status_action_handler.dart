@@ -17,9 +17,7 @@ import '../screens/thread_screen.dart';
 /// `mounted` safety, shared-cache updates, and screen-reader announcements
 /// consistently.
 class StatusActionHandler {
-  const StatusActionHandler({
-    required this.app,
-  });
+  const StatusActionHandler({required this.app});
 
   final AppController app;
 
@@ -251,6 +249,7 @@ class StatusActionHandler {
   void _syncCaches(MastodonStatus updated) => app.applyEditedStatus(updated);
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }

@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('CaptionFormatter', () {
     test('prepends exact mandatory prefix', () {
-      final result = CaptionFormatter.format('A red fox sitting in fresh snow.');
+      final result = CaptionFormatter.format(
+        'A red fox sitting in fresh snow.',
+      );
       expect(
         result,
         '${AppConstants.aiCaptionPrefix}A red fox sitting in fresh snow.',
@@ -17,7 +19,9 @@ void main() {
 
     test('strips surrounding quotes and redundant preambles', () {
       expect(
-        CaptionFormatter.format('"Image of a golden retriever catching a ball."'),
+        CaptionFormatter.format(
+          '"Image of a golden retriever catching a ball."',
+        ),
         'AI generated description: A golden retriever catching a ball.',
       );
       expect(
@@ -25,7 +29,9 @@ void main() {
         'AI generated description: A sunset over calm water.',
       );
       expect(
-        CaptionFormatter.format('Video of dancers practicing on a bright stage.'),
+        CaptionFormatter.format(
+          'Video of dancers practicing on a bright stage.',
+        ),
         'AI generated description: Dancers practicing on a bright stage.',
       );
       expect(

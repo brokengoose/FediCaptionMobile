@@ -10,7 +10,7 @@ import 'app_theme.dart';
 /// and reacts live to OS appearance & high-contrast changes when in System mode.
 class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   ThemeController({ThemePreference initialPreference = ThemePreference.system})
-      : _preference = initialPreference {
+    : _preference = initialPreference {
     WidgetsBinding.instance.addObserver(this);
     _syncFromPlatform();
   }
@@ -80,7 +80,10 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAccessibilityFeatures() {
     final nextHighContrast = WidgetsBinding
-        .instance.platformDispatcher.accessibilityFeatures.highContrast;
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .highContrast;
     if (nextHighContrast != _platformHighContrast) {
       _platformHighContrast = nextHighContrast;
       if (_preference == ThemePreference.system) {
@@ -96,8 +99,4 @@ class ThemeController extends ChangeNotifier with WidgetsBindingObserver {
   }
 }
 
-enum ResolvedTheme {
-  light,
-  dark,
-  highContrast,
-}
+enum ResolvedTheme { light, dark, highContrast }
