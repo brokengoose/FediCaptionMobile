@@ -143,6 +143,7 @@ class AppController extends ChangeNotifier {
   // Dynamic model lists for each AI provider
   final Map<AiProviderType, List<AiModelOption>> _modelsByProvider = {};
   final Set<AiProviderType> _loadingModels = {};
+  final Map<AiProviderType, int> _modelRequestIds = {};
 
   // Incrementing counter used to signal timelines to refresh after posting/editing/deleting.
   int _timelineRefreshNonce = 0;
@@ -828,6 +829,13 @@ class AppController extends ChangeNotifier {
       _safeNotify();
       return;
     }
+    // Per-provider request token: a slower fetch started with older settings
+    // (e.g. a previous base URL or key) must not overwrite a newer result or
+    // reset and persist the selected model.
+    final requestId = (_modelRequestIds[provider] ?? 0) + 1;
+    _modelRequestIds[provider] = requestId;
+    bool isLatest() => _modelRequestIds[provider] == requestId;
+
     _loadingModels.add(provider);
     _safeNotify();
 
@@ -837,7 +845,7 @@ class AppController extends ChangeNotifier {
         settings: _settings,
         credentials: _credentials,
       );
-      if (_disposed) return;
+      if (_disposed || !isLatest()) return;
       _modelsByProvider[provider] = fetched;
 
       // If the currently stored model isn't in the freshly returned list, adopt top choice.
@@ -852,8 +860,10 @@ class AppController extends ChangeNotifier {
         await storage.saveSettings(nextSettings);
       }
     } finally {
-      _loadingModels.remove(provider);
-      _safeNotify();
+      if (isLatest()) {
+        _loadingModels.remove(provider);
+        _safeNotify();
+      }
     }
   }
 
