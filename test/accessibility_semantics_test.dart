@@ -3,17 +3,22 @@
 
 import 'dart:ui' show Tristate;
 
+import 'package:fedicaption_mobile/app.dart';
 import 'package:fedicaption_mobile/models/mastodon_models.dart';
 import 'package:fedicaption_mobile/models/update_info.dart';
 import 'package:fedicaption_mobile/state/app_controller.dart';
+import 'package:fedicaption_mobile/ui/screens/local_search_screen.dart';
 import 'package:fedicaption_mobile/ui/widgets/accessible_button_semantics.dart';
 import 'package:fedicaption_mobile/ui/widgets/media_attachment_card.dart';
 import 'package:fedicaption_mobile/ui/widgets/status_card.dart';
 import 'package:fedicaption_mobile/ui/widgets/update_banner.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'helpers/fakes.dart';
 import 'helpers/test_app.dart';
 
 const _alice = MastodonAccount(
@@ -302,6 +307,86 @@ void main() {
           isSemantics(isButton: true, isEnabled: false, hasTapAction: false),
         );
         handle.dispose();
+      },
+    );
+
+    testWidgets(
+      'LocalSearchScreen debounces search, announces result count, and updates after edits',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        final announcements = <String>[];
+        tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler(
+          SystemChannels.accessibility,
+          (dynamic message) async {
+            if (message is Map && message['type'] == 'announce') {
+              final data = message['data'] as Map<dynamic, dynamic>?;
+              final text = data?['message'] as String?;
+              if (text != null) announcements.add(text);
+            }
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger
+              .setMockDecodedMessageHandler(SystemChannels.accessibility, null),
+        );
+
+        final app = buildTestAppController();
+        addTearDown(app.dispose);
+
+        final post = sampleStatus(
+          's1',
+          contentHtml: '<p>Cascade mountains trail</p>',
+        );
+        app.timelineCache.putTimeline(TimelineType.home, [
+          post,
+        ], hasMore: false);
+
+        // Verify cached haystack refreshes when a post is edited.
+        expect(app.timelineCache.searchLocal('cascade'), hasLength(1));
+        app.applyEditedStatus(
+          post.copyWith(contentHtml: '<p>Olympic peninsula rain</p>'),
+        );
+        expect(app.timelineCache.searchLocal('cascade'), isEmpty);
+        expect(app.timelineCache.searchLocal('olympic'), hasLength(1));
+
+        await tester.pumpWidget(
+          localizedTestApp(home: LocalSearchScreen(app: app)),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'olympic');
+        await tester.pump(const Duration(milliseconds: 50));
+        // Still within 120ms debounce window: no results rendered yet.
+        expect(find.byType(StatusCard), findsNothing);
+
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byType(StatusCard), findsOneWidget);
+
+        await tester.pump(const Duration(milliseconds: 700));
+        expect(announcements, contains('1 matching cached post'));
+      },
+    );
+
+    testWidgets(
+      'FediCaptionApp does not rebuild MaterialApp on unrelated AppController notifications',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        final app = buildTestAppController();
+        addTearDown(app.dispose);
+
+        await tester.pumpWidget(FediCaptionApp(controller: app));
+        await tester.pumpAndSettle();
+
+        final before = tester.widget<MaterialApp>(find.byType(MaterialApp));
+        final beforeNonce = app.timelineRefreshNonce;
+
+        app.notifyTimelinesShouldRefresh();
+        await tester.pump();
+
+        expect(app.timelineRefreshNonce, beforeNonce + 1);
+        final after = tester.widget<MaterialApp>(find.byType(MaterialApp));
+        expect(identical(before, after), isTrue);
       },
     );
   });

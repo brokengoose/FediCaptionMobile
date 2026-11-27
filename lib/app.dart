@@ -23,19 +23,85 @@ class FediCaptionApp extends StatefulWidget {
 }
 
 class _FediCaptionAppState extends State<FediCaptionApp> {
-  late final AppController _app;
-  late final bool _ownsController;
+  late AppController _app;
+  late bool _ownsController;
+  late bool _isInitializing;
+  late bool _needsAiSetup;
+  late bool _isAuthenticated;
+  Locale? _resolvedLocale;
+  late ThemeData _themeData;
 
   @override
   void initState() {
     super.initState();
     _ownsController = widget.controller == null;
     _app = widget.controller ?? AppController();
+    _attachListeners();
+    _syncRootSnapshot(assignOnly: true);
     unawaited(_app.initialize());
   }
 
   @override
+  void didUpdateWidget(covariant FediCaptionApp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      _detachListeners();
+      if (_ownsController) {
+        _app.dispose();
+      }
+      _ownsController = widget.controller == null;
+      _app = widget.controller ?? AppController();
+      _attachListeners();
+      _syncRootSnapshot(assignOnly: true);
+      if (_ownsController) {
+        unawaited(_app.initialize());
+      }
+    }
+  }
+
+  void _attachListeners() {
+    _app.addListener(_onAppOrThemeChanged);
+    _app.themeController.addListener(_onAppOrThemeChanged);
+  }
+
+  void _detachListeners() {
+    _app.removeListener(_onAppOrThemeChanged);
+    _app.themeController.removeListener(_onAppOrThemeChanged);
+  }
+
+  bool _syncRootSnapshot({bool assignOnly = false}) {
+    final nextInitializing = _app.isInitializing;
+    final nextNeedsAiSetup = _app.needsAiSetup;
+    final nextAuthenticated = _app.isAuthenticated;
+    final nextLocale = _app.settings.resolvedAppLocale;
+    final nextTheme = _app.themeController.themeData;
+
+    final changed =
+        assignOnly ||
+        nextInitializing != _isInitializing ||
+        nextNeedsAiSetup != _needsAiSetup ||
+        nextAuthenticated != _isAuthenticated ||
+        nextLocale != _resolvedLocale ||
+        nextTheme != _themeData;
+    if (changed) {
+      _isInitializing = nextInitializing;
+      _needsAiSetup = nextNeedsAiSetup;
+      _isAuthenticated = nextAuthenticated;
+      _resolvedLocale = nextLocale;
+      _themeData = nextTheme;
+    }
+    return changed;
+  }
+
+  void _onAppOrThemeChanged() {
+    if (mounted && _syncRootSnapshot()) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    _detachListeners();
     if (_ownsController) {
       _app.dispose();
     }
@@ -44,25 +110,20 @@ class _FediCaptionAppState extends State<FediCaptionApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([_app, _app.themeController]),
-      builder: (context, _) {
-        return MaterialApp(
-          title: AppConstants.appName,
-          debugShowCheckedModeBanner: false,
-          theme: _app.themeController.themeData,
-          locale: _app.settings.resolvedAppLocale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: _app.isInitializing
-              ? const _SplashScreen()
-              : (_app.needsAiSetup
-                    ? AiSetupScreen(app: _app)
-                    : (!_app.isAuthenticated
-                          ? LoginScreen(app: _app)
-                          : HomeShell(app: _app))),
-        );
-      },
+    return MaterialApp(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      theme: _themeData,
+      locale: _resolvedLocale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: _isInitializing
+          ? const _SplashScreen()
+          : (_needsAiSetup
+                ? AiSetupScreen(app: _app)
+                : (!_isAuthenticated
+                      ? LoginScreen(app: _app)
+                      : HomeShell(app: _app))),
     );
   }
 }

@@ -22,24 +22,14 @@ enum TimelineType {
 
 /// Mastodon post visibility options.
 enum PostVisibility {
-  public(
-    'public',
-    'Public',
-    'Visible to everyone and shown in public timelines',
-  ),
-  unlisted(
-    'unlisted',
-    'Unlisted',
-    'Visible to everyone, but omitted from public timelines',
-  ),
-  private('private', 'Followers Only', 'Visible only to your followers'),
-  direct('direct', 'Mentioned Only', 'Visible only to mentioned users');
+  public('public'),
+  unlisted('unlisted'),
+  private('private'),
+  direct('direct');
 
-  const PostVisibility(this.apiValue, this.label, this.description);
+  const PostVisibility(this.apiValue);
 
   final String apiValue;
-  final String label;
-  final String description;
 
   static PostVisibility fromApi(String? value) {
     return PostVisibility.values.firstWhere(

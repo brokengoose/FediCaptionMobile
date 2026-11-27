@@ -21,14 +21,6 @@ class OnDeviceAiStatus {
   final String? promptDiagnostic;
   final String? imageDescriptionDiagnostic;
 
-  String get diagnosticDetail {
-    final parts = <String>[
-      'Prompt API: ${promptAvailability.name}${promptDiagnostic != null ? ' ($promptDiagnostic)' : ''}',
-      'Image Description API: ${imageDescriptionAvailability.name}${imageDescriptionDiagnostic != null ? ' ($imageDescriptionDiagnostic)' : ''}',
-    ];
-    return parts.join('\n');
-  }
-
   bool get isPromptReady =>
       promptAvailability == EdgeGenAIAvailability.available;
   bool get isImageDescriberReady =>

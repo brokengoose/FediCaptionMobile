@@ -9,19 +9,13 @@ import 'mastodon_models.dart';
 
 /// Shared policy mode for both Accessibility Rules (alt-text) and Bias Rules.
 enum PolicyMode {
-  warn(
-    'warn',
-    'Warn (Default)',
-    'Warn before posting, with an option to continue anyway.',
-  ),
-  require('require', 'Require', 'Block posting until resolved.'),
-  off('off', 'Off', 'Do not check or warn before posting.');
+  warn('warn'),
+  require('require'),
+  off('off');
 
-  const PolicyMode(this.id, this.label, this.description);
+  const PolicyMode(this.id);
 
   final String id;
-  final String label;
-  final String description;
 
   static PolicyMode fromId(String? id) {
     return PolicyMode.values.firstWhere(
@@ -34,15 +28,14 @@ enum PolicyMode {
 /// User theme choice. Defaults to [system] which automatically detects OS
 /// Light Mode, Dark Mode, and High Contrast / Increased Contrast settings.
 enum ThemePreference {
-  system('system', 'System Default (Auto-Detect)'),
-  dark('dark', 'Dark Theme'),
-  light('light', 'Light Theme'),
-  highContrast('high_contrast', 'High Contrast (WCAG AAA)');
+  system('system'),
+  dark('dark'),
+  light('light'),
+  highContrast('high_contrast');
 
-  const ThemePreference(this.id, this.label);
+  const ThemePreference(this.id);
 
   final String id;
-  final String label;
 
   static ThemePreference fromId(String? id) {
     return ThemePreference.values.firstWhere(

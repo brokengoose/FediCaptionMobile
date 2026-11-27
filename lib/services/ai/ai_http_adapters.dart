@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import 'dart:convert';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -24,6 +26,17 @@ class AiHttpAdapters {
   const AiHttpAdapters(this._client);
 
   final http.Client _client;
+
+  static const int _isolateBase64ThresholdBytes = 256 * 1024;
+
+  /// Encodes [bytes] to base64 off the UI isolate when larger than 256 KB
+  /// (e.g. inline Gemini video uploads) so UI frames never stutter.
+  static Future<String> _encodeBase64Async(Uint8List bytes) {
+    if (bytes.length > _isolateBase64ThresholdBytes) {
+      return Isolate.run(() => base64Encode(bytes));
+    }
+    return Future<String>.value(base64Encode(bytes));
+  }
 
   /// Normalizes a provider base URL by falling back to [fallback] and stripping
   /// trailing slashes.
@@ -83,7 +96,7 @@ class AiHttpAdapters {
         {
           'inline_data': {
             'mime_type': item.mimeType,
-            'data': base64Encode(item.bytes),
+            'data': await _encodeBase64Async(item.bytes),
           },
         },
     ];
@@ -167,7 +180,8 @@ class AiHttpAdapters {
         {
           'type': 'image_url',
           'image_url': {
-            'url': 'data:${item.mimeType};base64,${base64Encode(item.bytes)}',
+            'url':
+                'data:${item.mimeType};base64,${await _encodeBase64Async(item.bytes)}',
           },
         },
     ];
@@ -240,7 +254,7 @@ class AiHttpAdapters {
           'source': {
             'type': 'base64',
             'media_type': item.mimeType,
-            'data': base64Encode(item.bytes),
+            'data': await _encodeBase64Async(item.bytes),
           },
         },
       {'type': 'text', 'text': userPrompt},
@@ -315,10 +329,10 @@ class AiHttpAdapters {
       );
     }
 
-    final imagesBase64 = media
-        .where((m) => !m.isVideo)
-        .map((m) => base64Encode(m.bytes))
-        .toList();
+    final imagesBase64 = <String>[
+      for (final item in media.where((m) => !m.isVideo))
+        await _encodeBase64Async(item.bytes),
+    ];
 
     final ollamaBody = <String, dynamic>{
       'model': model,

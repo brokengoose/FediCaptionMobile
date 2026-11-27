@@ -6,16 +6,7 @@ import 'dart:typed_data';
 import 'ai_models.dart';
 
 /// Processing state for a media attachment in the composer.
-enum AttachmentStatus {
-  scanning('AI Scanning...'),
-  ready('Alt-Text Ready'),
-  missingAltText('Missing Alt-Text'),
-  error('Error');
-
-  const AttachmentStatus(this.label);
-
-  final String label;
-}
+enum AttachmentStatus { scanning, ready, missingAltText, error }
 
 /// Represents a local or existing remote media attachment inside the post composer.
 class ComposerAttachment {

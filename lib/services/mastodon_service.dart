@@ -1,6 +1,7 @@
 // Copyright (c) 2026 brokengoose <brokengoose@users.noreply.github.com>
 // SPDX-License-Identifier: MIT
 
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -76,10 +77,27 @@ class MastodonService {
   final int _mediaPollAttempts;
 
   static const Duration _profileCacheTtl = Duration(minutes: 3);
-  final Map<String, ({MastodonAccount account, DateTime fetchedAt})>
-  _accountCache = {};
-  final Map<String, ({MastodonRelationship? relationship, DateTime fetchedAt})>
-  _relationshipCache = {};
+  static const int _maxProfileCacheEntries = 200;
+  final LinkedHashMap<String, ({MastodonAccount account, DateTime fetchedAt})>
+  _accountCache =
+      LinkedHashMap<String, ({MastodonAccount account, DateTime fetchedAt})>();
+  final LinkedHashMap<
+    String,
+    ({MastodonRelationship? relationship, DateTime fetchedAt})
+  >
+  _relationshipCache =
+      LinkedHashMap<
+        String,
+        ({MastodonRelationship? relationship, DateTime fetchedAt})
+      >();
+
+  static void _putBounded<K, V>(LinkedHashMap<K, V> cache, K key, V value) {
+    cache.remove(key);
+    cache[key] = value;
+    while (cache.length > _maxProfileCacheEntries) {
+      cache.remove(cache.keys.first);
+    }
+  }
 
   /// Clears short-lived in-memory profile/relationship caches (e.g. on logout).
   void clearSessionCaches() {
@@ -311,6 +329,7 @@ class MastodonService {
       final cached = _accountCache[cacheKey];
       if (cached != null &&
           DateTime.now().difference(cached.fetchedAt) < _profileCacheTtl) {
+        _putBounded(_accountCache, cacheKey, cached);
         return cached.account;
       }
     }
@@ -321,7 +340,10 @@ class MastodonService {
       errorContext: 'Failed to load user profile',
     );
     final account = MastodonAccount.fromJson(decoded);
-    _accountCache[cacheKey] = (account: account, fetchedAt: DateTime.now());
+    _putBounded(_accountCache, cacheKey, (
+      account: account,
+      fetchedAt: DateTime.now(),
+    ));
     return account;
   }
 
@@ -361,6 +383,7 @@ class MastodonService {
       final cached = _relationshipCache[cacheKey];
       if (cached != null &&
           DateTime.now().difference(cached.fetchedAt) < _profileCacheTtl) {
+        _putBounded(_relationshipCache, cacheKey, cached);
         return cached.relationship;
       }
     }
@@ -375,10 +398,10 @@ class MastodonService {
     final rel = (list.isEmpty || list.first is! Map<String, dynamic>)
         ? null
         : MastodonRelationship.fromJson(list.first as Map<String, dynamic>);
-    _relationshipCache[cacheKey] = (
+    _putBounded(_relationshipCache, cacheKey, (
       relationship: rel,
       fetchedAt: DateTime.now(),
-    );
+    ));
     return rel;
   }
 
@@ -398,10 +421,10 @@ class MastodonService {
     );
     final rel = MastodonRelationship.fromJson(decoded);
     final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
-    _relationshipCache[cacheKey] = (
+    _putBounded(_relationshipCache, cacheKey, (
       relationship: rel,
       fetchedAt: DateTime.now(),
-    );
+    ));
     return rel;
   }
 
@@ -419,10 +442,10 @@ class MastodonService {
     );
     final rel = MastodonRelationship.fromJson(decoded);
     final cacheKey = '${normalizeInstanceUrl(instanceUrl)}|$accountId';
-    _relationshipCache[cacheKey] = (
+    _putBounded(_relationshipCache, cacheKey, (
       relationship: rel,
       fetchedAt: DateTime.now(),
-    );
+    ));
     return rel;
   }
 
